@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminEmail, type Role } from '@/lib/roles';
+import { isAdmin, type Role } from '@/lib/roles';
 import AdminDashboard, { AdminUserRow } from '@/components/AdminDashboard';
 
 export default async function AdminPage() {
@@ -11,7 +11,7 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!isAdminEmail(user?.email)) {
+  if (!(await isAdmin(supabase, user?.email))) {
     redirect('/');
   }
 

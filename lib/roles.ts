@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type Role = 'general_user' | 'adopter' | 'pathway_contributor';
+export type Role = 'general_user' | 'adopter' | 'pathway_contributor' | 'admin';
 
 // Checks the CURRENT signed-in user's own roles via the normal per-request
 // client (not the service-role client) — relies on user_roles' "select own
@@ -18,9 +18,10 @@ export async function hasAnyRole(supabase: SupabaseClient): Promise<boolean> {
   return !!data;
 }
 
-// Who can access /admin and its API routes — reuses ADMIN_EMAILS (the same
-// list originally used for the email-based flow) rather than a separate
-// 'admin' role, since there's no other use for one yet.
+// ADMIN_EMAILS is a permanent fallback, not the only path — kept so there's
+// no bootstrapping problem (someone always has access even if user_roles is
+// ever empty or a row goes missing). Real admin grants beyond this list live
+// in the database as an ordinary 'admin' role, same as the other three.
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   const adminAddresses = (process.env.ADMIN_EMAILS ?? '')
@@ -28,4 +29,11 @@ export function isAdminEmail(email: string | null | undefined): boolean {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
   return adminAddresses.includes(email.toLowerCase());
+}
+
+// The actual check to use everywhere — env-var fallback OR a real 'admin'
+// role grant.
+export async function isAdmin(supabase: SupabaseClient, email: string | null | undefined): Promise<boolean> {
+  if (isAdminEmail(email)) return true;
+  return hasRole(supabase, 'admin');
 }

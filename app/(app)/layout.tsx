@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import { hasAnyRole, isAdminEmail } from '@/lib/roles';
+import { hasAnyRole, isAdmin } from '@/lib/roles';
 import Sidebar from '@/components/Sidebar';
 import SignOutButton from '@/components/SignOutButton';
 
@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar email={email} designs={designs ?? []} isAdmin={isAdminEmail(email)} />
+      <Sidebar email={email} designs={designs ?? []} isAdmin={await isAdmin(supabase, email)} />
       <div className="flex-1 flex flex-col overflow-hidden pt-14 md:pt-0">{children}</div>
     </div>
   );

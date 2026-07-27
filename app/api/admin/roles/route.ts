@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminEmail, type Role } from '@/lib/roles';
+import { isAdmin, type Role } from '@/lib/roles';
 
-const VALID_ROLES: Role[] = ['general_user', 'adopter', 'pathway_contributor'];
+const VALID_ROLES: Role[] = ['general_user', 'adopter', 'pathway_contributor', 'admin'];
 
 export async function POST(req: Request) {
   // Never trust the client on this — re-check against the caller's own
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!isAdminEmail(user?.email)) {
+  if (!(await isAdmin(supabase, user?.email))) {
     return Response.json({ error: 'Not authorized.' }, { status: 403 });
   }
 

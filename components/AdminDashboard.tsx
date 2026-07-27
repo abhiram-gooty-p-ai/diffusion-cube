@@ -15,6 +15,7 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'general_user', label: 'General User' },
   { value: 'adopter', label: 'Adopter' },
   { value: 'pathway_contributor', label: 'Pathway Contributor' },
+  { value: 'admin', label: 'Admin' },
 ];
 
 export default function AdminDashboard({ initialRows }: { initialRows: AdminUserRow[] }) {

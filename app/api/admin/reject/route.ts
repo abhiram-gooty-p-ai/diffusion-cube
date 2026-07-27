@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminEmail } from '@/lib/roles';
+import { isAdmin } from '@/lib/roles';
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!isAdminEmail(user?.email)) {
+  if (!(await isAdmin(supabase, user?.email))) {
     return Response.json({ error: 'Not authorized.' }, { status: 403 });
   }
 
