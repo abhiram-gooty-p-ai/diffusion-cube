@@ -5,6 +5,7 @@ import ChatPanel from '@/components/ChatPanel';
 import AttachmentsPanel from '@/components/AttachmentsPanel';
 import CoverageGrid from '@/components/CoverageGrid';
 import AdoptionPlanModal from '@/components/AdoptionPlanModal';
+import PathwayDraftModal from '@/components/PathwayDraftModal';
 import {
   AdoptionConversation,
   extractUploadedFileNames,
@@ -20,6 +21,7 @@ import {
   insertDesignDocumentVersion,
   listDesignDocumentVersions,
 } from '@/lib/design-documents';
+import { createClient } from '@/lib/supabase/client';
 
 const DOC_LABELS: Record<DocType, { title: string; mode: string; loadingLabel: string; filenameSuffix: string }> = {
   analysis: {
@@ -63,8 +65,66 @@ export default function AdoptionWorkspace({ initial, onCreated, onChange, onBack
   const [docVersionRows, setDocVersionRows] = useState<DesignDocumentRow[]>([]);
   const [filesOpen, setFilesOpen] = useState(false);
   const [gridOpen, setGridOpen] = useState(true);
+  const [pathwayDraftOpen, setPathwayDraftOpen] = useState(false);
+  const [pathwayDraftMarkdown, setPathwayDraftMarkdown] = useState('');
+  const [pathwayDraftLoading, setPathwayDraftLoading] = useState(false);
+  const [pathwayDraftError, setPathwayDraftError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
+
+  // Drafts the conversation as a would-be corpus pathway page (Sections 0-6 +
+  // Provenance appendix, same structure as the real corpus) for the user to
+  // review, edit, and optionally approve — see PathwayDraftModal.
+  async function handleGeneratePathwayDraft() {
+    if (!conversation) return;
+    setPathwayDraftOpen(true);
+    setPathwayDraftLoading(true);
+    setPathwayDraftError(null);
+    setPathwayDraftMarkdown('');
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            ...toApiMessages(conversation.messages),
+            { role: 'user', content: 'Draft my adoption as a pathway page now.' },
+          ],
+          mode: 'pathway-draft',
+          grid: conversation.grid,
+          meta: conversation.meta,
+        }),
+      });
+      if (!res.body) throw new Error('No response from the server.');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        setPathwayDraftMarkdown(text);
+      }
+    } catch {
+      setPathwayDraftError('Could not draft this pathway page. Try again.');
+    } finally {
+      setPathwayDraftLoading(false);
+    }
+  }
+
+  // Approving only flags the draft for admin/pathway_contributor curation —
+  // it never publishes into the live wiki on its own (see
+  // supabase/migrations/0009_pathway_submissions.sql).
+  async function handleApprovePathwayDraft(finalText: string) {
+    if (!conversation) return;
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('pathway_submissions')
+      .insert({ design_id: conversation.id, content: finalText });
+    if (error) throw new Error(error.message);
+  }
 
   // Handles both documents — same flow, different mode. Cache-checked
   // against the conversation's current content hash; only calls the model
@@ -310,6 +370,12 @@ export default function AdoptionWorkspace({ initial, onCreated, onChange, onBack
               {gridOpen ? 'Hide standing' : 'Show standing'}
             </button>
             <button
+              onClick={handleGeneratePathwayDraft}
+              className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
+            >
+              Review as Wiki Page
+            </button>
+            <button
               onClick={() => handleGenerateDocument('plan')}
               className="rounded-lg border border-navy/20 px-3.5 py-1.5 text-xs font-medium text-navy transition hover:border-coral hover:text-coral"
             >
@@ -386,6 +452,16 @@ export default function AdoptionWorkspace({ initial, onCreated, onChange, onBack
           </div>
         )}
       </div>
+
+      {pathwayDraftOpen && (
+        <PathwayDraftModal
+          markdown={pathwayDraftMarkdown}
+          loading={pathwayDraftLoading}
+          error={pathwayDraftError}
+          onApprove={handleApprovePathwayDraft}
+          onClose={() => setPathwayDraftOpen(false)}
+        />
+      )}
 
       {activeDocType && (
         <AdoptionPlanModal

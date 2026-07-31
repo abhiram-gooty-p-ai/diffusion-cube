@@ -1,20 +1,25 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
 
-// The corpus is read from the local filesystem for now (WIKI_PATH points at
-// the Diffusion Library wiki checkout); S3 is the likely eventual home. All
-// reads go through readSource() so swapping local-disk for S3 later is a
-// one-function change, no call-site edits.
-//
-// NOTE: local reads outside this repo work in dev but NOT on Vercel — before
-// deploying, either commit the wiki into this repo or complete the S3 move.
-const WIKI_PATH = process.env.WIKI_PATH ?? '/Users/abhiramgooty/projects/Diffusion Library/wiki';
+// The corpus lives inside this repo (content/wiki/) so it deploys on Vercel
+// with no extra step; S3 is the likely eventual home once the corpus grows
+// past what's comfortable to commit. All reads go through readSource() so
+// swapping in-repo for S3 later is a one-function change, no call-site edits.
+// WIKI_PATH can still override this (e.g. to point at a different checkout
+// in local dev) but nothing requires it anymore.
+const WIKI_PATH = process.env.WIKI_PATH ?? path.join(process.cwd(), 'content', 'wiki');
 
 // The framework question bank ships inside this repo (content/framework.md)
 // rather than the external wiki: it's the app's own operating framework, and
 // bundling it means it survives deployment regardless of where the pathway
 // corpus ends up living.
 const FRAMEWORK_FILE = path.join(process.cwd(), 'content', 'framework.md');
+
+// The contributor-side generation prompt — the exact rules for the pathway
+// document's output structure (Sections 0-6 + Provenance appendix). Also
+// used at runtime for the `pathway-draft` mode, which drafts a user's own
+// adoption in the same structure for their review.
+const PATHWAY_GENERATION_PROMPT_FILE = path.join(process.cwd(), 'content', 'pathway-generation-prompt.md');
 
 async function readSource(filePath: string): Promise<string> {
   try {
@@ -43,6 +48,10 @@ function parsePathwaySlugs(indexMd: string): string[] {
 // prompts rather than hardcoded in system-prompts.ts.
 export async function loadFrameworkContent(): Promise<string> {
   return readSource(FRAMEWORK_FILE);
+}
+
+export async function loadPathwayGenerationPrompt(): Promise<string> {
+  return readSource(PATHWAY_GENERATION_PROMPT_FILE);
 }
 
 // Loads the pathway corpus: the pathways index plus every pathway document.

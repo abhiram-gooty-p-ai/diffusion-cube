@@ -33,6 +33,7 @@ export default function Sidebar({ email, adoptions, isAdmin }: Props) {
   const navItems = [
     { href: '/', label: 'New adoption' },
     { href: '/adoptions', label: 'Your adoptions' },
+    { href: '/wiki', label: 'The Wiki' },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 

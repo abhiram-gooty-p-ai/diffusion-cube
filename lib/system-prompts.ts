@@ -103,6 +103,49 @@ Density scale per cell — grounded in the framework's insight forms, not just w
 Notes are one plain line on what's actually been established, in the user's own terms. Update cells only from what the user actually said or shared — never from your own recommendations. Never lower a density unless the user corrects earlier information. Fill meta fields only from genuine information; never overwrite known values with guesses. Never mention the grid, densities, or this JSON in your prose.`;
 }
 
+// Silent, one-shot extraction pass (mode `extract-insights`): reads one
+// uploaded document — on its own, before any conversation has happened — and
+// returns only a <grid_update> block. Seeds the workspace grid the moment a
+// file lands, rather than waiting for the user to send a first message.
+export function documentInsightSystemPrompt(frameworkContent: string, grid: GridState): string {
+  return `You are silently reading one document the user just uploaded to the Adoption Companion, before they've said anything. Extract what it establishes against the framework below — nothing else.
+
+${frameworkBlock(frameworkContent)}
+
+## What's already established for this adoption (do not lower any density below this — only add to it or leave it alone)
+
+${gridContext(grid) || '  (nothing yet — this is the first document)'}
+
+## Extraction discipline
+
+Apply the framework's own extraction discipline: tag what the document actually states, dimension by dimension, sub-category by sub-category. Never infer beyond what's written — "not documented in the source" is a correct finding, not a gap to fill with a guess. A cell you have no real evidence for should simply be omitted from your response, not zeroed out.
+
+The next message is the document's extracted text (or a request to read an attached image). Respond with ONLY this JSON block — no prose, no preamble, no explanation of your reasoning:
+
+<grid_update>
+{
+  "cells": {
+    "persona:Explore": { "density": 0, "note": "" }
+    // include ONLY cells this document adds real evidence for
+  },
+  "meta": {
+    "name": "short working name for the adoption, or empty string",
+    "sector": "sector, or empty string",
+    "geography": "geography, or empty string",
+    "stage": "one of ${STAGES.join(', ')} — ONLY if the document explicitly states its own stage, else empty string",
+    "summary": "2-3 sentence summary of the adoption based on this document, or empty string"
+  }
+}
+</grid_update>
+
+Density scale — grounded in the framework's insight forms, not word count:
+- 1: touched — mentioned, but nothing specific
+- 2: developing — real specifics (a named person, a real decision, a concrete number)
+- 3: dense — what's established substantively satisfies the insight form for that dimension × stage cell
+
+Never fabricate a meta field the document doesn't actually state.`;
+}
+
 // Serializes grid + meta for the two document-generation prompts.
 function standingContext(grid: GridState, meta: CompanionMeta): string {
   return `## The user's current grid (4 dimensions × 4 stages)
@@ -116,6 +159,48 @@ sector: ${meta.sector || '(not yet known)'}
 geography: ${meta.geography || '(not yet known)'}
 stage: ${meta.stage || '(not stated by the user)'}
 summary: ${meta.summary || '(not yet known)'}`;
+}
+
+// On-demand "pathway-draft" mode: drafts the user's own adoption in the same
+// Sections 0-6 + Provenance-appendix structure every corpus pathway document
+// uses, so they can preview how it would read as a new pathway page, edit
+// it, and approve it. Approving only flags it for admin/pathway_contributor
+// curation (see supabase/migrations/0009_pathway_submissions.sql) — this
+// mode never publishes anything on its own.
+export function pathwayDraftSystemPrompt(
+  frameworkContent: string,
+  generationPromptContent: string,
+  grid: GridState,
+  meta: CompanionMeta,
+  generatedAt: string
+): string {
+  const title = meta.name || 'Untitled Adoption';
+
+  return `You are drafting how this adoption would read as a new pathway document for the 100 Pathways corpus — the same structured format every pathway document in the corpus uses. The user asked to preview this so they can review, edit, and decide whether to submit it for curation. Generating this draft does NOT submit or publish anything — it is for the user's own review only.
+
+## The AI Diffusion Pathway Framework
+
+${frameworkContent}
+
+## The exact generation rules and output structure to follow
+
+${generationPromptContent}
+
+${standingContext(grid, meta)}
+
+## Current date and time
+
+${generatedAt}
+
+CORE RULES
+
+1. Your ONLY source of facts is the conversation you're given (including anything the user uploaded within it) — never invent a name, number, outcome, or condition not actually stated. Where a section or field wants something the conversation doesn't establish, write "Not documented in the source" exactly as the generation rules above specify.
+2. Follow the output structure exactly: Sections 0–6, then the Provenance appendix (never called "Section 7"), per the generation rules above.
+3. For the Provenance appendix, key it to "Adoption Companion conversation" as the source, noting it's a live user's own conversation as of ${generatedAt} — not curated raw material — so a human reviewer treats every fact as the user's own account, not independently verified.
+4. Never mention "the framework," this prompt, or your classification reasoning anywhere in Sections 0–6 — the same rule that applies to any adopter-facing content.
+5. If the conversation hasn't established enough yet for a meaningful draft, output only: "Not enough of this adoption has been discussed yet to draft a pathway page. Keep going, and try this again once more has been established."
+
+Your entire response must be the document itself (Sections 0-6 + Provenance appendix), titled "${title}" as the pathway title, or the fallback line above — no preamble, no meta-commentary.`;
 }
 
 // On-demand "Analysis Doc" — the full standing document. Not a chat turn.

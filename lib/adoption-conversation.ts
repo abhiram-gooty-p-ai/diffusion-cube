@@ -131,6 +131,10 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
   const conversationRef = useRef<AdoptionConversation | null>(initial);
   const [loading, setLoading] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<StagedAttachment[]>([]);
+  // Dedupes concurrent ensureCreated() calls (e.g. several files dropped at
+  // once, each triggering extraction) so they share one row-creation insert
+  // instead of racing to create duplicates.
+  const creatingRef = useRef<Promise<AdoptionConversation> | null>(null);
 
   // Updater functions passed to setState must be pure — calling onChange
   // (which triggers the parent's list update) from inside one produces
@@ -182,6 +186,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
         body: JSON.stringify({
           messages: toApiMessages(next),
           mode: 'companion',
+          designId: id,
         }),
       });
 
@@ -236,29 +241,98 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
   );
 
   // Creates the row on first use; a no-op if the conversation already exists.
-  async function ensureCreated(): Promise<AdoptionConversation> {
-    if (conversationRef.current) return conversationRef.current;
+  // Concurrent callers (e.g. several dropped files each kicking off
+  // extraction) share the same in-flight insert rather than racing.
+  function ensureCreated(): Promise<AdoptionConversation> {
+    if (conversationRef.current) return Promise.resolve(conversationRef.current);
+    if (creatingRef.current) return creatingRef.current;
 
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('designs')
-      .insert({
-        meta: EMPTY_META,
-        grid_state: EMPTY_GRID,
-        messages: [{ role: 'assistant', content: INITIAL_MESSAGE }],
-      })
-      .select()
-      .single();
+    const promise = (async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('designs')
+          .insert({
+            meta: EMPTY_META,
+            grid_state: EMPTY_GRID,
+            messages: [{ role: 'assistant', content: INITIAL_MESSAGE }],
+          })
+          .select()
+          .single();
 
-    if (error || !data) {
-      throw new Error('Could not start a new adoption workspace. Try again.');
+        if (error || !data) {
+          console.error('Failed to create adoption row:', error);
+          throw new Error('Could not start a new adoption workspace. Try again.');
+        }
+
+        const created = rowToConversation(data as AdoptionRow);
+        conversationRef.current = created;
+        setConversation(created);
+        onCreated?.(created);
+        return created;
+      } finally {
+        creatingRef.current = null;
+      }
+    })();
+
+    creatingRef.current = promise;
+    return promise;
+  }
+
+  // Silent, one-shot extraction pass (mode `extract-insights`): reads one
+  // uploaded document on its own, before the user has said anything, and
+  // seeds the grid immediately rather than waiting for a chat turn. Never
+  // blocks or surfaces an error to the user — the document's text still
+  // reaches the model normally once they do send a message.
+  async function extractInsightsForAttachment(text: string) {
+    try {
+      const c = await ensureCreated();
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: text }],
+          mode: 'extract-insights',
+          grid: c.grid,
+        }),
+      });
+      if (!res.body) return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        full += decoder.decode(value, { stream: true });
+      }
+
+      const parsed = parseGridUpdate(full);
+      if (!parsed) return;
+
+      update((cur) => {
+        const nextGrid = { ...cur.grid };
+        for (const [key, cell] of Object.entries(parsed.cells)) {
+          if (cell && key in nextGrid) nextGrid[key] = cell;
+        }
+        const m = parsed.meta;
+        const nextMeta: AdoptionMeta = m
+          ? {
+              name: m.name || cur.meta.name,
+              sector: m.sector || cur.meta.sector,
+              geography: m.geography || cur.meta.geography,
+              stage: m.stage || cur.meta.stage,
+              summary: m.summary || cur.meta.summary,
+            }
+          : cur.meta;
+        return { ...cur, grid: nextGrid, meta: nextMeta };
+      });
+
+      if (conversationRef.current) void persist(conversationRef.current);
+    } catch {
+      // Best-effort enhancement — silently give up; nothing else depends on it.
     }
-
-    const created = rowToConversation(data as AdoptionRow);
-    conversationRef.current = created;
-    setConversation(created);
-    onCreated?.(created);
-    return created;
   }
 
   const handleUserSend = useCallback(
@@ -328,6 +402,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
             setPendingAttachments((s) =>
               s.map((a) => (a.id === attachmentId ? { ...a, state: 'ready', kind: 'text', text } : a))
             );
+            void extractInsightsForAttachment(text);
           }
         } catch (err) {
           setPendingAttachments((s) =>
