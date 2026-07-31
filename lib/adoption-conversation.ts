@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { EMPTY_GRID, type CellState, type GridState } from '@/lib/dimensions';
+import { EMPTY_GRID, type GridState } from '@/lib/dimensions';
 import { Message } from '@/components/ChatPanel';
 import { createClient } from '@/lib/supabase/client';
 import { extractTextFromFile, fileToImageBlock, getFileExtension, isImageFile } from '@/lib/extract-text';
+import { parseGridUpdate, stripGridUpdate } from '@/lib/grid-update';
 
 export interface AdoptionMeta {
   name: string;
@@ -93,29 +94,6 @@ export function toApiMessages(messages: Message[]) {
           ]
         : content,
   }));
-}
-
-interface ParsedGridUpdate {
-  cells: Record<string, CellState>;
-  meta?: Partial<AdoptionMeta>;
-}
-
-function parseGridUpdate(text: string): ParsedGridUpdate | null {
-  const match = text.match(/<grid_update>([\s\S]*?)<\/grid_update>/);
-  if (!match) return null;
-  try {
-    const parsed = JSON.parse(match[1]);
-    return { cells: parsed.cells ?? {}, meta: parsed.meta };
-  } catch {
-    return null;
-  }
-}
-
-// Cuts at the opening tag rather than matching a closed block, so a
-// <grid_update> that has only partially streamed in never renders.
-function stripGridUpdate(text: string): string {
-  const idx = text.indexOf('<grid_update');
-  return (idx === -1 ? text : text.slice(0, idx)).trim();
 }
 
 interface UseAdoptionConversationOptions {

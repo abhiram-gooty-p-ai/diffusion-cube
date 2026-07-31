@@ -60,7 +60,8 @@ proxy.ts                    ← auth middleware (public: /login only)
 /lib
   dimensions.ts              ← structural shape: 4 dimensions, sub-categories, weights, GridState types
   system-prompts.ts           ← companionSystemPrompt, analysisDocSystemPrompt, planDocumentSystemPrompt, documentInsightSystemPrompt, pathwayDraftSystemPrompt
-  adoption-conversation.ts     ← useAdoptionConversation hook: lazy row creation (dedup'd via creatingRef), grid_update parsing, attachments, extractInsightsForAttachment
+  grid-update.ts                ← parseGridUpdate/stripGridUpdate — split out so app/api/chat/route.ts (server) can import it without pulling in adoption-conversation.ts's React hooks
+  adoption-conversation.ts     ← useAdoptionConversation hook: lazy row creation (dedup'd via creatingRef), attachments, extractInsightsForAttachment
   adoptions-cache.ts            ← 60s TTL cache for the adoptions list
   design-documents.ts            ← versioned Analysis Doc / Plan Document storage + content-hash caching
   wiki-loader.ts                  ← in-repo corpus reads for prompts (see above)
@@ -121,11 +122,11 @@ Unchanged from before the revamp (see git history for detail): `proxy.ts` gates 
 - **`designs`** — one row per adoption: `meta`, `grid_state` (renamed from `cube_state` in migration 0008, which also cleared pre-revamp test rows), `messages` jsonb. Lazy creation on first send **or** first uploaded document (whichever happens first — `extract-insights` needs a row to seed).
 - **`design_documents`** — versioned generated docs, content-hash cached.
 - **`pathway_submissions`** (migration 0009) — approved "Review as Wiki Page" drafts: `design_id`, `content`, `status` (`pending_review`/`reviewed`). Owner can insert/view their own; admin review is via the service-role client only (`app/api/admin/pathway-submissions/review/`), same pattern as role assignment. Never auto-publishes into `content/wiki/`.
-- **`adoption_queries`** (migration 0010) — every companion-mode user message, insert-only, for future cross-adoption insight gathering. Nothing reads this yet.
+- **`adoption_queries`** (migrations 0010, 0011) — every companion-mode user message, insert-only, tagged with `pathway_slugs` (parsed from that turn's `<grid_update>.pathwaysReferenced` — which pathways the response actually drew on) for future cross-adoption insight gathering. Nothing reads this yet.
 - **`user_roles`** — `(user_id, role)` grants: general_user | adopter | pathway_contributor | admin.
 - Inert leftovers: `pathway_cache`, `wiki_cache`, `pending_signups` (nothing reads or writes them).
 
-Migrations 0008, 0009, and 0010 must be run in the Supabase SQL Editor for the app to work post-revamp.
+Migrations 0008 through 0011 must be run in the Supabase SQL Editor for the app to work post-revamp.
 
 ## Environment variables
 

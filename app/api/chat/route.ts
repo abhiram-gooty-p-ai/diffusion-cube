@@ -11,6 +11,7 @@ import { logConversation } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
 import { hasAnyRole } from '@/lib/roles';
 import { EMPTY_GRID } from '@/lib/dimensions';
+import { parseGridUpdate } from '@/lib/grid-update';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -41,21 +42,6 @@ export async function POST(req: Request) {
   const approved = await hasAnyRole(supabase);
   if (!approved) {
     return Response.json({ error: 'Your account is awaiting approval.' }, { status: 403 });
-  }
-
-  // Records every companion-mode query for future cross-adoption insight
-  // gathering (see supabase/migrations/0010_adoption_queries.sql) — fire and
-  // forget, never blocks or breaks the chat turn if it fails.
-  if (mode === 'companion') {
-    const content = lastUserMessageText(messages);
-    if (content) {
-      supabase
-        .from('adoption_queries')
-        .insert({ design_id: designId ?? null, content })
-        .then(({ error }) => {
-          if (error) console.error('[adoption_queries] insert failed:', error);
-        });
-    }
   }
 
   const [wikiContent, frameworkContent] = await Promise.all([loadWikiContext(), loadFrameworkContent()]);
@@ -109,6 +95,24 @@ export async function POST(req: Request) {
 
       // Fire-and-forget — never blocks the response
       logConversation({ mode, messages, response: fullResponse });
+
+      // Records every companion-mode query, tagged with the pathway slug(s)
+      // the response actually drew on (see supabase/migrations/0010 and
+      // 0011, and companionSystemPrompt's grid_update contract) — raw
+      // material for future cross-adoption insight gathering; nothing reads
+      // it yet.
+      if (mode === 'companion') {
+        const content = lastUserMessageText(messages);
+        if (content) {
+          const pathwaySlugs = parseGridUpdate(fullResponse)?.pathwaysReferenced ?? [];
+          supabase
+            .from('adoption_queries')
+            .insert({ design_id: designId ?? null, content, pathway_slugs: pathwaySlugs })
+            .then(({ error }) => {
+              if (error) console.error('[adoption_queries] insert failed:', error);
+            });
+        }
+      }
     },
   });
 

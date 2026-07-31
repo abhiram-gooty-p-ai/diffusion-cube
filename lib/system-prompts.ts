@@ -90,7 +90,8 @@ You track the user's adoption on a 4×4 grid: four dimensions (persona, solution
     "geography": "geography, or empty string",
     "stage": "one of ${STAGES.join(', ')} — ONLY if the user has stated it themselves, else empty string",
     "summary": "2-3 sentence summary of the adoption as understood so far, or empty string"
-  }
+  },
+  "pathwaysReferenced": ["exact-slug-from-the-corpus-above"]
 }
 </grid_update>
 
@@ -100,7 +101,7 @@ Density scale per cell — grounded in the framework's insight forms, not just w
 - 2: developing — real specifics established (a named person, a real decision, a concrete number)
 - 3: dense — what's established substantively satisfies the insight form for that dimension × stage cell
 
-Notes are one plain line on what's actually been established, in the user's own terms. Update cells only from what the user actually said or shared — never from your own recommendations. Never lower a density unless the user corrects earlier information. Fill meta fields only from genuine information; never overwrite known values with guesses. Never mention the grid, densities, or this JSON in your prose.`;
+Notes are one plain line on what's actually been established, in the user's own terms. Update cells only from what the user actually said or shared — never from your own recommendations. Never lower a density unless the user corrects earlier information. Fill meta fields only from genuine information; never overwrite known values with guesses. pathwaysReferenced is internal bookkeeping only (used to log what this turn drew on, never shown to the user) — list the exact slug shown after "# Pathway:" for every pathway you actually named or drew on this turn (an empty array if you referenced none). Never mention the grid, densities, pathwaysReferenced, or this JSON in your prose.`;
 }
 
 // Silent, one-shot extraction pass (mode `extract-insights`): reads one
