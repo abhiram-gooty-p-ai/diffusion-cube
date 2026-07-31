@@ -1,267 +1,137 @@
-# People+Possibilities AI Diffusion Studio
+# 100 Pathways — Adoption Companion
 
 ## What this is
 
-A Next.js web application (branded "People+Possibilities AI Diffusion Studio") with two modes: exploring existing AI deployment pathways, and designing a new one. The agent powering the conversation ("Jude") reads from a markdown wiki of real AI deployments and responds using the Anthropic API. Users sign in with email/password; designs persist per-user in Supabase across sessions and devices. Design conversations accept typed text, pasted context, and uploaded documents/images, and can generate two kinds of downloadable output document at any point.
+A Next.js web app, the conversational companion to **100pathways.com** — themed to match it exactly and linked back to it from every page's header. A signed-in user works through their own AI adoption in a single workspace: they upload documents and/or talk, and everything they hear back is grounded in a corpus of real deployment pathways (the Diffusion Library wiki). The companion is **fully user-led**: it recommends on content the user raises (grounded in named pathway precedents with condition tags) but never sets the agenda, never proposes what to discuss next, and never assigns or recommends a stage. Standing is tracked on a **4 dimensions × 4 stages coverage grid** rendered in the same density notation (○/●/●●/●●●) the pathway documents themselves use. Two documents can be generated at any point (Analysis Doc, Plan Document), versioned and cached in Supabase.
+
+This is the `revamp-100pathways` branch — a full revamp replacing the earlier "AI Diffusion Studio" app (Explore mode, 7 dimensions, cream/brown theme all removed). Phase 2 (document-insight extraction seeding the grid, richer workspace) is planned but not built.
+
+## The framework
+
+Defined by the "AI Diffusion Pathway Framework" doc, transcribed into `content/framework.md` (injected into every prompt — edit that file to change behavior, no code change):
+
+- **Four dimensions**: Persona, Solution, Institution, Ecosystem — each with lettered sub-categories (4/5/7/6 respectively), each sub-category weighted **Primary / Secondary / Dormant** per stage.
+- **Four stages**: Explore, Define, Pilot, Scale — each with "done when…" markers.
+- **Five unit types** for corpus knowledge: Strategic Decision, Tactical Decision, Failure and Fix, Playbook, Toolkit Asset — every unit carries a condition tag (applies when / fails when).
+- **30/70 thesis**: Persona+Solution = building the right thing; Institution+Ecosystem = the larger adoption work.
+
+`lib/dimensions.ts` holds only the structural shape (codes, names, sub-categories, weights, stage list, density types, brand colors) — the substantive question bank lives in `content/framework.md`. `content/pathway-generation-prompt.md` is the contributor-side prompt for generating new pathway documents from raw material (not used at runtime).
+
+Two hard rules from the framework that bind runtime behavior: pathway documents' **Provenance appendix is contributor-only** — never surfaced in any adopter-facing response; and the framework itself is never referenced as a process ("the framework," sub-category codes, densities, unit-type labels) in user-facing prose, though the four dimension and four stage names are public 100 Pathways vocabulary and fine to use naturally.
 
 ## Tech stack
 
 - Next.js 16 (App Router), React 19, Tailwind CSS v4
-- Anthropic API via a Next.js route handler (`/api/chat`), streamed
-- Supabase (Postgres + Auth) for sign-in and all persistence — no bundled DB, this is a hosted Supabase project
-- Client-side document/image extraction: `pdfjs-dist` (PDF), `mammoth` (.docx), `xlsx` (spreadsheets), `jszip` (.pptx slide XML scraping)
-- PDF export of generated documents via `jspdf`
-- Deployed on Vercel
+- Anthropic API via `/api/chat` route handler (`claude-sonnet-4-6`), streamed
+- Supabase (Postgres + Auth) for sign-in, approval, roles, and all persistence
+- Client-side document/image extraction: `pdfjs-dist`, `mammoth`, `xlsx` (SheetJS CDN build), `jszip`
+- PDF export via `jspdf`
+- Theme: 100 Pathways brand tokens (navy `#1b1b42`, coral `#ff6543`, yellow `#feda09`, blue `#0099ff`, paper `#faf9f6`, ink `#363538`) with Inter / DM Sans / PT Serif / Geist Mono — copied verbatim from the Diffusion Library web app, which pulled them from the live site. All in `app/globals.css` as `@theme` tokens (`bg-paper`, `text-navy`, `text-coral`, `glow-input`, etc.).
+
+## Wiki / corpus loading
+
+The pathway corpus is the Diffusion Library wiki, read **from the local filesystem** (`lib/wiki-loader.ts`): `WIKI_PATH` env var (defaults to `/Users/abhiramgooty/projects/Diffusion Library/wiki`). `loadWikiContext()` reads `pathways/index.md`, parses the relative `(slug.md)` links, and loads all pathway pages (7 currently, whole corpus ≈ 22K tokens with the framework — fine at this size; revisit with retrieval when it grows). `loadFrameworkContent()` reads `content/framework.md` from this repo. All reads go through one `readSource()` function so the planned S3 move is a single swap.
+
+**Deploy caveat**: local reads outside the repo work in dev but NOT on Vercel — before deploying, either commit the wiki into this repo or complete the S3 move. The old GitHub-raw fetching and the `wiki_cache`/`pathway_cache` Supabase tables are no longer used (tables still exist in the DB, inert).
 
 ## Project structure
 
 ```
 /app
-  layout.tsx                ← root layout, fonts, metadata ("People+Possibilities AI Diffusion Studio")
-  globals.css                ← Tailwind entry + the cube-icon-spin keyframe/theme animation
-  login/page.tsx              ← public sign-in / sign-up page (Supabase email+password)
-  api/chat/route.ts           ← route handler, calls Anthropic API
-  (app)/                       ← route group for everything behind auth, wrapped by Sidebar
-    layout.tsx                  ← fetches the user's designs list server-side, renders <Sidebar>
-    page.tsx                    ← home screen ("/") — renders DesignDetailView directly (quick-start a new design)
-    explore/page.tsx             ← explore existing deployments
-    design/page.tsx               ← grid of the user's saved designs; opens DesignDetailView per design
-proxy.ts                    ← Next.js middleware (Supabase auth gate for every route except /login)
+  layout.tsx                ← fonts (Inter/DM Sans/PT Serif/Geist Mono), metadata
+  globals.css                ← 100 Pathways theme tokens + animations (fade-in-up, bounce-dot, glow-input)
+  login/page.tsx              ← sign-in / request-access (Supabase email+password, admin approval)
+  admin/page.tsx               ← user approval + role management (see Auth section)
+  api/chat/route.ts            ← modes: companion | analysis-doc | plan-document
+  (app)/
+    layout.tsx                  ← SiteHeader + approval gate (hasAnyRole) + Sidebar
+    page.tsx                     ← the landing: AdoptionWorkspace in welcome state
+    adoptions/page.tsx            ← grid of the user's saved adoptions (?open=<id> deep link)
+proxy.ts                    ← auth middleware (public: /login only)
+/content
+  framework.md               ← THE framework (question bank, weights, unit types) — prompt-injected
+  pathway-generation-prompt.md ← contributor-side generation prompt (not runtime)
 /lib
-  supabase/client.ts          ← browser Supabase client factory
-  supabase/server.ts           ← server Supabase client factory (cookie-based session)
-  wiki-loader.ts                ← fetches and caches wiki markdown from GitHub (server-side, in-memory per instance, for the agent's context)
-  pathways.ts                   ← client-side wiki index/pathway fetch + parsing, shared by the Explore page and Sidebar
-  pathway-cache.ts               ← Supabase-backed shared cache for explore-init/explore-copy model output, keyed by a hash of the wiki content
-  system-prompts.ts               ← system prompts for every mode
-  dimensions.ts                    ← the Seven Dimensions Framework's structural shape (codes, names, stage list, status colors) — substantive content lives in the wiki
-  design-conversation.ts            ← the `useDesignConversation` hook: the design page's whole state machine (lazy row creation, sendMessage, cube_update/meta parsing, attachment wiring, persistence)
-  design-documents.ts                ← Supabase-backed versioned storage for generated Analysis Doc / Plan Document content
-  designs-cache.ts                    ← short-lived in-memory cache for the /design grid's list query
-  extract-text.ts                      ← client-side text extraction from uploaded files (pdf/docx/xlsx/pptx) and image-to-base64 conversion
-  adoption-plan-markdown.ts             ← shared markdown-subset parser for generated documents (used by both the on-screen modal and the PDF export)
-  adoption-plan-pdf.ts                   ← renders a generated document to a downloadable PDF via jsPDF
-  logger.ts                                ← fire-and-forget conversation logging to Google Sheets
+  dimensions.ts              ← structural shape: 4 dimensions, sub-categories, weights, GridState types
+  system-prompts.ts           ← companionSystemPrompt (user-led), analysisDocSystemPrompt, planDocumentSystemPrompt
+  adoption-conversation.ts     ← useAdoptionConversation hook: lazy row creation, grid_update parsing, attachments
+  adoptions-cache.ts            ← 60s TTL cache for the adoptions list
+  design-documents.ts            ← versioned Analysis Doc / Plan Document storage + content-hash caching
+  wiki-loader.ts                  ← local-FS corpus reads (see above)
+  extract-text.ts                  ← client-side text extraction from uploads
+  adoption-plan-markdown.ts         ← markdown-subset parser shared by modal + PDF
+  adoption-plan-pdf.ts               ← jsPDF export
+  roles.ts                            ← hasRole/hasAnyRole/isAdmin
+  supabase/{client,server,admin}.ts    ← Supabase client factories (admin = service-role)
+  logger.ts                             ← fire-and-forget Google Sheets logging
 /components
-  Sidebar.tsx              ← persistent left nav: branding, Explore/Design links, a contextual list (pathways or the user's designs), email + sign-out; collapses to a mobile drawer under `md`
-  SignOutButton.tsx          ← signs out of Supabase and redirects to /login
-  CubeIcon.tsx                 ← small spinning cube logo shown before "AI Diffusion Studio" branding, unchanged from earlier versions
-  ChatPanel.tsx                  ← conversation panel, renders `**bold**` inline markdown, gates sending on pending attachments
-  AttachmentsPanel.tsx             ← file drag-and-drop/attach panel shown alongside the design chat (desktop) or as a bottom sheet (mobile)
-  DimensionList.tsx                  ← the seven dimensions as colored chips with a coverage legend below — replaces the old 3D cube visual entirely
-  DesignDetailView.tsx                 ← the whole design-conversation screen: welcome/create state, active conversation, dimension chips, document generation
-  AdoptionPlanModal.tsx                  ← modal that renders a generated document (Analysis Doc or Plan Document), with version history and PDF download
+  SiteHeader.tsx            ← "← Back | 100 Pathways / Adoption Companion" (matches Diffusion Library)
+  Sidebar.tsx                 ← nav (New adoption / Your adoptions / Admin) + recent list; mobile drawer
+  AdoptionWorkspace.tsx        ← the whole experience: welcome hero (glow-input) → conversation + grid + docs
+  CoverageGrid.tsx              ← the 4×4 standing grid, density symbols, click-to-inspect cells
+  ChatPanel.tsx                  ← conversation panel (**bold** inline rendering)
+  AttachmentsPanel.tsx            ← file staging panel (desktop side / mobile sheet)
+  AdoptionPlanModal.tsx            ← generated-document modal with version history + PDF download
+  AdminDashboard.tsx                ← role checkboxes + reject
+  SignOutButton.tsx
 ```
 
-There is no `Cube3D.tsx` or `DimensionPanel.tsx` anymore — the 3D cube visual from earlier versions of this app has been replaced by `DimensionList`, a flat list of colored dimension chips.
-
-## Auth, signup approval, and roles
-
-Every route except `/login` requires a signed-in Supabase user — enforced by `proxy.ts` (Next's middleware, exported as `proxy` per this Next.js version's convention), which redirects unauthenticated browser requests to `/login?next=<path>` and returns a 401 JSON body for unauthenticated `/api/*` requests. On each request it revalidates the session via `supabase.auth.getUser()` and forwards the verified email through an `x-user-email` request header, so `app/(app)/layout.tsx` doesn't need a second Auth API round trip just to render the sidebar.
-
-There is no self-serve signup and no email in the approval loop — approval happens entirely in-app, via an admin dashboard, since email delivery repeatedly hit external blockers (domain DNS ownership, then an AWS Organizations policy) unrelated to the app itself. See `SIGNUP_APPROVAL_OPTIONS.md` for the email-based alternative this replaced; `lib/email.ts` and the `nodemailer` setup are kept in place, unused, in case that approach is revisited.
-
-`/login` toggles between sign-in (unchanged: `createClient().auth.signInWithPassword`) and a **request-access** form (Name, Email, Organization, Password) that calls `supabase.auth.signUp({ email, password, options: { data: { name, organization } } })` directly from the browser client — no server route involved; Supabase's own signup already rejects a duplicate email. This requires **"Confirm email" to be disabled** in Supabase's Auth → Providers → Email settings, otherwise `signUp` won't grant a session until a Supabase-sent confirmation link is clicked, which would reintroduce email into a flow specifically built to avoid it.
-
-**"Pending" has no separate status column — it's simply a signed-in user with zero rows in `user_roles`.** `app/(app)/layout.tsx` checks `lib/roles.ts`'s `hasAnyRole(supabase)` and renders an "awaiting approval" message instead of the app shell if the user holds no roles at all. Approving *is* granting a role — there's no separate approve/reject state to track beyond that.
-
-**`/admin`** (`app/admin/page.tsx`) — gated by `lib/roles.ts`'s `isAdmin(supabase, email)`: true if the email is in `ADMIN_EMAILS` (a permanent fallback, so there's no bootstrapping problem if `user_roles` is ever empty) **or** the user holds the `admin` role in the database, same as any other role. Lists every Supabase user (via `lib/supabase/admin.ts`'s service-role client and `auth.admin.listUsers()`) cross-referenced with their `user_roles`, with a checkbox per role — including `admin` itself — (`components/AdminDashboard.tsx`) that calls `app/api/admin/roles/route.ts` to insert/delete a `user_roles` row, and a **Reject** button (only shown for zero-role/pending users) that calls `app/api/admin/reject/route.ts` to delete the account outright via `auth.admin.deleteUser()` — rejecting is destructive on purpose, so a mistaken rejection just means signing up again with the same email later rather than a permanently stuck row. Both API routes re-check `isAdmin` server-side against the caller's own session — the client-side checkboxes are never trusted on their own.
-
-**Roles** (`user_roles` table — a user can hold more than one): `general_user` (Explore only), `adopter` (Explore + Design), `pathway_contributor` (Explore + Contributor — the Contributor feature itself is not yet built), `admin` (access to `/admin` itself). Role assignment happens through `/admin` above, or a direct Supabase edit — `lib/roles.ts`'s `hasRole(supabase, role)` checks the current user's own roles (RLS: select-own-rows only) for feature gating. Design access is gated twice: a UX-level check in `app/(app)/design/layout.tsx` and `app/(app)/page.tsx` (which also renders Design's quick-start), and the real enforcement boundary in `app/api/chat/route.ts` (returns 403 for `design`/`design-adoption-plan`/`design-plan-document` modes if the caller isn't an Adopter — the route is independently callable regardless of what the UI shows).
-
-Persistence is real and per-user, backed by Supabase tables (`supabase/migrations/`), all with row-level security scoped to `auth.uid()` except `pathway_cache`/`wiki_cache` (shared, not per-user):
-
-- **`designs`** — one row per in-progress or complete deployment design: `meta`, `cube_state`, and `messages` as `jsonb`, plus `updated_at`. A design row is created lazily — only once the user actually sends a first message or attachment, not the moment they land on a blank design screen.
-- **`design_documents`** — versioned, append-only storage for generated Analysis Docs and Plan Documents. Each generation is checked against a content hash of `{messages, cubeState}` first; an unchanged hash serves the cached row instead of calling the model again, otherwise a new version (`v0.1`, `v0.2`, …) is inserted.
-- **`pathway_cache`** — shared across all users, caching the silent `explore-init`/`explore-copy` model outputs per pathway slug, keyed by a hash of the wiki + framework content that produced them. A wiki edit changes the hash and naturally invalidates the cache — no manual busting needed.
-- **`wiki_cache`** — shared across all users, caching raw wiki pages fetched from GitHub (`lib/wiki-loader.ts`) by path, on a 1-hour TTL — avoids every serverless instance cold-fetching GitHub independently under concurrent load, and falls back to the last known copy if a GitHub fetch ever fails.
-- **`user_roles`** — `(user_id, role)` grants, described above.
-- **`pending_signups`** — unused leftover from the retired email-based approval flow; still exists in the database (not worth a destructive drop migration) but nothing reads or writes it anymore.
-
-## Wiki loading
-
-The wiki is publicly accessible on GitHub. It is not bundled into the app — everything is fetched at runtime.
-
-Repo: `https://github.com/kameshbhr/ai-diffusion-cube-wiki`. Raw base URL lives in `GITHUB_WIKI_BASE_URL` (server) and `NEXT_PUBLIC_GITHUB_WIKI_BASE_URL` (client).
-
-**Server-side** (`lib/wiki-loader.ts`), used to build the agent's context:
-- `loadWikiContext(pathwaySlug?: string)` — always fetches `wiki/index.md`; if a slug is given, also fetches that one pathway page; otherwise fetches every pathway page listed in the index. In-memory cache per server instance.
-- `loadFrameworkContent()` — fetches `wiki/framework.md`, the Seven Dimensions Framework doc (dimension definitions, stage descriptions, the stage × dimension question bank). This is injected into every prompt that needs it via `frameworkBlock()` in `system-prompts.ts`, rather than hardcoded, so editing the wiki page changes the framework the app uses with no code change.
-
-**Client-side** (`lib/pathways.ts`), used to render pathway lists without a round trip through the agent — shared by the Explore page and the Sidebar's contextual list:
-- `parsePathways()` reads `wiki/index.md`'s `## Pathways` markdown table.
-- `fetchPathways()` then overrides each entry's display name with that pathway file's own title (`parsePathwayTitle`, the first `# H1` line) — the index table's link text is just a short label and can drift from the pathway page's actual title.
-- `fetchPathwayMarkdown(slug)` fetches one pathway page directly, used to read its metadata header (`**Sector:**`, `**Geography:**`, `**Deployment status:**`) and `## Summary` section on the Explore page.
-- Both cache the in-flight promise (not just the resolved value), de-duping concurrent callers.
+Deleted in the revamp: Explore (routes, prompts, modes, `pathway_cache`), `DimensionList`, `Cube3D`/`CubeIcon`, `lib/pathways.ts`, the 7-dimension `cube_update` contract, and the email-flow leftovers remain dormant (`lib/email.ts`, `nodemailer` — see SIGNUP_APPROVAL_OPTIONS.md).
 
 ## The `/api/chat` route handler
 
-Receives: `{ messages, mode, pathwaySlug?, cubeState?, meta?, versionNumber? }`
+Receives `{ messages, mode, grid?, meta?, versionNumber? }`. Modes:
 
-Modes:
-- `explore` — regular back-and-forth chat about a selected pathway
-- `explore-init` — silent, one-shot: analyses a pathway and returns only a `<cube_update>` block (no prose)
-- `explore-copy` — silent, one-shot: generates the card blurb + panel summary for a pathway
-- `design` — the design conversation; every response ends with a `<cube_update>` block (including a `meta` object)
-- `design-adoption-plan` — on-demand: generates the full Analysis Doc (not a chat turn, rendered separately)
-- `design-plan-document` — on-demand: generates the condensed, four-section Plan Document (not a chat turn, rendered separately)
+- `companion` — the conversation. Every response ends with a `<grid_update>` JSON block: `{ cells: { "persona:Explore": { density: 0-3, note } , …changed cells only }, meta: { name, sector, geography, stage, summary } }`. `meta.stage` is only ever filled from the user's own statement. Client merges cells and strips the block for display (truncating at the opening tag, since it streams).
+- `analysis-doc` — full standing document: coverage-grid section in density notation, per-dimension narrative, Related Pathway Experience, Open Threads. Descriptive, never prescriptive.
+- `plan-document` — 4-section executive doc (Project Summary / Key Gaps ≤10 / Key Recommendations ≤5, each grounded in a named pathway / Next Steps ≤5, only user-surfaced actions). Title: `<name> Plan Doc v<N>`.
 
-Flow: loads wiki content via `loadWikiContext(pathwaySlug)` and the framework doc → picks the system prompt for the mode → calls `anthropic.messages.stream` with `claude-sonnet-4-6` (`max_tokens: 4096` for the two document-generation modes, `2048` otherwise) → streams text back to the client → fire-and-forget logs the exchange → for `explore-init`/`explore-copy`, also writes the parsed result into `pathway_cache` for next time.
+All modes require an approved account (`hasAnyRole`) — 403 otherwise. Max tokens: 2048 companion, 4096 docs.
 
-The API key comes from `process.env.ANTHROPIC_API_KEY` — never hardcoded, never sent to the browser.
+## The companion's posture (lib/system-prompts.ts)
 
-## System prompts (`lib/system-prompts.ts`)
+The defining constraint, from the product owner: **recommend, don't steer.**
 
-### Explore mode (`exploreSystemPrompt`)
+- Never sets the agenda: no "let's look at X next," no guided journey, no unprompted "have you thought about…".
+- Never assigns/recommends a stage; records the user's stated stage silently.
+- Recommends freely on whatever the user raises — what's strong, what's thin, what a named pathway did in a comparable spot, with applies-when/fails-when conditions.
+- Answers "what should I look at next / where are my gaps?" honestly when asked — that's the user leading.
+- Stage-weighting (Primary/Secondary/Dormant) is used silently to calibrate attention, never to redirect.
+- Document uploads are read against the framework and reflected back as observations ("the document doesn't cover X" is a finding), never as an agenda.
+- Style: simple English, 4-sentence hard cap plus at most one clarifying question, genuine energy, varied phrasing.
 
-Injects the wiki content for the selected pathway plus the agent's own prior cube assessment (so it can answer "why is this amber?" consistently). Key behavioural rules:
-- A gap is silence — something the record never addresses. Documented failures, lessons learned, and resolved issues are *not* gaps; they're evidence of a mature pathway.
-- Never fabricate; never emit a `<cube_update>` block in this mode.
-- **Dimension snapshot requests**: when asked about a specific dimension, respond in 2–3 sentences, then end with exactly: `"Do you want to know more about it or something else?"`
+## Auth, approval, and roles
 
-### Explore init (`exploreInitSystemPrompt`, mode `explore-init`)
+Unchanged from before the revamp (see git history for detail): `proxy.ts` gates everything but `/login`; signup is a request-access form (`supabase.auth.signUp` with name/organization metadata — requires "Confirm email" disabled in Supabase); zero rows in `user_roles` = pending, and `app/(app)/layout.tsx` shows an awaiting-approval screen; `/admin` (env `ADMIN_EMAILS` fallback OR the `admin` role) lists users with per-role checkboxes and destructive Reject. **Role semantics changed with Explore's removal**: any role grants full companion access — `adopter`/`pathway_contributor` currently carry no extra gating (kept for future use).
 
-A silent, hidden call fired once when a pathway is selected (cache-checked against `pathway_cache` first). The entire response must be a single `<cube_update>` block (no prose) scoring documentation coverage A–G. This is what colors the dimension chips on selection.
+## Supabase tables
 
-### Pathway copy generation (`explorePathwayCopySystemPrompt`, mode `explore-copy`)
+- **`designs`** — one row per adoption: `meta`, `grid_state` (renamed from `cube_state` in migration 0008, which also cleared pre-revamp test rows), `messages` jsonb. Lazy creation on first send.
+- **`design_documents`** — versioned generated docs, content-hash cached.
+- **`user_roles`** — `(user_id, role)` grants: general_user | adopter | pathway_contributor | admin.
+- Inert leftovers: `pathway_cache`, `wiki_cache`, `pending_signups` (nothing reads or writes them).
 
-A silent, hidden call fired once per pathway (cache-checked against `pathway_cache` first) that turns the wiki's dense narrative into short display copy — a `card` blurb for the list and a two-paragraph `summary` for the info panel. Falls back to the raw wiki index summary if it hasn't resolved yet or fails.
-
-### Design mode (`designSystemPrompt`)
-
-Drives Jude's one-question-at-a-time design conversation. This has grown well past a simple form-filler — see the file itself for the full text, but the shape is:
-
-- **Driven vs. reactive modes**: absent a specific user question, the agent proactively drives the conversation forward (driven mode); when the user asks something directly, it answers at whatever depth the pathway content supports (reactive mode), then resumes the driven thread where it left off.
-- **Grounding / content firewall**: general world knowledge may only be used to interpret what the user describes — never to generate what's said back to them. Every suggestion, risk, or recommendation must trace to actual wiki/framework content, distinguishing a close/literal pathway match from a thematic/transferable one.
-- **Pathway/micro-innovation matching before the guided journey**: once there's a rough problem framing and stage, the agent actively searches for an exact or similar pathway match, or a reusable micro-innovation/toolkit component, before ever offering the full guided journey — and stops and waits after presenting that match/offer rather than bundling a suggestion into the same message.
-- **The guided journey**: breadth-first across the aspects relevant to the user's role (a first pass raising one suggestion + one light check per aspect, a second pass following up on vague/partial replies), tailored by role (a Technical Architect gets Architecture/Data, a Program Owner gets Institution/Ecosystem/Operating Model, etc.), with a mandatory interim synthesis checkpoint after roughly every 4–5 questions.
-- **Stage awareness**: the four stages (`Explore`, `Define`, `Pilot`, `Scale`) each have their own "done when" markers from the framework doc; moving to a new stage re-evaluates every aspect against that stage's bar rather than carrying statuses over.
-- **Never surfaces the framework's own vocabulary** ("dimension," "framework," "stage" as jargon) — refers to things in plain language as "aspects" throughout, including the very first message.
-- **Naming a real deployment**: described indirectly by what it did, by default — except when the user explicitly asks which one it is or for its name (answer plainly), or during a Handoff (when a suggestion runs deeper than the pathway's grounded content, naming the deployment and its contributor is the point).
-
-Every response ends with the same `<cube_update>` JSON block described below, including a `meta` object (`name`, `sector`, `geography`, `status` — one of the four stages — and a running `summary`), which the design page's info panel populates progressively.
-
-### Adoption Journey Plan (`adoptionPlanSystemPrompt`, mode `design-adoption-plan`)
-
-Generates the full "Analysis Doc" — a standalone markdown document, not a chat turn. Groups the seven aspects into "What's Solid" / "Needs Attention" / "Not Yet Discussed" (bucket placement is precomputed from the real cube state, not left to the model), includes an "At a Glance" status list, a stage-readiness section grounded in the framework's "done when" markers, suggested next steps, and pathway-grounded "Related Pathway Experience." Falls back to a plain "not enough conversation yet" message if too little has been discussed.
-
-### Plan Document (`planDocumentSystemPrompt`, mode `design-plan-document`)
-
-Generates a short, four-section, executive-ready summary — distinct from the full Analysis Doc, same inputs. Sections: Project Summary, Key Gaps Identified (up to 10 bullets), Key Recommendations (up to 5, each grounded in a named pathway precedent), Next Steps (up to 5, numbered). Explicitly told not to pad any section to hit a target count.
-
-Both document prompts share the same core rules: never fabricate, ground every recommendation in real wiki content (paraphrased, never quoted verbatim), and use the given `generatedAt` timestamp and version number rather than inventing one.
-
-## Document upload and attachments
-
-The design conversation accepts file and image attachments (`AttachmentsPanel.tsx`, wired through `useDesignConversation` in `lib/design-conversation.ts`):
-
-- **Text-bearing files** (`.pdf`, `.docx`, `.xlsx`, `.xls`, `.pptx`, `.txt`, `.md`) are extracted entirely client-side (`lib/extract-text.ts`, via `pdfjs-dist`, `mammoth`, `xlsx`, and raw slide-XML scraping through `jszip` for `.pptx`) and folded into the next user message as plain text. Legacy binary Office formats (`.doc`, `.ppt`) aren't supported — only the modern XML-based formats.
-- **Images** (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`) are base64-encoded client-side and sent as real image content blocks to Claude (5MB limit; documents are capped at 20MB).
-- Attachments are staged (attach/drop, then Enter) rather than sent immediately, and multiple files can queue before one send. Previously-uploaded file names are recovered from message history for the "Shared in this chat" list, rather than tracked in separate state.
-
-## Components
-
-### `Sidebar.tsx`
-
-Persistent left nav present on every authenticated page: branding + link home, Explore/Design nav links, then a contextual list below — pathways (fetched client-side) when inside `/explore`, or the signed-in user's designs (passed down from the server-rendered `(app)/layout.tsx`) when inside `/design`. Collapses to an off-canvas mobile drawer under Tailwind's `md` breakpoint, with its own top bar and hamburger toggle.
-
-### `CubeIcon.tsx`
-
-Unchanged in behaviour from earlier versions: a small decorative CSS 3D cube, spins via the `cube-icon-spin` keyframe (registered in `app/globals.css`) for 3.2s then settles at a resting angle.
-
-### `ChatPanel.tsx`
-
-Renders `**bold**` spans inline (simple regex split, not a full markdown renderer). Send is gated on any pending attachment still reading or errored, not just on empty input.
-
-### `DimensionList.tsx`
-
-Renders the seven dimensions as a wrapped row of colored chips (dot + name), each clickable to send a topic-starter prompt, plus a coverage legend below (`High` / `Medium` / `Critical gap` / `Not yet covered`) explaining what each color means. This is the only visual representation of dimension status now — there is no 3D cube anywhere in the app.
-
-### `DesignDetailView.tsx`
-
-The whole design-conversation screen, used both for the home page's quick-start (`initial=null`, no back button) and for an opened design from the `/design` grid. Two states: a centered welcome screen (drag-and-drop file zone, text input, three example pathway links) before any message has been sent, and the full conversation view (info header with dimension chips, chat, an attachments side panel on desktop / bottom sheet on mobile, and two document-generation buttons) once a conversation exists.
-
-### `AdoptionPlanModal.tsx`
-
-Renders a generated document (Analysis Doc or Plan Document) from its raw markdown using the shared parser in `lib/adoption-plan-markdown.ts` — headings, italic lines, bold runs, bullet/numbered lists, and status-colored bullets (parsing a `[green]`/`[amber]`/`[red]`/`[dark]` tag the model emits per line in the Analysis Doc). Includes a version-history dropdown when more than one version exists, and a "Download PDF" button (`lib/adoption-plan-pdf.ts`, via `jsPDF` — bold emphasis is flattened to plain text there since jsPDF can't mix styles within one `text()` call).
-
-## Page designs
-
-### Login (`/login`)
-
-Cream background, cube icon + "People+Possibilities / AI Diffusion Studio" title, a single card that toggles between sign-in (email + password) and request-access (Name, Email, Organization, Password — creates the account directly via `signUp`, then waits on `/admin` approval; no email involved).
-
-### Admin (`/admin`)
-
-Plain table listing every user (name/organization from signup, email, a checkbox per role) with a Reject button for anyone still pending (zero roles). Gated to `ADMIN_EMAILS` addresses only. See "Auth, signup approval, and roles" above.
-
-### Home (`/`)
-
-Renders `DesignDetailView` directly in its welcome state — describe what you're building, or upload a document/image, to start a new design immediately. This does not add the new design to any list until the user actually sends something (lazy row creation).
-
-### Explore page (`/explore`)
-
-- No pathway selected: a card grid of the wiki's pathways ("Deployments Library").
-- Pathway selected: an info header (name, `Sector · Geography · Status`, summary, dimension chips) above a chat panel. Selecting a pathway triggers one hidden `explore-init` call to color the dimension chips (checked against `pathway_cache` first) plus a separate `explore-copy` call for the card/summary text; clicking a dimension chip sends `"Give me a snapshot of the [dimension] dimension for this deployment."`
-- Deep-linkable via `/explore?pathway=<slug>` (used by the Sidebar and by the home welcome screen's example pathway links).
-
-### Design page (`/design`)
-
-- No design open: a card grid of the signed-in user's saved designs (name, sector/geography, summary, relative "Updated Xm ago" time), fetched from Supabase (`lib/designs-cache.ts`, 60s in-memory TTL) with a "+ New Deployment" button and per-card delete.
-- Design open: the same `DesignDetailView` as the home page, but with a back button and wired to append/update the opened design in the grid's cached list.
-- Deep-linkable via `/design?open=<id>` (used by the Sidebar's "Deployments" list).
-
-## Parsing cube updates
-
-Both explore and design pages parse the same shape after each streamed response:
-
-```ts
-function parseCubeUpdate(text: string) {
-  const match = text.match(/<cube_update>([\s\S]*?)<\/cube_update>/);
-  if (!match) return null;
-  try { return JSON.parse(match[1]); } catch { return null; }
-}
-```
-
-(Design mode additionally destructures a `meta` key out of the parsed object before applying the rest as face updates — see `parseCubeUpdate` in `lib/design-conversation.ts`.)
-
-**Stripping for display** does *not* wait for a closed block — it truncates at the first occurrence of the literal `<cube_update` opening tag, since every prompt places the block strictly at the end of the response with nothing after it:
-
-```ts
-function stripCubeUpdate(text: string): string {
-  const idx = text.indexOf('<cube_update');
-  return (idx === -1 ? text : text.slice(0, idx)).trim();
-}
-```
+Migration 0008 must be run in the Supabase SQL Editor for the app to work post-revamp.
 
 ## Environment variables
 
 ```
 ANTHROPIC_API_KEY=your_key_here
-GITHUB_WIKI_BASE_URL=https://raw.githubusercontent.com/kameshbhr/ai-diffusion-cube-wiki/main
-NEXT_PUBLIC_GITHUB_WIKI_BASE_URL=https://raw.githubusercontent.com/kameshbhr/ai-diffusion-cube-wiki/main
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-GOOGLE_SHEET_ID=your_sheet_id
-GOOGLE_SERVICE_ACCOUNT_JSON={...service account JSON...}
-SES_SMTP_HOST=email-smtp.<region>.amazonaws.com
-SES_SMTP_PORT=587
-SES_SMTP_USERNAME=your_ses_smtp_username
-SES_SMTP_PASSWORD=your_ses_smtp_password
-EMAIL_FROM_ADDRESS=you@yourdomain.com
-ADMIN_EMAILS=admin1@org.com,admin2@org.com
-APP_URL=https://your-deployed-domain.com
+WIKI_PATH=/absolute/path/to/Diffusion Library/wiki   # optional; defaults to the sibling checkout
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...        # server-only, /admin actions
+ADMIN_EMAILS=a@x.com,b@y.com         # permanent admin fallback
+GOOGLE_SHEET_ID=...                  # optional logging
+GOOGLE_SERVICE_ACCOUNT_JSON={...}    # optional logging
 ```
 
-Same variables in the Vercel dashboard under Project Settings → Environment Variables. `GOOGLE_SHEET_ID` / `GOOGLE_SERVICE_ACCOUNT_JSON` are used by `lib/logger.ts` for optional conversation logging — logging fails silently if absent. The Supabase migrations under `supabase/migrations/` must be applied to whatever project those URL/key variables point at before the app will work (designs, design_documents, pathway_cache, wiki_cache, user_roles tables — `pending_signups` too, though it's unused now).
+`GITHUB_WIKI_BASE_URL`/`NEXT_PUBLIC_GITHUB_WIKI_BASE_URL` and the `SES_SMTP_*`/`EMAIL_FROM_ADDRESS`/`APP_URL` sets are no longer read by any active code path.
 
-`SUPABASE_SERVICE_ROLE_KEY` is server-only (never `NEXT_PUBLIC_`) and bypasses Row Level Security — used by `lib/supabase/admin.ts` for `/admin`'s user-listing/role-management/reject actions (`app/api/admin/roles/route.ts`, `app/api/admin/reject/route.ts`), never in client code. `ADMIN_EMAILS` is a comma-separated list of addresses that always have `/admin` access as a fallback (`lib/roles.ts`'s `isAdmin`), independent of the database-driven `admin` role. `SES_SMTP_*`/`EMAIL_FROM_ADDRESS`/`APP_URL` are currently **unused** — leftover from the retired email-based approval flow, kept in case it's revisited (see `SIGNUP_APPROVAL_OPTIONS.md`).
+## Out of scope / not yet built
 
-## What's out of scope / not yet built
-
-- The Pathway Contributor role exists (`user_roles`) but its actual functionality is entirely TBD — no Contributor-only routes or features exist yet, so nothing is gated for it
-- The approval workflow for converting a design into a published wiki pathway
-- The disbursement / guided-share feature
-- Legacy binary Office formats (`.doc`, `.ppt`) for upload parsing — only modern XML-based formats are supported
-- A true mobile-first layout — the Sidebar drawer and the design page's Files bottom sheet cover the main gaps, but the rest of the app (chat panels, document modal, card grids) is still primarily designed for desktop widths
+- Phase 2: dedicated document-insight extraction seeding the grid on upload (today uploads flow through the normal conversation turn); richer workspace views
+- Cross-user insights ("what did others ask about this pathway") — explicitly deferred by the product owner
+- S3 (or committed-in-repo) corpus hosting — required before any Vercel deploy
+- Contributor-facing features for `pathway_contributor`
+- Legacy binary Office formats (.doc, .ppt) for uploads

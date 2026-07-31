@@ -39,12 +39,12 @@ export default async function AdminPage() {
     .sort((a, b) => a.roles.length - b.roles.length);
 
   return (
-    <div className="min-h-screen bg-[#F5EFE6] text-[#2C1A0E] p-8">
-      <Link href="/" className="text-xs text-[#7A5C44] hover:text-[#2C1A0E] transition-colors">
+    <div className="min-h-screen bg-paper text-ink p-8">
+      <Link href="/" className="text-xs text-ink-soft hover:text-coral transition-colors">
         ← Back
       </Link>
-      <h1 className="text-2xl font-bold mt-2 mb-1">Admin</h1>
-      <p className="text-sm text-[#7A5C44] mb-6">Approve signups and manage roles.</p>
+      <h1 className="font-display text-2xl font-medium text-navy mt-2 mb-1">Admin</h1>
+      <p className="text-sm text-ink-soft mb-6">Approve signups and manage roles.</p>
       <AdminDashboard initialRows={rows} />
     </div>
   );

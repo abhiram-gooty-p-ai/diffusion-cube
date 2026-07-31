@@ -59,14 +59,14 @@ export default function AdminDashboard({ initialRows }: { initialRows: AdminUser
   }
 
   if (rows.length === 0) {
-    return <p className="text-sm text-[#7A5C44]">No users yet.</p>;
+    return <p className="text-sm text-ink-soft">No users yet.</p>;
   }
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="text-left text-xs uppercase tracking-wide text-[#7A5C44] border-b border-[#7A5C44]/20">
+          <tr className="text-left font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft border-b border-navy/10">
             <th className="py-2 pr-4">Name</th>
             <th className="py-2 pr-4">Email</th>
             <th className="py-2 pr-4">Organization</th>
@@ -82,7 +82,7 @@ export default function AdminDashboard({ initialRows }: { initialRows: AdminUser
           {rows.map((row) => {
             const isPendingRow = row.roles.length === 0;
             return (
-              <tr key={row.id} className={`border-b border-[#7A5C44]/10 ${isPendingRow ? 'bg-[#E8A838]/10' : ''}`}>
+              <tr key={row.id} className={`border-b border-navy/5 ${isPendingRow ? 'bg-yellow-soft' : ''}`}>
                 <td className="py-2 pr-4">{row.name || '—'}</td>
                 <td className="py-2 pr-4">{row.email}</td>
                 <td className="py-2 pr-4">{row.organization || '—'}</td>
@@ -105,7 +105,7 @@ export default function AdminDashboard({ initialRows }: { initialRows: AdminUser
                     <button
                       onClick={() => reject(row.id)}
                       disabled={pending === `${row.id}:reject`}
-                      className="text-xs text-[#D64045] border border-[#D64045]/40 rounded-lg px-2.5 py-1 hover:bg-[#D64045]/10 transition-colors disabled:opacity-50"
+                      className="text-xs text-coral border border-coral/40 rounded-lg px-2.5 py-1 hover:bg-coral-soft transition-colors disabled:opacity-50"
                     >
                       Reject
                     </button>

@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CubeState, DARK_CUBE, DIMENSION_NAMES, FaceState } from '@/lib/dimensions';
+import { EMPTY_GRID, type CellState, type GridState } from '@/lib/dimensions';
 import { Message } from '@/components/ChatPanel';
 import { createClient } from '@/lib/supabase/client';
 import { extractTextFromFile, fileToImageBlock, getFileExtension, isImageFile } from '@/lib/extract-text';
 
-export interface DesignMeta {
+export interface AdoptionMeta {
   name: string;
   sector: string;
   geography: string;
-  status: string;
+  stage: string;
   summary: string;
 }
 
-export const EMPTY_META: DesignMeta = { name: '', sector: '', geography: '', status: '', summary: '' };
+export const EMPTY_META: AdoptionMeta = { name: '', sector: '', geography: '', stage: '', summary: '' };
 
-export { DARK_CUBE };
+export { EMPTY_GRID };
 
 const UPLOAD_LINE = /(?:📄|🖼️)\s*Uploaded\s+\*\*(.+?)\*\*/g;
 
@@ -32,24 +32,8 @@ export function extractUploadedFileNames(messages: Message[]): string[] {
   return names;
 }
 
-export { DIMENSION_NAMES };
-
-// The dimensions framework is internal (see designSystemPrompt) — never
-// surfaced to the user. Clicking a dimension shortcut in the UI sends one of
-// these instead of the internal label, so the request reads like something a
-// person would actually say.
-const DIMENSION_TOPIC_PROMPTS: Record<string, string> = {
-  A: "I want to talk through the problem we're solving and who it's for.",
-  B: "I want to dig into how we're planning to build this.",
-  C: "I want to talk about the data we'll need and how we'll manage it.",
-  D: "I want to talk about who's driving this internally and who owns it.",
-  E: 'I want to talk about who else needs to be involved to make this work.',
-  F: "I want to talk about the people who'll actually use or run this day to day.",
-  G: 'I want to talk about how this keeps running after launch.',
-};
-
 export const INITIAL_MESSAGE =
-  "Hi, I'm Jude. I'm here to help you design your AI deployment — from problem framing to operating model.\n\nYou can start in two ways:\n📄 Upload a document or image — a concept note, proposal, slide deck, spreadsheet, or a photo of one. I'll read it and get us started.\n💬 Just tell me — describe what you're trying to do, the problem you're solving, and who it's for.";
+  "Welcome. This is a space to work through your AI adoption — wherever it stands — alongside what real deployments have learned.\n\nYou can start two ways:\n📄 Share documents — a concept note, proposal, deck, or anything describing what you're working on. I'll read them and tell you what they establish.\n💬 Just talk — describe your adoption, or ask about anything on your mind.";
 
 // A staged attachment carries its extracted payload once processed, so it can
 // be folded into the actual API message once the user presses Enter.
@@ -63,31 +47,30 @@ export interface StagedAttachment {
   image?: { mediaType: string; base64: string };
 }
 
-export interface DesignConversation {
+export interface AdoptionConversation {
   id: string;
-  meta: DesignMeta;
-  cubeState: CubeState;
+  meta: AdoptionMeta;
+  grid: GridState;
   messages: Message[];
   updatedAt: string;
 }
 
-// Shape of a row in the `designs` table (see supabase/migrations/0001_designs.sql).
-// The table still has document_review_turns_left/typed_intro_turns_left
-// columns from the old turn-counting flow — no longer read or written here,
-// left in place as inert defaults rather than a schema migration.
-interface DesignRow {
+// Shape of a row in the `designs` table (see supabase/migrations/). The
+// grid_state column was renamed from cube_state in the 4×4 revamp
+// (migration 0008); old 7-dimension rows were cleared rather than migrated.
+interface AdoptionRow {
   id: string;
-  meta: DesignMeta;
-  cube_state: CubeState;
+  meta: AdoptionMeta;
+  grid_state: GridState;
   messages: Message[];
   updated_at: string;
 }
 
-export function rowToConversation(row: DesignRow): DesignConversation {
+export function rowToConversation(row: AdoptionRow): AdoptionConversation {
   return {
     id: row.id,
     meta: row.meta ?? EMPTY_META,
-    cubeState: row.cube_state ?? DARK_CUBE,
+    grid: { ...EMPTY_GRID, ...(row.grid_state ?? {}) },
     messages: row.messages ?? [],
     updatedAt: row.updated_at,
   };
@@ -95,7 +78,7 @@ export function rowToConversation(row: DesignRow): DesignConversation {
 
 // Converts our Message[] into the Anthropic content shape, expanding any
 // attached images into content blocks — shared by the main chat turn and the
-// one-off "Generate Adoption Plan" call so they build requests identically.
+// one-off document-generation calls so they build requests identically.
 export function toApiMessages(messages: Message[]) {
   return messages.map(({ role, content, images }) => ({
     role,
@@ -112,49 +95,48 @@ export function toApiMessages(messages: Message[]) {
   }));
 }
 
-interface ParsedCubeUpdate {
-  cube: Record<string, FaceState>;
-  meta?: Partial<DesignMeta>;
+interface ParsedGridUpdate {
+  cells: Record<string, CellState>;
+  meta?: Partial<AdoptionMeta>;
 }
 
-function parseCubeUpdate(text: string): ParsedCubeUpdate | null {
-  const match = text.match(/<cube_update>([\s\S]*?)<\/cube_update>/);
+function parseGridUpdate(text: string): ParsedGridUpdate | null {
+  const match = text.match(/<grid_update>([\s\S]*?)<\/grid_update>/);
   if (!match) return null;
   try {
     const parsed = JSON.parse(match[1]);
-    const { meta, ...cube } = parsed;
-    return { cube, meta };
+    return { cells: parsed.cells ?? {}, meta: parsed.meta };
   } catch {
     return null;
   }
 }
 
 // Cuts at the opening tag rather than matching a closed block, so a
-// <cube_update> that has only partially streamed in never renders.
-function stripCubeUpdate(text: string): string {
-  const idx = text.indexOf('<cube_update');
+// <grid_update> that has only partially streamed in never renders.
+function stripGridUpdate(text: string): string {
+  const idx = text.indexOf('<grid_update');
   return (idx === -1 ? text : text.slice(0, idx)).trim();
 }
 
-interface UseDesignConversationOptions {
+interface UseAdoptionConversationOptions {
   // Pass an already-loaded row, or null to create the row lazily on the
   // first message/attachment the user actually sends.
-  initial: DesignConversation | null;
-  onCreated?: (conversation: DesignConversation) => void;
-  onChange?: (conversation: DesignConversation) => void;
+  initial: AdoptionConversation | null;
+  onCreated?: (conversation: AdoptionConversation) => void;
+  onChange?: (conversation: AdoptionConversation) => void;
 }
 
-export function useDesignConversation({ initial, onCreated, onChange }: UseDesignConversationOptions) {
-  const [conversation, setConversation] = useState<DesignConversation | null>(initial);
-  const conversationRef = useRef<DesignConversation | null>(initial);
+export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdoptionConversationOptions) {
+  const [conversation, setConversation] = useState<AdoptionConversation | null>(initial);
+  const conversationRef = useRef<AdoptionConversation | null>(initial);
   const [loading, setLoading] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<StagedAttachment[]>([]);
 
-  // Updater functions passed to setState must be pure — calling onChange (which
-  // triggers the parent's setDesigns) from inside one is what produces React's
-  // "Cannot update a component while rendering a different component"
-  // warning. Instead, keep the latest onChange in a ref and fire it from an
-  // effect once `conversation` has actually changed, after commit.
+  // Updater functions passed to setState must be pure — calling onChange
+  // (which triggers the parent's list update) from inside one produces
+  // React's "Cannot update a component while rendering a different
+  // component" warning. Keep the latest onChange in a ref and fire it from
+  // an effect once `conversation` has actually changed, after commit.
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -164,7 +146,7 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
     if (conversation) onChangeRef.current?.(conversation);
   }, [conversation]);
 
-  const update = useCallback((updater: (c: DesignConversation) => DesignConversation) => {
+  const update = useCallback((updater: (c: AdoptionConversation) => AdoptionConversation) => {
     setConversation((prev) => {
       if (!prev) return prev;
       const next = updater(prev);
@@ -173,14 +155,14 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
     });
   }, []);
 
-  async function persist(c: DesignConversation) {
+  async function persist(c: AdoptionConversation) {
     const updatedAt = new Date().toISOString();
     const supabase = createClient();
     await supabase
       .from('designs')
       .update({
         meta: c.meta,
-        cube_state: c.cubeState,
+        grid_state: c.grid,
         messages: c.messages,
         updated_at: updatedAt,
       })
@@ -199,7 +181,7 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: toApiMessages(next),
-          mode: 'design',
+          mode: 'companion',
         }),
       });
 
@@ -216,30 +198,30 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
         if (done) break;
         assistantText += decoder.decode(value, { stream: true });
 
-        const parsedUpdate = parseCubeUpdate(assistantText);
-        if (parsedUpdate) {
+        const parsed = parseGridUpdate(assistantText);
+        if (parsed) {
           update((c) => {
-            const nextCube = { ...c.cubeState };
-            for (const [code, face] of Object.entries(parsedUpdate.cube)) {
-              if (face) nextCube[code] = face;
+            const nextGrid = { ...c.grid };
+            for (const [key, cell] of Object.entries(parsed.cells)) {
+              if (cell && key in nextGrid) nextGrid[key] = cell;
             }
-            const m = parsedUpdate.meta;
-            const nextMeta: DesignMeta = m
+            const m = parsed.meta;
+            const nextMeta: AdoptionMeta = m
               ? {
                   name: m.name || c.meta.name,
                   sector: m.sector || c.meta.sector,
                   geography: m.geography || c.meta.geography,
-                  status: m.status || c.meta.status,
+                  stage: m.stage || c.meta.stage,
                   summary: m.summary || c.meta.summary,
                 }
               : c.meta;
-            return { ...c, cubeState: nextCube, meta: nextMeta };
+            return { ...c, grid: nextGrid, meta: nextMeta };
           });
         }
 
         update((c) => {
           const msgs = [...c.messages];
-          msgs[msgs.length - 1] = { role: 'assistant', content: stripCubeUpdate(assistantText) };
+          msgs[msgs.length - 1] = { role: 'assistant', content: stripGridUpdate(assistantText) };
           return { ...c, messages: msgs };
         });
       }
@@ -254,7 +236,7 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
   );
 
   // Creates the row on first use; a no-op if the conversation already exists.
-  async function ensureCreated(): Promise<DesignConversation> {
+  async function ensureCreated(): Promise<AdoptionConversation> {
     if (conversationRef.current) return conversationRef.current;
 
     const supabase = createClient();
@@ -262,17 +244,17 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
       .from('designs')
       .insert({
         meta: EMPTY_META,
-        cube_state: DARK_CUBE,
+        grid_state: EMPTY_GRID,
         messages: [{ role: 'assistant', content: INITIAL_MESSAGE }],
       })
       .select()
       .single();
 
     if (error || !data) {
-      throw new Error('Could not start a new deployment. Try again.');
+      throw new Error('Could not start a new adoption workspace. Try again.');
     }
 
-    const created = rowToConversation(data as DesignRow);
+    const created = rowToConversation(data as AdoptionRow);
     conversationRef.current = created;
     setConversation(created);
     onCreated?.(created);
@@ -291,7 +273,7 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
           .map((a) => `--- Uploaded: ${a.name} ---\n${a.text}`);
 
         const baseText =
-          text || 'Please look at the attached file(s) and extract everything relevant to designing this deployment.';
+          text || 'Please read the attached file(s) and tell me what they establish about this adoption.';
         const content = [baseText, ...textParts].join('\n\n');
         const displayLines = [
           ...(text ? [text] : []),
@@ -313,10 +295,6 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
     },
     [pendingAttachments, sendMessage]
   );
-
-  function handleDimensionClick(code: string) {
-    void handleUserSend(DIMENSION_TOPIC_PROMPTS[code]);
-  }
 
   function handleAttachFiles(files: File[]) {
     for (const file of files) {
@@ -375,6 +353,5 @@ export function useDesignConversation({ initial, onCreated, onChange }: UseDesig
     handleUserSend,
     handleAttachFiles,
     removeAttachment,
-    handleDimensionClick,
   };
 }
