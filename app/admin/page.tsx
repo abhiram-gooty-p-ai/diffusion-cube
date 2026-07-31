@@ -17,14 +17,21 @@ export default async function AdminPage() {
   }
 
   const admin = createAdminClient();
-  const [{ data: usersData }, { data: rolesData }, { data: submissionsData }] = await Promise.all([
-    admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-    admin.from('user_roles').select('user_id, role'),
-    admin
-      .from('pathway_submissions')
-      .select('id, design_id, content, status, created_at, designs(meta)')
-      .order('created_at', { ascending: false }),
-  ]);
+  const [{ data: usersData }, { data: rolesData }, { data: submissionsData }, { data: publishedData }] =
+    await Promise.all([
+      admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      admin.from('user_roles').select('user_id, role'),
+      admin
+        .from('pathway_submissions')
+        .select('id, design_id, content, status, created_at, designs(meta)')
+        .order('created_at', { ascending: false }),
+      admin.from('published_pathways').select('slug, source_submission_id'),
+    ]);
+
+  const slugBySubmission = new Map<string, string>();
+  for (const p of publishedData ?? []) {
+    if (p.source_submission_id) slugBySubmission.set(p.source_submission_id, p.slug);
+  }
 
   const rolesByUser = new Map<string, Role[]>();
   for (const row of rolesData ?? []) {
@@ -52,6 +59,7 @@ export default async function AdminPage() {
       content: s.content,
       status: s.status,
       created_at: s.created_at,
+      slug: slugBySubmission.get(s.id),
     };
   });
 

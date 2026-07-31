@@ -1,5 +1,6 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { createClient } from '@/lib/supabase/server';
 
 // The corpus lives inside this repo (content/wiki/) so it deploys on Vercel
 // with no extra step; S3 is the likely eventual home once the corpus grows
@@ -54,9 +55,12 @@ export async function loadPathwayGenerationPrompt(): Promise<string> {
   return readSource(PATHWAY_GENERATION_PROMPT_FILE);
 }
 
-// Loads the pathway corpus: the pathways index plus every pathway document.
-// The whole corpus goes into context — with 7 pathways this is fine; revisit
-// with retrieval once the corpus grows meaningfully.
+// Loads the pathway corpus: the pathways index plus every pathway document,
+// plus any admin-published community pathways (see
+// supabase/migrations/0012_published_pathways.sql) — so a conversation with
+// one adopter can be grounded in another's published experience, not just
+// the original curated set. The whole corpus goes into context — fine at
+// this size; revisit with retrieval once it grows meaningfully.
 export async function loadWikiContext(): Promise<string> {
   const index = await readSource(path.join(WIKI_PATH, 'pathways', 'index.md'));
   if (!index) return '';
@@ -71,6 +75,12 @@ export async function loadWikiContext(): Promise<string> {
     })
   );
   parts.push(...pages.filter(Boolean));
+
+  const supabase = await createClient();
+  const { data: published } = await supabase.from('published_pathways').select('slug, content');
+  for (const p of published ?? []) {
+    parts.push(`# Pathway: ${p.slug}\n\n${p.content}`);
+  }
 
   return parts.join('\n\n---\n\n');
 }

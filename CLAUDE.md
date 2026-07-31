@@ -46,6 +46,7 @@ The old `wiki_cache`/`pathway_cache` Supabase tables and the GitHub-raw fetching
   admin/page.tsx               ← user approval + role management (see Auth section)
   api/chat/route.ts            ← modes: companion | analysis-doc | plan-document | extract-insights | pathway-draft
   api/admin/pathway-submissions/review/route.ts ← admin marks a submission reviewed
+  api/admin/pathway-submissions/publish/route.ts ← admin publishes a submission to published_pathways (public)
   (app)/
     layout.tsx                  ← SiteHeader + approval gate (hasAnyRole) + Sidebar
     page.tsx                     ← the landing: AdoptionWorkspace in welcome state
@@ -121,12 +122,13 @@ Unchanged from before the revamp (see git history for detail): `proxy.ts` gates 
 
 - **`designs`** — one row per adoption: `meta`, `grid_state` (renamed from `cube_state` in migration 0008, which also cleared pre-revamp test rows), `messages` jsonb. Lazy creation on first send **or** first uploaded document (whichever happens first — `extract-insights` needs a row to seed).
 - **`design_documents`** — versioned generated docs, content-hash cached.
-- **`pathway_submissions`** (migration 0009) — approved "Review as Wiki Page" drafts: `design_id`, `content`, `status` (`pending_review`/`reviewed`). Owner can insert/view their own; admin review is via the service-role client only (`app/api/admin/pathway-submissions/review/`), same pattern as role assignment. Never auto-publishes into `content/wiki/`.
+- **`pathway_submissions`** (migration 0009) — approved "Review as Wiki Page" drafts: `design_id`, `content`, `status` (`pending_review`/`reviewed`/`published`, extended in migration 0012). Owner can insert/view their own; admin review/publish is via the service-role client only (`app/api/admin/pathway-submissions/{review,publish}/`), same pattern as role assignment.
 - **`adoption_queries`** (migrations 0010, 0011) — every companion-mode user message, insert-only, tagged with `pathway_slugs` (parsed from that turn's `<grid_update>.pathwaysReferenced` — which pathways the response actually drew on) for future cross-adoption insight gathering. Nothing reads this yet.
+- **`published_pathways`** (migration 0012) — admin-published community pathways: publicly readable (RLS `using (true)`) so any approved user can see them at `/wiki`, and `loadWikiContext()` merges them into the companion's grounding corpus too. Publishing an approved submission (`app/api/admin/pathway-submissions/publish/`) slugifies the adoption's name (checked for collisions against both the static files and this table), inserts here, and flips the submission to `status: 'published'`. No git commit or redeploy needed — this is why the corpus is DB-backed for community content while the original 7 curated pathways stay as static files.
 - **`user_roles`** — `(user_id, role)` grants: general_user | adopter | pathway_contributor | admin.
 - Inert leftovers: `pathway_cache`, `wiki_cache`, `pending_signups` (nothing reads or writes them).
 
-Migrations 0008 through 0011 must be run in the Supabase SQL Editor for the app to work post-revamp.
+Migrations 0008 through 0012 must be run in the Supabase SQL Editor for the app to work post-revamp.
 
 ## Environment variables
 
