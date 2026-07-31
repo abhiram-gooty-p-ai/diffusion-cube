@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import { GridState } from '@/lib/dimensions';
+import { CubeState } from '@/lib/dimensions';
 import { Message } from '@/components/ChatPanel';
 
 export type DocType = 'analysis' | 'plan';
@@ -27,10 +27,10 @@ function hashText(text: string): string {
 }
 
 // Depth marker for a document version: changes whenever the conversation has
-// moved on (new messages, or the grid's understanding of any cell has
+// moved on (new messages, or the cube state's understanding of any aspect has
 // changed) — a regeneration with an unchanged hash is a cache hit.
-export function hashConversationState(messages: Message[], grid: GridState): string {
-  return hashText(JSON.stringify({ messages, grid }));
+export function hashConversationState(messages: Message[], cubeState: CubeState): string {
+  return hashText(JSON.stringify({ messages, cubeState }));
 }
 
 // Latest version for this design + doc type, or null if none exists yet.

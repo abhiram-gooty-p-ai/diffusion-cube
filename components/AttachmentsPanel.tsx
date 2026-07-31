@@ -47,7 +47,7 @@ export default function AttachmentsPanel({ attachments, uploadedFileNames = [], 
 
   return (
     <div className="flex flex-col h-full">
-      <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft mb-2">Files</p>
+      <p className="text-[10px] uppercase tracking-wide text-[#7A5C44] mb-2">Files</p>
 
       <div
         onDragEnter={handleDragEnter}
@@ -56,7 +56,7 @@ export default function AttachmentsPanel({ attachments, uploadedFileNames = [], 
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
         className={`rounded-lg border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
-          isDragging ? 'border-coral bg-coral-soft' : 'border-navy/15 hover:border-navy/30'
+          isDragging ? 'border-[#E8A838] bg-[#E8A838]/10' : 'border-[#7A5C44]/30 hover:border-[#7A5C44]/50'
         }`}
       >
         <input
@@ -67,7 +67,7 @@ export default function AttachmentsPanel({ attachments, uploadedFileNames = [], 
           className="hidden"
           onChange={handleFileChange}
         />
-        <p className="text-xs text-ink-soft">📎 Attach files, or drag and drop</p>
+        <p className="text-xs text-[#7A5C44]">📎 Attach files, or drag and drop</p>
       </div>
 
       {attachments.length > 0 && (
@@ -77,8 +77,8 @@ export default function AttachmentsPanel({ attachments, uploadedFileNames = [], 
               key={a.id}
               className={`flex items-center justify-between gap-2 text-xs rounded-lg px-2.5 py-1.5 border ${
                 a.state === 'error'
-                  ? 'border-coral/40 text-coral bg-coral-soft'
-                  : 'border-navy/15 text-ink-soft bg-white'
+                  ? 'border-red-300 text-red-600 bg-red-50'
+                  : 'border-[#7A5C44]/30 text-[#7A5C44] bg-white'
               }`}
             >
               <span className="truncate">
@@ -89,7 +89,7 @@ export default function AttachmentsPanel({ attachments, uploadedFileNames = [], 
                 type="button"
                 onClick={() => onRemoveAttachment(a.id)}
                 disabled={a.state === 'reading'}
-                className="flex-shrink-0 text-ink-soft hover:text-navy disabled:opacity-30"
+                className="flex-shrink-0 text-[#7A5C44] hover:text-[#2C1A0E] disabled:opacity-30"
               >
                 ✕
               </button>
@@ -100,11 +100,11 @@ export default function AttachmentsPanel({ attachments, uploadedFileNames = [], 
 
       {uploadedFileNames.length > 0 && (
         <div className="flex flex-col gap-1 mt-3 overflow-y-auto">
-          <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft/70">Shared in this chat</p>
+          <p className="text-[10px] uppercase tracking-wide text-[#7A5C44]/60">Shared in this chat</p>
           {uploadedFileNames.map((name, i) => (
             <div
               key={`${name}-${i}`}
-              className="flex items-center gap-2 text-xs rounded-lg px-2.5 py-1.5 border border-navy/10 text-ink-soft bg-paper-dim"
+              className="flex items-center gap-2 text-xs rounded-lg px-2.5 py-1.5 border border-[#7A5C44]/15 text-[#7A5C44] bg-[#7A5C44]/5"
             >
               <span className="truncate">✓ {name}</span>
             </div>

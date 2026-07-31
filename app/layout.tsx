@@ -1,21 +1,9 @@
 import type { Metadata } from "next";
-import { Inter, DM_Sans, PT_Serif, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-});
-
-const ptSerif = PT_Serif({
-  variable: "--font-pt-serif",
-  weight: ["400", "700"],
-  style: ["normal", "italic"],
+const geistSans = Geist({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
@@ -25,9 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Adoption Companion | 100 Pathways",
-  description:
-    "Understand where your AI adoption stands — grounded in what real deployments learned. Part of 100 Pathways.",
+  title: "People+Possibilities AI Diffusion Studio",
+  description: "Map, explore, and design AI deployment pathways across seven dimensions.",
 };
 
 export default function RootLayout({
@@ -38,9 +25,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${dmSans.variable} ${ptSerif.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-paper text-ink">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#F5EFE6]">{children}</body>
     </html>
   );
 }

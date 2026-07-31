@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { parsePlanMarkdown, parseStatusBullet, splitInlineBold } from '@/lib/adoption-plan-markdown';
+import { STATUS_COLORS } from '@/lib/dimensions';
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const n = parseInt(hex.replace('#', ''), 16);
@@ -85,7 +86,7 @@ export function downloadPlanAsPdf(markdown: string, filename: string) {
         for (const item of block.items) {
           const { status, text } = parseStatusBullet(item);
           if (status) {
-            writeStatusBullet(flatten(text), '#ff6543');
+            writeStatusBullet(flatten(text), STATUS_COLORS[status]);
           } else {
             writeLines(`•  ${flatten(item)}`, 11, 'normal', 8, 2);
           }

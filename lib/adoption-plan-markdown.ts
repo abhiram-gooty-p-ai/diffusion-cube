@@ -1,3 +1,5 @@
+import type { FaceStatus } from '@/lib/dimensions';
+
 // A small, purpose-built parser for the Adoption Journey Plan's markdown
 // subset (##/### headings, *italic* lines, **bold** runs, bullet and
 // numbered lists) — shared by the on-screen renderer and the PDF export so
@@ -109,10 +111,8 @@ export interface InlineRun {
   bold: boolean;
 }
 
-export type StatusTag = 'green' | 'amber' | 'red' | 'dark';
-
 export interface StatusBulletItem {
-  status: StatusTag | null;
+  status: FaceStatus | null;
   text: string;
 }
 
@@ -125,7 +125,7 @@ const STATUS_TAG_RE = /^\[(green|amber|red|dark)\]\s*/i;
 export function parseStatusBullet(item: string): StatusBulletItem {
   const match = item.match(STATUS_TAG_RE);
   if (!match) return { status: null, text: item };
-  return { status: match[1].toLowerCase() as StatusTag, text: item.slice(match[0].length) };
+  return { status: match[1].toLowerCase() as FaceStatus, text: item.slice(match[0].length) };
 }
 
 // Splits a line into plain/bold runs for inline **bold** rendering.

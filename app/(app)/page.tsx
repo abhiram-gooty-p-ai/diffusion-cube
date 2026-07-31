@@ -1,8 +1,15 @@
-import AdoptionWorkspace from '@/components/AdoptionWorkspace';
+import { redirect } from 'next/navigation';
+import DesignDetailView from '@/components/DesignDetailView';
+import { createClient } from '@/lib/supabase/server';
+import { hasRole } from '@/lib/roles';
 
-// The landing IS the companion: greet, and let the user start by uploading
-// documents or just talking. Any approved user gets in — approval is the
-// only gate now (see (app)/layout.tsx).
-export default function HomePage() {
-  return <AdoptionWorkspace initial={null} />;
+export default async function HomePage() {
+  // The home page's "quick-start" welcome screen is Design functionality
+  // (see DesignDetailView) — General Users without the Adopter role land on
+  // Explore instead, matching the same gate as /design.
+  const supabase = await createClient();
+  const isAdopter = await hasRole(supabase, 'adopter');
+  if (!isAdopter) redirect('/explore');
+
+  return <DesignDetailView initial={null} />;
 }

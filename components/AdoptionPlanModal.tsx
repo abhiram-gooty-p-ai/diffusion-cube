@@ -2,6 +2,7 @@
 
 import { InlineRun, parsePlanMarkdown, parseStatusBullet, splitInlineBold } from '@/lib/adoption-plan-markdown';
 import { downloadPlanAsPdf } from '@/lib/adoption-plan-pdf';
+import { STATUS_COLORS } from '@/lib/dimensions';
 
 export interface VersionOption {
   version_number: number;
@@ -55,19 +56,19 @@ export default function AdoptionPlanModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-navy/40 flex items-center justify-center p-3 sm:p-6">
-      <div className="bg-paper text-ink rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-navy/10 flex-shrink-0 gap-2 flex-wrap">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-3 sm:p-6">
+      <div className="bg-[#F5EFE6] text-[#2C1A0E] rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-[#7A5C44]/20 flex-shrink-0 gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <h2 className="font-display text-lg font-medium text-navy">{title}</h2>
-            {version && <span className="font-mono text-xs text-ink-soft bg-paper-dim rounded-full px-2 py-0.5">{version}</span>}
+            <h2 className="text-lg font-bold">{title}</h2>
+            {version && <span className="text-xs text-[#7A5C44] bg-[#7A5C44]/10 rounded-full px-2 py-0.5">{version}</span>}
           </div>
           <div className="flex items-center gap-2">
             {versions && versions.length > 1 && onSelectVersion && (
               <select
                 value={selectedVersionNumber}
                 onChange={(e) => onSelectVersion(Number(e.target.value))}
-                className="text-xs border border-navy/15 rounded-lg px-2 py-1.5 bg-white text-ink"
+                className="text-xs border border-[#7A5C44]/30 rounded-lg px-2 py-1.5 bg-white text-[#2C1A0E]"
                 aria-label="Select version"
               >
                 {versions.map((v) => (
@@ -80,13 +81,13 @@ export default function AdoptionPlanModal({
             <button
               onClick={handleDownload}
               disabled={loading || !markdown}
-              className="px-3 py-1.5 bg-navy hover:bg-coral disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors"
+              className="px-3 py-1.5 bg-[#2C1A0E] hover:bg-[#3a2414] disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors"
             >
               Download PDF
             </button>
             <button
               onClick={onClose}
-              className="text-ink-soft hover:text-navy text-lg leading-none px-1"
+              className="text-[#7A5C44] hover:text-[#2C1A0E] text-lg leading-none px-1"
               aria-label="Close"
             >
               ×
@@ -95,10 +96,10 @@ export default function AdoptionPlanModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {error && <p className="text-coral text-sm">{error}</p>}
+          {error && <p className="text-[#D64045] text-sm">{error}</p>}
 
           {!error && blocks.length === 0 && loading && (
-            <p className="text-ink-soft text-sm animate-pulse">{loadingLabel}</p>
+            <p className="text-[#7A5C44] text-sm animate-pulse">{loadingLabel}</p>
           )}
 
           {!error &&
@@ -106,19 +107,19 @@ export default function AdoptionPlanModal({
               switch (block.type) {
                 case 'h2':
                   return (
-                    <h2 key={i} className="font-display text-xl font-medium text-navy mt-2 mb-2">
+                    <h2 key={i} className="text-xl font-bold mt-2 mb-2">
                       <InlineText text={block.text} />
                     </h2>
                   );
                 case 'h3':
                   return (
-                    <h3 key={i} className="font-display text-base font-medium text-navy mt-5 mb-1.5">
+                    <h3 key={i} className="text-base font-bold mt-5 mb-1.5">
                       <InlineText text={block.text} />
                     </h3>
                   );
                 case 'italic':
                   return (
-                    <p key={i} className="text-sm italic font-serif text-ink-soft mb-1">
+                    <p key={i} className="text-sm italic text-[#7A5C44] mb-1">
                       <InlineText text={block.text} />
                     </p>
                   );
@@ -138,7 +139,7 @@ export default function AdoptionPlanModal({
                             {status ? (
                               <span
                                 className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 translate-y-[1px]"
-                                style={{ backgroundColor: '#ff6543' }}
+                                style={{ backgroundColor: STATUS_COLORS[status] }}
                                 aria-hidden
                               />
                             ) : (
@@ -170,7 +171,7 @@ export default function AdoptionPlanModal({
             })}
 
           {!error && loading && blocks.length > 0 && (
-            <p className="text-ink-soft text-xs mt-2 animate-pulse">Generating…</p>
+            <p className="text-[#7A5C44] text-xs mt-2 animate-pulse">Generating…</p>
           )}
         </div>
       </div>
