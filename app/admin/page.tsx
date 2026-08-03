@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin, type Role } from '@/lib/roles';
 import AdminDashboard, { AdminUserRow } from '@/components/AdminDashboard';
+import PathwaySubmissionsPanel, { PathwaySubmissionRow } from '@/components/PathwaySubmissionsPanel';
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -16,10 +17,21 @@ export default async function AdminPage() {
   }
 
   const admin = createAdminClient();
-  const [{ data: usersData }, { data: rolesData }] = await Promise.all([
-    admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-    admin.from('user_roles').select('user_id, role'),
-  ]);
+  const [{ data: usersData }, { data: rolesData }, { data: submissionsData }, { data: publishedData }] =
+    await Promise.all([
+      admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      admin.from('user_roles').select('user_id, role'),
+      admin
+        .from('pathway_submissions')
+        .select('id, design_id, content, status, created_at, designs(meta)')
+        .order('created_at', { ascending: false }),
+      admin.from('published_pathways').select('slug, source_submission_id'),
+    ]);
+
+  const slugBySubmission = new Map<string, string>();
+  for (const p of publishedData ?? []) {
+    if (p.source_submission_id) slugBySubmission.set(p.source_submission_id, p.slug);
+  }
 
   const rolesByUser = new Map<string, Role[]>();
   for (const row of rolesData ?? []) {
@@ -38,14 +50,33 @@ export default async function AdminPage() {
     }))
     .sort((a, b) => a.roles.length - b.roles.length);
 
+  const submissionRows: PathwaySubmissionRow[] = (submissionsData ?? []).map((s) => {
+    const design = s.designs as unknown as { meta?: { name?: string } } | { meta?: { name?: string } }[] | null;
+    const meta = Array.isArray(design) ? design[0]?.meta : design?.meta;
+    return {
+      id: s.id,
+      adoptionName: meta?.name ?? '',
+      content: s.content,
+      status: s.status,
+      created_at: s.created_at,
+      slug: slugBySubmission.get(s.id),
+    };
+  });
+
   return (
-    <div className="min-h-screen bg-[#F5EFE6] text-[#2C1A0E] p-8">
-      <Link href="/" className="text-xs text-[#7A5C44] hover:text-[#2C1A0E] transition-colors">
+    <div className="min-h-screen bg-paper text-ink p-8">
+      <Link href="/" className="text-xs text-ink-soft hover:text-coral transition-colors">
         ← Back
       </Link>
-      <h1 className="text-2xl font-bold mt-2 mb-1">Admin</h1>
-      <p className="text-sm text-[#7A5C44] mb-6">Approve signups and manage roles.</p>
+      <h1 className="font-display text-2xl font-medium text-navy mt-2 mb-1">Admin</h1>
+      <p className="text-sm text-ink-soft mb-6">Approve signups and manage roles.</p>
       <AdminDashboard initialRows={rows} />
+
+      <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathway Submissions</h2>
+      <p className="text-sm text-ink-soft mb-4">
+        Drafts users approved from their own adoption — review before adding any of them to the wiki.
+      </p>
+      <PathwaySubmissionsPanel initialRows={submissionRows} />
     </div>
   );
 }

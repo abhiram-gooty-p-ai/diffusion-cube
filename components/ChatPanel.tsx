@@ -82,7 +82,7 @@ export default function ChatPanel({ messages, onSend, pendingAttachments = [], l
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#F5EFE6]">
+    <div className="flex flex-col h-full bg-paper">
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map((m, i) => (
           <div
@@ -92,8 +92,8 @@ export default function ChatPanel({ messages, onSend, pendingAttachments = [], l
             <div
               className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${
                 m.role === 'user'
-                  ? 'bg-[#2C1A0E] text-white'
-                  : 'bg-white text-[#2C1A0E] border border-[#7A5C44]/20'
+                  ? 'bg-navy text-white'
+                  : 'bg-white text-ink border border-navy/10'
               }`}
             >
               {renderInlineMarkdown(m.displayContent ?? m.content)}
@@ -102,7 +102,7 @@ export default function ChatPanel({ messages, onSend, pendingAttachments = [], l
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-white text-[#7A5C44] border border-[#7A5C44]/20 rounded-lg px-4 py-2 text-sm animate-pulse">
+            <div className="bg-white text-ink-soft border border-navy/10 rounded-lg px-4 py-2 text-sm animate-pulse">
               Thinking…
             </div>
           </div>
@@ -110,11 +110,11 @@ export default function ChatPanel({ messages, onSend, pendingAttachments = [], l
         <div ref={bottomRef} />
       </div>
 
-      <div className="border-t border-[#7A5C44]/20 p-3">
+      <div className="border-t border-navy/10 p-3">
         <div className="flex gap-2">
         <textarea
           ref={textareaRef}
-          className="flex-1 bg-white text-[#2C1A0E] border border-[#7A5C44]/30 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-[#E8A838] placeholder-[#7A5C44] overflow-y-auto"
+          className="flex-1 bg-white text-ink border border-navy/15 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-coral placeholder-ink-soft overflow-y-auto"
           style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -125,7 +125,7 @@ export default function ChatPanel({ messages, onSend, pendingAttachments = [], l
         <button
           onClick={handleSend}
           disabled={!canSend}
-          className="px-4 py-2 bg-[#2C1A0E] hover:bg-[#3a2414] disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors"
+          className="px-4 py-2 bg-navy hover:bg-coral disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors"
         >
           Send
         </button>

@@ -1,13 +1,14 @@
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import { hasAnyRole, isAdmin } from '@/lib/roles';
+import { hasAnyRole, hasRole, isAdmin } from '@/lib/roles';
+import SiteHeader from '@/components/SiteHeader';
 import Sidebar from '@/components/Sidebar';
 import SignOutButton from '@/components/SignOutButton';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // proxy.ts already verified the session and forwards the email via this
   // header — avoids a second getUser() round trip to Supabase on every
-  // single navigation between tabs.
+  // single navigation.
   const headersList = await headers();
   const email = headersList.get('x-user-email');
 
@@ -19,30 +20,44 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const approved = await hasAnyRole(supabase);
   if (!approved) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#F5EFE6] text-[#2C1A0E] p-8">
-        <div className="text-center max-w-sm flex flex-col items-center gap-4">
-          <div>
-            <h1 className="text-lg font-bold mb-2">Awaiting approval</h1>
-            <p className="text-sm text-[#7A5C44]">
-              Your account has been created but hasn&apos;t been approved yet. An admin will let you know once
-              you&apos;re in.
-            </p>
+      <div className="flex min-h-screen flex-col bg-paper">
+        <SiteHeader />
+        <div className="flex flex-1 items-center justify-center p-8">
+          <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+            <div>
+              <h1 className="mb-2 font-display text-lg font-medium text-navy">Awaiting approval</h1>
+              <p className="text-sm text-ink-soft">
+                Your account has been created but hasn&apos;t been approved yet. An admin will let you know
+                once you&apos;re in.
+              </p>
+            </div>
+            <SignOutButton />
           </div>
-          <SignOutButton />
         </div>
       </div>
     );
   }
 
-  const { data: designs } = await supabase
-    .from('designs')
-    .select('id, meta, updated_at')
-    .order('updated_at', { ascending: false });
+  const [{ data: adoptions }, canExplore, canContribute, adminAccess] = await Promise.all([
+    supabase.from('designs').select('id, meta, updated_at').order('updated_at', { ascending: false }),
+    hasRole(supabase, 'adopter'),
+    hasRole(supabase, 'pathway_contributor'),
+    isAdmin(supabase, email),
+  ]);
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar email={email} designs={designs ?? []} isAdmin={await isAdmin(supabase, email)} />
-      <div className="flex-1 flex flex-col overflow-hidden pt-14 md:pt-0">{children}</div>
+    <div className="flex h-screen flex-col overflow-hidden bg-paper">
+      <SiteHeader />
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <Sidebar
+          email={email}
+          adoptions={adoptions ?? []}
+          isAdmin={adminAccess}
+          canExplore={canExplore}
+          canContribute={canContribute}
+        />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+      </div>
     </div>
   );
 }

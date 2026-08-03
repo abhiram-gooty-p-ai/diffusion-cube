@@ -1,94 +1,85 @@
+import { readFile } from 'fs/promises';
+import path from 'path';
 import { createClient } from '@/lib/supabase/server';
 
-const BASE_URL = process.env.GITHUB_WIKI_BASE_URL!;
-const TTL_MS = 60 * 60 * 1000; // 1 hour — matches the old `revalidate: 3600` window
+// The corpus lives inside this repo (content/wiki/) so it deploys on Vercel
+// with no extra step; S3 is the likely eventual home once the corpus grows
+// past what's comfortable to commit. All reads go through readSource() so
+// swapping in-repo for S3 later is a one-function change, no call-site edits.
+// WIKI_PATH can still override this (e.g. to point at a different checkout
+// in local dev) but nothing requires it anymore.
+const WIKI_PATH = process.env.WIKI_PATH ?? path.join(process.cwd(), 'content', 'wiki');
 
-// Fast path for a warm serverless instance handling several requests back to
-// back — avoids a Supabase round trip when possible. The real fix is the
-// Supabase-backed cache below: unlike this Map, it's shared across every
-// instance and survives cold starts, so concurrent traffic doesn't cause many
-// instances to each cold-fetch the same page from GitHub independently.
-const memoryCache = new Map<string, string>();
+// The framework question bank ships inside this repo (content/framework.md)
+// rather than the external wiki: it's the app's own operating framework, and
+// bundling it means it survives deployment regardless of where the pathway
+// corpus ends up living.
+const FRAMEWORK_FILE = path.join(process.cwd(), 'content', 'framework.md');
 
-async function fetchPage(path: string): Promise<string> {
-  if (memoryCache.has(path)) return memoryCache.get(path)!;
+// The contributor-side generation prompt — the exact rules for the pathway
+// document's output structure (Sections 0-6 + Provenance appendix). Also
+// used at runtime for the `pathway-draft` mode, which drafts a user's own
+// adoption in the same structure for their review.
+const PATHWAY_GENERATION_PROMPT_FILE = path.join(process.cwd(), 'content', 'pathway-generation-prompt.md');
 
-  const supabase = await createClient();
-  const { data: cached } = await supabase
-    .from('wiki_cache')
-    .select('content, fetched_at')
-    .eq('path', path)
-    .maybeSingle();
-
-  if (cached && Date.now() - new Date(cached.fetched_at).getTime() < TTL_MS) {
-    memoryCache.set(path, cached.content);
-    return cached.content;
-  }
-
-  const url = `${BASE_URL}/${path}`;
-  const res = await fetch(url, { next: { revalidate: 3600 } });
-  if (!res.ok) {
-    // GitHub fetch failed (rate-limited, down, etc.) — fall back to the last
-    // known cached copy rather than nothing, even if it's stale.
-    if (cached?.content) {
-      memoryCache.set(path, cached.content);
-      return cached.content;
-    }
+async function readSource(filePath: string): Promise<string> {
+  try {
+    return await readFile(filePath, 'utf-8');
+  } catch {
+    console.error(`[wiki-loader] Could not read ${filePath}`);
     return '';
   }
-
-  const text = await res.text();
-  memoryCache.set(path, text);
-
-  // Fire-and-forget — never blocks the response on a write, and a failure
-  // here (e.g. the migration hasn't been run yet) just means no caching,
-  // not a broken page load.
-  void supabase
-    .from('wiki_cache')
-    .upsert({ path, content: text, fetched_at: new Date().toISOString() }, { onConflict: 'path' })
-    .then(({ error }) => {
-      if (error) console.error('[wiki-loader] Failed to write wiki cache:', error.message);
-    });
-
-  return text;
 }
 
-// Parse pathway slugs listed in index.md lines like: - [Name](pathways/slug.md)
+// Parse pathway slugs from the pathways index's relative links:
+// * [MahaVISTAAR](mahavistaar.md) - ...
 function parsePathwaySlugs(indexMd: string): string[] {
   const slugs: string[] = [];
-  const re = /\(pathways\/([^)]+\.md)\)/g;
+  const re = /\(([a-z0-9-]+\.md)\)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(indexMd)) !== null) {
-    slugs.push(m[1]);
+    if (m[1] !== 'index.md') slugs.push(m[1]);
   }
   return slugs;
 }
 
-// The Seven Dimensions Framework doc — dimension definitions, stages, and
-// the stage x dimension question bank. Injected into prompts instead of
-// hardcoding any of that in system-prompts.ts, so editing the wiki page is
-// the only thing needed to change the framework the app uses.
+// The AI Diffusion Pathway Framework — dimensions, sub-categories, stage
+// weighting, the full question bank (core questions, listening-for, insight
+// forms, corpus examples), unit types, and tagging rules. Injected into
+// prompts rather than hardcoded in system-prompts.ts.
 export async function loadFrameworkContent(): Promise<string> {
-  return fetchPage('wiki/framework.md');
+  return readSource(FRAMEWORK_FILE);
 }
 
-export async function loadWikiContext(pathwaySlug?: string): Promise<string> {
-  const index = await fetchPage('wiki/index.md');
-  const parts: string[] = [`# Wiki Index\n\n${index}`];
+export async function loadPathwayGenerationPrompt(): Promise<string> {
+  return readSource(PATHWAY_GENERATION_PROMPT_FILE);
+}
 
-  if (pathwaySlug) {
-    const slug = pathwaySlug.endsWith('.md') ? pathwaySlug : `${pathwaySlug}.md`;
-    const page = await fetchPage(`wiki/pathways/${slug}`);
-    if (page) parts.push(`# Pathway: ${pathwaySlug}\n\n${page}`);
-  } else {
-    const slugs = parsePathwaySlugs(index);
-    const pages = await Promise.all(
-      slugs.map(async (slug) => {
-        const page = await fetchPage(`wiki/pathways/${slug}`);
-        return page ? `# Pathway: ${slug}\n\n${page}` : '';
-      })
-    );
-    parts.push(...pages.filter(Boolean));
+// Loads the pathway corpus: the pathways index plus every pathway document,
+// plus any admin-published community pathways (see
+// supabase/migrations/0012_published_pathways.sql) — so a conversation with
+// one adopter can be grounded in another's published experience, not just
+// the original curated set. The whole corpus goes into context — fine at
+// this size; revisit with retrieval once it grows meaningfully.
+export async function loadWikiContext(): Promise<string> {
+  const index = await readSource(path.join(WIKI_PATH, 'pathways', 'index.md'));
+  if (!index) return '';
+
+  const parts: string[] = [`# Pathways Index\n\n${index}`];
+
+  const slugs = parsePathwaySlugs(index);
+  const pages = await Promise.all(
+    slugs.map(async (slug) => {
+      const page = await readSource(path.join(WIKI_PATH, 'pathways', slug));
+      return page ? `# Pathway: ${slug.replace(/\.md$/, '')}\n\n${page}` : '';
+    })
+  );
+  parts.push(...pages.filter(Boolean));
+
+  const supabase = await createClient();
+  const { data: published } = await supabase.from('published_pathways').select('slug, content');
+  for (const p of published ?? []) {
+    parts.push(`# Pathway: ${p.slug}\n\n${p.content}`);
   }
 
   return parts.join('\n\n---\n\n');
