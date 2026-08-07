@@ -91,6 +91,7 @@ function AdoptionsPageContent() {
       <AdoptionWorkspace
         key={selection}
         initial={existing}
+        onBack={() => setSelection(null)}
         onCreated={(c) =>
           setAdoptions((prev) => {
             const next = [c, ...prev];

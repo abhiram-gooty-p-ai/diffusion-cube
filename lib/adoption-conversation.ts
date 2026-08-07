@@ -3,7 +3,16 @@ import { EMPTY_GRID, type GridState } from '@/lib/dimensions';
 import { Message } from '@/components/ChatPanel';
 import { createClient } from '@/lib/supabase/client';
 import { extractTextFromFile, fileToImageBlock, getFileExtension, isImageFile } from '@/lib/extract-text';
-import { parseGridUpdate, stripGridUpdate, DELIVERABLE_START } from '@/lib/grid-update';
+import { parseGridUpdate, stripGridUpdate, DELIVERABLE_START, PATHWAY_DOC_MARKER, type ParsedGridUpdate } from '@/lib/grid-update';
+import { extractGapsFromPathwayDraft } from '@/lib/pathway-gaps';
+import {
+  PathwaySubmissionVersionRow,
+  getPathwaySubmissionByDesign,
+  getPublishedInfoBySubmission,
+  insertPathwaySubmissionVersion,
+  listPathwaySubmissionVersions,
+  upsertPathwaySubmission,
+} from '@/lib/pathway-submission-versions';
 
 export type AdoptionFlow = 'explorer' | 'contributor' | '';
 
@@ -125,6 +134,40 @@ interface AdoptionRow {
   updated_at: string;
 }
 
+// Contributor-only: the current state of this adoption's pathway document —
+// driven automatically by pathwayAction (see contributorSystemPrompt's JSON
+// contract) as well as the manual "View Pathway Document" / "Publish"
+// actions. `versions` is ordered newest-first (see
+// listPathwaySubmissionVersions); the latest generated content is always
+// versions[0], regardless of which version the pane currently has selected
+// for viewing.
+export interface PathwayDocState {
+  submissionId: string | null;
+  versions: PathwaySubmissionVersionRow[];
+  selectedVersionNumber?: number;
+  publishedSlug: string | null;
+  // What's actually live right now, if anything — compared against
+  // whichever version is currently selected (not just "has this submission
+  // ever been published") so the pane's status line reflects the version
+  // it's showing, not the submission's history. Null whenever publishedSlug
+  // is null.
+  publishedContent: string | null;
+  paneOpen: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+export const EMPTY_PATHWAY_DOC: PathwayDocState = {
+  submissionId: null,
+  versions: [],
+  selectedVersionNumber: undefined,
+  publishedSlug: null,
+  publishedContent: null,
+  paneOpen: false,
+  loading: false,
+  error: null,
+};
+
 export function rowToConversation(row: AdoptionRow): AdoptionConversation {
   return {
     id: row.id,
@@ -172,6 +215,45 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
   // instead of racing to create duplicates.
   const creatingRef = useRef<Promise<AdoptionConversation> | null>(null);
 
+  // Contributor-only pathway document state — see PathwayDocState. Mirrored
+  // into a ref (same idiom as conversation/conversationRef above) so the
+  // internal helpers below always read the latest value even though they're
+  // plain functions, not memoized against pathwayDoc's identity.
+  const [pathwayDoc, setPathwayDoc] = useState<PathwayDocState>(EMPTY_PATHWAY_DOC);
+  const pathwayDocRef = useRef<PathwayDocState>(EMPTY_PATHWAY_DOC);
+  const updatePathwayDoc = useCallback((updater: (d: PathwayDocState) => PathwayDocState) => {
+    setPathwayDoc((prev) => {
+      const next = updater(prev);
+      pathwayDocRef.current = next;
+      return next;
+    });
+  }, []);
+
+  // Loads an existing contribution's pathway document state once, on mount —
+  // AdoptionWorkspace remounts with a fresh `key` per selected adoption (see
+  // ContributeGrid.tsx), so this never needs to re-run for a conversation
+  // switch, only for the initial load of an existing one.
+  useEffect(() => {
+    if (!initial) return;
+    (async () => {
+      const submission = await getPathwaySubmissionByDesign(initial.id);
+      if (!submission) return;
+      const [versions, publishedInfo] = await Promise.all([
+        listPathwaySubmissionVersions(submission.id),
+        getPublishedInfoBySubmission(submission.id),
+      ]);
+      updatePathwayDoc((prev) => ({
+        ...prev,
+        submissionId: submission.id,
+        versions,
+        selectedVersionNumber: versions[0]?.version_number,
+        publishedSlug: publishedInfo?.slug ?? null,
+        publishedContent: publishedInfo?.content ?? null,
+      }));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Updater functions passed to setState must be pure — calling onChange
   // (which triggers the parent's list update) from inside one produces
   // React's "Cannot update a component while rendering a different
@@ -210,6 +292,155 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     update((cur) => ({ ...cur, updatedAt }));
   }
 
+  // Generates (revisionInstruction omitted) or regenerates (given) the
+  // pathway document via the `pathway-draft` mode — same request shape the
+  // old manual "Generate Pathway Wiki" button used — then stores the result
+  // as a new version. Returns the generated markdown, or null on failure.
+  // Called automatically from sendMessage below when the Contributor
+  // companion sets pathwayAction to "generate"/"revise"; never called
+  // directly by UI code anymore.
+  async function generatePathwayDraft(revisionInstruction?: string): Promise<string | null> {
+    const c = conversationRef.current;
+    if (!c) return null;
+
+    updatePathwayDoc((prev) => ({ ...prev, loading: true, error: null }));
+
+    const trailingMessage = revisionInstruction
+      ? `Please revise the pathway draft as follows: ${revisionInstruction}. Return the full revised document in the same Sections 0-6 + Provenance appendix format.`
+      : 'Draft my adoption as a pathway page now.';
+
+    try {
+      const latestDraft = pathwayDocRef.current.versions[0]?.content;
+      const priorDraft = latestDraft ? [{ role: 'assistant', content: latestDraft }] : [];
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...toApiMessages(c.messages), ...priorDraft, { role: 'user', content: trailingMessage }],
+          mode: 'pathway-draft',
+          grid: c.grid,
+          meta: c.meta,
+        }),
+      });
+      if (!res.body) throw new Error('No response from the server.');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+      }
+
+      const submission = await upsertPathwaySubmission(c.id, text);
+      if (!submission) throw new Error('Could not save the draft.');
+
+      const versions = await listPathwaySubmissionVersions(submission.id);
+      const previousVersionNumber = versions[0]?.version_number ?? 0;
+      const newVersion = await insertPathwaySubmissionVersion(
+        submission.id,
+        text,
+        revisionInstruction ?? 'Initial draft',
+        previousVersionNumber
+      );
+      const updatedVersions = newVersion ? [newVersion, ...versions] : versions;
+
+      updatePathwayDoc((prev) => ({
+        ...prev,
+        submissionId: submission.id,
+        versions: updatedVersions,
+        selectedVersionNumber: newVersion?.version_number ?? previousVersionNumber,
+        loading: false,
+      }));
+
+      return text;
+    } catch {
+      updatePathwayDoc((prev) => ({ ...prev, loading: false, error: 'Could not draft this pathway page. Try again.' }));
+      return null;
+    }
+  }
+
+  // Pushes the current submission straight to the public wiki (see
+  // app/api/pathway-submissions/push/route.ts) — used by both the pane's
+  // manual "Publish" button and a chat-driven publish request (pathwayAction
+  // "publish"), so a push behaves identically either way.
+  async function publishPathwayDocument(commitMessage?: string): Promise<{ ok: boolean; slug?: string; error?: string }> {
+    const submissionId = pathwayDocRef.current.submissionId;
+    if (!submissionId) return { ok: false, error: 'Nothing to publish yet.' };
+    try {
+      const res = await fetch('/api/pathway-submissions/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submission_id: submissionId, commit_message: commitMessage || 'Update pathway page' }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { ok: false, error: data.error };
+      // A push always sends the latest version (versions[0] — see
+      // generatePathwayDraft/upsertPathwaySubmission above), so that's what's
+      // now live, regardless of which version the pane currently has selected.
+      const publishedContent = pathwayDocRef.current.versions[0]?.content ?? null;
+      updatePathwayDoc((prev) => ({ ...prev, publishedSlug: data.slug ?? prev.publishedSlug, publishedContent }));
+      return { ok: true, slug: data.slug };
+    } catch {
+      return { ok: false, error: 'Could not reach the server. Try again.' };
+    }
+  }
+
+  function openPathwayDocument() {
+    updatePathwayDoc((prev) => ({ ...prev, paneOpen: true }));
+  }
+
+  function closePathwayDocument() {
+    updatePathwayDoc((prev) => ({ ...prev, paneOpen: false }));
+  }
+
+  function selectPathwayVersion(versionNumber: number) {
+    updatePathwayDoc((prev) =>
+      prev.versions.some((v) => v.version_number === versionNumber) ? { ...prev, selectedVersionNumber: versionNumber } : prev
+    );
+  }
+
+  // Appends one client-constructed (never model-authored) assistant message
+  // carrying the PATHWAY_DOC_MARKER card — see components/ChatPanel.tsx for
+  // the rendering side. Used for both the first draft (with its real gap
+  // list, parsed straight from the generated document's own Section 2 — see
+  // lib/pathway-gaps.ts) and every later revision (no gap list restated).
+  function appendPathwayDocMessage(markdown: string, opts: { includeGaps: boolean }) {
+    const gaps = opts.includeGaps ? extractGapsFromPathwayDraft(markdown) : [];
+    const gapsLine = gaps.length ? `\n\nA few things I couldn't find in the documents:\n${gaps.map((g) => `- ${g}`).join('\n')}` : '';
+    const intro = opts.includeGaps ? `Here is the pathway document drafted from your documents.${gapsLine}` : "Here's the updated pathway document.";
+    const content = `${intro}\n\n${PATHWAY_DOC_MARKER}\n\nDo you want to make any changes or want to publish it?`;
+
+    update((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', content }] }));
+    if (conversationRef.current) void persist(conversationRef.current);
+  }
+
+  function appendPublishOutcomeMessage(result: { ok: boolean; slug?: string; error?: string }) {
+    const content = result.ok ? `Published — it's live now.\n\n${PATHWAY_DOC_MARKER}` : `I couldn't publish it — ${result.error || 'something went wrong. Try again.'}`;
+    update((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', content }] }));
+    if (conversationRef.current) void persist(conversationRef.current);
+  }
+
+  // Reacts to the Contributor companion's pathwayAction — see
+  // contributorSystemPrompt's JSON contract in lib/system-prompts.ts. Runs
+  // after the companion's own reply has finished streaming, from inside
+  // sendMessage below, so the "Thinking…" indicator naturally covers the
+  // extra draft-generation round trip too.
+  async function handlePathwayAction(action: NonNullable<ParsedGridUpdate['pathwayAction']>) {
+    if (action.type === 'generate') {
+      const markdown = await generatePathwayDraft();
+      if (markdown) appendPathwayDocMessage(markdown, { includeGaps: true });
+    } else if (action.type === 'revise') {
+      const markdown = await generatePathwayDraft(action.instruction || 'Apply the requested change.');
+      if (markdown) appendPathwayDocMessage(markdown, { includeGaps: false });
+    } else if (action.type === 'publish') {
+      const result = await publishPathwayDocument();
+      appendPublishOutcomeMessage(result);
+    }
+  }
+
   const sendMessage = useCallback(
     async (id: string, history: Message[], userMessage: Message, flow: AdoptionFlow, grid: GridState, meta: AdoptionMeta) => {
       const next: Message[] = [...history, userMessage];
@@ -234,6 +465,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantText = '';
+      let lastParsed: ParsedGridUpdate | null = null;
 
       update((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', content: '' }] }));
 
@@ -244,6 +476,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
 
         const parsed = parseGridUpdate(assistantText);
         if (parsed) {
+          lastParsed = parsed;
           update((c) => {
             const nextGrid = { ...c.grid };
             for (const [key, cell] of Object.entries(parsed.cells)) {
@@ -305,11 +538,19 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
         return { ...c, messages: msgs };
       });
 
-      setLoading(false);
-
       if (conversationRef.current && conversationRef.current.id === id) {
         void persist(conversationRef.current);
       }
+
+      // Contributor-only: react to the companion's pathwayAction, if any —
+      // done before setLoading(false) so the "Thinking…" indicator covers
+      // the extra draft-generation round trip this can trigger (see
+      // handlePathwayAction above).
+      if (flow === 'contributor' && lastParsed?.pathwayAction && lastParsed.pathwayAction.type !== 'none') {
+        await handlePathwayAction(lastParsed.pathwayAction);
+      }
+
+      setLoading(false);
     },
     [update]
   );
@@ -518,5 +759,10 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     handleUserSend,
     handleAttachFiles,
     removeAttachment,
+    pathwayDoc,
+    openPathwayDocument,
+    closePathwayDocument,
+    selectPathwayVersion,
+    publishPathwayDocument,
   };
 }

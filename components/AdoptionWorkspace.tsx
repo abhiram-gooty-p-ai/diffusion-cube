@@ -1,23 +1,41 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import ChatPanel from '@/components/ChatPanel';
+import Link from 'next/link';
+import ChatPanel, { Message } from '@/components/ChatPanel';
 import AttachmentsPanel from '@/components/AttachmentsPanel';
-import PathwayDraftCanvas from '@/components/PathwayDraftCanvas';
+import PathwayDocumentPane from '@/components/PathwayDocumentPane';
 import {
   AdoptionConversation,
   AdoptionFlow,
   extractUploadedFileNames,
-  toApiMessages,
   useAdoptionConversation,
 } from '@/lib/adoption-conversation';
-import {
-  PathwaySubmissionVersionRow,
-  getPublishedContentBySubmission,
-  insertPathwaySubmissionVersion,
-  listPathwaySubmissionVersions,
-  upsertPathwaySubmission,
-} from '@/lib/pathway-submission-versions';
+
+// The fixed opening line a brand-new Contributor conversation shows before
+// any row exists — the whole point of this flow is document-first, so it
+// asks for documents immediately instead of a marketing hero. Never
+// persisted; it's replaced the moment a real conversation exists.
+const CONTRIBUTOR_OPENING_MESSAGE: Message = {
+  role: 'assistant',
+  content: "Please share your deployment related documents (pdf, docx). I'll read through them and put together a draft pathway for you to check.",
+};
+
+// A Link to /contribute is a no-op when already on that route (the App
+// Router doesn't remount on a same-URL navigation) — onBack lets the actual
+// list-owning page reset its own local `selection` state instead.
+function BackControl({ onBack }: { onBack?: () => void }) {
+  const className = 'text-xs font-medium text-ink-soft transition hover:text-coral';
+  return onBack ? (
+    <button type="button" onClick={onBack} className={className}>
+      ← Back
+    </button>
+  ) : (
+    <Link href="/contribute" className={className}>
+      ← Back
+    </Link>
+  );
+}
 
 interface Props {
   initial: AdoptionConversation | null;
@@ -29,6 +47,12 @@ interface Props {
   canContribute?: boolean;
   onCreated?: (c: AdoptionConversation) => void;
   onChange?: (c: AdoptionConversation) => void;
+  // Contributor-only "← Back" control in the header — the caller owns
+  // whatever list view it should return to (ContributeGrid's own grid,
+  // /adoptions' grid if opened from there). Falls back to a real navigation
+  // to /contribute when omitted, since a Link to the page you're already on
+  // is a no-op in the App Router — it never remounts local `selection` state.
+  onBack?: () => void;
 }
 
 export default function AdoptionWorkspace({
@@ -38,6 +62,7 @@ export default function AdoptionWorkspace({
   canContribute = false,
   onCreated,
   onChange,
+  onBack,
 }: Props) {
   const {
     conversation,
@@ -46,6 +71,11 @@ export default function AdoptionWorkspace({
     handleUserSend,
     handleAttachFiles,
     removeAttachment,
+    pathwayDoc,
+    openPathwayDocument,
+    closePathwayDocument,
+    selectPathwayVersion,
+    publishPathwayDocument,
   } = useAdoptionConversation({ initial, onCreated, onChange });
 
   // Resolved once, at the top level, so both the welcome screen's file/drop
@@ -59,106 +89,17 @@ export default function AdoptionWorkspace({
   const [isDragging, setIsDragging] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
-  const [pathwayDraftOpen, setPathwayDraftOpen] = useState(false);
-  const [pathwayDraftMarkdown, setPathwayDraftMarkdown] = useState('');
-  const [pathwayDraftLoading, setPathwayDraftLoading] = useState(false);
-  const [pathwayDraftError, setPathwayDraftError] = useState<string | null>(null);
-  const [pathwaySubmissionId, setPathwaySubmissionId] = useState<string | null>(null);
-  const [pathwayVersions, setPathwayVersions] = useState<PathwaySubmissionVersionRow[]>([]);
-  const [selectedVersionNumber, setSelectedVersionNumber] = useState<number | undefined>(undefined);
-  const [diffBaseline, setDiffBaseline] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
-  // Drafts (or revises) the conversation as a would-be corpus pathway page
-  // (Sections 0-6 + Provenance appendix, same structure as the real corpus)
-  // for the Contributor to review, revise conversationally, and push — see
-  // PathwayDraftModal. Each call is a new version.
-  async function handleOpenPathwayDraft(revisionInstruction?: string) {
-    if (!conversation) return;
-    setPathwayDraftOpen(true);
-    setPathwayDraftLoading(true);
-    setPathwayDraftError(null);
-
-    const trailingMessage = revisionInstruction
-      ? `Please revise the pathway draft as follows: ${revisionInstruction}. Return the full revised document in the same Sections 0-6 + Provenance appendix format.`
-      : 'Draft my adoption as a pathway page now.';
-
-    try {
-      const priorDraft = pathwayDraftMarkdown ? [{ role: 'assistant', content: pathwayDraftMarkdown }] : [];
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...toApiMessages(conversation.messages), ...priorDraft, { role: 'user', content: trailingMessage }],
-          mode: 'pathway-draft',
-          grid: conversation.grid,
-          meta: conversation.meta,
-        }),
-      });
-      if (!res.body) throw new Error('No response from the server.');
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let text = '';
-      setPathwayDraftMarkdown('');
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        text += decoder.decode(value, { stream: true });
-        setPathwayDraftMarkdown(text);
-      }
-
-      const submission = await upsertPathwaySubmission(conversation.id, text);
-      if (submission) {
-        setPathwaySubmissionId(submission.id);
-        const versions = await listPathwaySubmissionVersions(submission.id);
-        const previousVersionNumber = versions[0]?.version_number ?? 0;
-        const newVersion = await insertPathwaySubmissionVersion(
-          submission.id,
-          text,
-          revisionInstruction ?? 'Initial draft',
-          previousVersionNumber
-        );
-        const updatedVersions = newVersion ? [newVersion, ...versions] : versions;
-        setPathwayVersions(updatedVersions);
-        setSelectedVersionNumber(newVersion?.version_number ?? previousVersionNumber);
-
-        const published = await getPublishedContentBySubmission(submission.id);
-        setDiffBaseline(published ?? versions[0]?.content ?? '');
-      }
-    } catch {
-      setPathwayDraftError('Could not draft this pathway page. Try again.');
-    } finally {
-      setPathwayDraftLoading(false);
-    }
-  }
-
-  function handleSelectPathwayVersion(versionNumber: number) {
-    const row = pathwayVersions.find((v) => v.version_number === versionNumber);
-    if (!row) return;
-    setSelectedVersionNumber(row.version_number);
-    setPathwayDraftMarkdown(row.content);
-  }
-
-  // Pushes the submission straight to the public wiki — see
-  // app/api/pathway-submissions/push/route.ts (contributor self-serve, no
-  // separate admin approval step; admins keep full visibility via /admin).
-  async function handlePushPathwayDraft(commitMessage: string): Promise<{ ok: boolean; slug?: string; error?: string }> {
-    if (!pathwaySubmissionId) return { ok: false, error: 'Nothing to push yet.' };
-    try {
-      const res = await fetch('/api/pathway-submissions/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ submission_id: pathwaySubmissionId, commit_message: commitMessage }),
-      });
-      const data = await res.json();
-      if (!res.ok) return { ok: false, error: data.error };
-      return { ok: true, slug: data.slug };
-    } catch {
-      return { ok: false, error: 'Could not reach the server. Try again.' };
-    }
-  }
+  // The pane always shows the currently *selected* version (defaults to the
+  // latest, versions[0], since listPathwaySubmissionVersions orders
+  // newest-first) — never regenerated, just read back from
+  // pathway_submission_versions.
+  const pathwayDocMarkdown =
+    pathwayDoc.versions.find((v) => v.version_number === pathwayDoc.selectedVersionNumber)?.content ??
+    pathwayDoc.versions[0]?.content ??
+    '';
 
   function handleWelcomeFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -185,6 +126,96 @@ export default function AdoptionWorkspace({
     setIsDragging(false);
     const files = Array.from(e.dataTransfer.files ?? []);
     if (files.length) handleAttachFiles(files, defaultFlow);
+  }
+
+  // Contributor's dedicated entry point is document-first: no marketing
+  // hero, chat opens directly with a fixed request for documents, and the
+  // only header action is a disabled "View Pathway Document" button (there's
+  // nothing to view yet). File upload mechanics (attach/drag-drop via
+  // AttachmentsPanel) are unchanged from the rest of the app.
+  if (!conversation && fixedFlow === 'contributor') {
+    return (
+      <div
+        className="relative flex flex-1 flex-col overflow-hidden bg-paper"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {isDragging && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-4 border-dashed border-coral bg-paper/90">
+            <p className="text-sm font-medium text-ink-soft">Drop files to share them</p>
+          </div>
+        )}
+
+        <div className="border-b border-navy/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <BackControl onBack={onBack} />
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <button
+                onClick={() => setFilesOpen(true)}
+                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral md:hidden"
+              >
+                📎 Files
+              </button>
+              <button disabled className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft/40">
+                View Pathway Document
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative flex flex-1 overflow-hidden">
+          <div className="min-w-0 flex-1">
+            <ChatPanel
+              messages={[CONTRIBUTOR_OPENING_MESSAGE]}
+              onSend={(text) => handleUserSend(text, 'contributor')}
+              onAttachFiles={(files) => handleAttachFiles(files, 'contributor')}
+              onRemoveAttachment={removeAttachment}
+              pendingAttachments={pendingAttachments}
+              loading={loading}
+              placeholder="Ask, share, or think out loud…"
+            />
+          </div>
+
+          <div className="group relative hidden h-full flex-shrink-0 md:block">
+            <div className="flex h-full w-8 cursor-default items-center justify-center border-l border-navy/10 text-ink-soft transition group-hover:border-coral/40 group-hover:text-coral">
+              <span aria-hidden className="rotate-180 font-mono text-[10px] uppercase tracking-[0.2em] [writing-mode:vertical-lr]">
+                Files
+              </span>
+            </div>
+            <div className="invisible absolute inset-y-0 right-0 z-30 w-[280px] overflow-y-auto border-l border-navy/10 bg-paper p-3 opacity-0 shadow-lg transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
+              <AttachmentsPanel
+                attachments={pendingAttachments}
+                onAttachFiles={(files) => handleAttachFiles(files, 'contributor')}
+                onRemoveAttachment={removeAttachment}
+              />
+            </div>
+          </div>
+
+          {filesOpen && (
+            <div className="fixed inset-0 z-40 flex items-end bg-navy/40 md:hidden" onClick={() => setFilesOpen(false)}>
+              <div className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-4" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-2 flex justify-end">
+                  <button
+                    onClick={() => setFilesOpen(false)}
+                    aria-label="Close"
+                    className="px-1 text-lg leading-none text-ink-soft transition hover:text-navy"
+                  >
+                    ×
+                  </button>
+                </div>
+                <AttachmentsPanel
+                  attachments={pendingAttachments}
+                  onAttachFiles={(files) => handleAttachFiles(files, 'contributor')}
+                  onRemoveAttachment={removeAttachment}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (!conversation) {
@@ -345,8 +376,9 @@ export default function AdoptionWorkspace({
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden bg-paper">
       {/* Workspace header: title, sector/geography/stage, summary, dimension chips */}
-      <div className="border-b border-navy/10 p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+      <div className="border-b border-navy/10 p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          {flow === 'contributor' ? <BackControl onBack={onBack} /> : <span />}
           <div className="flex flex-shrink-0 items-center gap-2">
             <button
               onClick={() => setFilesOpen(true)}
@@ -356,19 +388,18 @@ export default function AdoptionWorkspace({
             </button>
             {flow === 'contributor' && (
               <button
-                onClick={() => handleOpenPathwayDraft()}
-                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
+                onClick={openPathwayDocument}
+                disabled={!pathwayDoc.submissionId}
+                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
               >
-                Generate Pathway Wiki
+                View Pathway Document
               </button>
             )}
           </div>
         </div>
 
-        {flow && (
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-            {flow === 'contributor' ? 'Contributor' : 'Explorer'}
-          </p>
+        {flow === 'explorer' && (
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Explorer</p>
         )}
         <button
           onClick={() => setHeaderExpanded((v) => !v)}
@@ -403,37 +434,40 @@ export default function AdoptionWorkspace({
         )}
       </div>
 
-      {/* Chat + files (+ the pathway draft canvas, alongside chat rather than over it) */}
+      {/* Chat + files (+ the pathway document pane, alongside chat rather than over it) */}
       <div className="relative flex flex-1 overflow-hidden">
-        <div className={`min-w-0 flex-1 ${pathwayDraftOpen ? 'lg:max-w-[420px] lg:flex-shrink-0' : ''}`}>
+        <div className={`min-w-0 flex-1 ${pathwayDoc.paneOpen ? 'lg:max-w-[420px] lg:flex-shrink-0' : ''}`}>
           <ChatPanel
             messages={conversation.messages}
             onSend={handleUserSend}
+            onAttachFiles={handleAttachFiles}
+            onRemoveAttachment={removeAttachment}
             pendingAttachments={pendingAttachments}
             loading={loading}
             placeholder="Ask, share, or think out loud…"
             grid={conversation.grid}
+            onOpenPathwayDocument={flow === 'contributor' ? openPathwayDocument : undefined}
           />
         </div>
 
-        {pathwayDraftOpen && (
+        {pathwayDoc.paneOpen && (
           <div className="fixed inset-0 z-50 bg-paper lg:static lg:z-auto lg:min-w-0 lg:flex-1 lg:border-l lg:border-navy/10">
-            <PathwayDraftCanvas
-              markdown={pathwayDraftMarkdown}
-              loading={pathwayDraftLoading}
-              error={pathwayDraftError}
-              onRevise={(instruction) => handleOpenPathwayDraft(instruction)}
-              onPush={handlePushPathwayDraft}
-              versions={pathwayVersions}
-              selectedVersionNumber={selectedVersionNumber}
-              onSelectVersion={handleSelectPathwayVersion}
-              diffAgainst={diffBaseline}
-              onClose={() => setPathwayDraftOpen(false)}
+            <PathwayDocumentPane
+              markdown={pathwayDocMarkdown}
+              loading={pathwayDoc.loading}
+              error={pathwayDoc.error}
+              onPublish={publishPathwayDocument}
+              versions={pathwayDoc.versions}
+              selectedVersionNumber={pathwayDoc.selectedVersionNumber}
+              onSelectVersion={selectPathwayVersion}
+              publishedSlug={pathwayDoc.publishedSlug}
+              publishedContent={pathwayDoc.publishedContent}
+              onClose={closePathwayDocument}
             />
           </div>
         )}
 
-        {!pathwayDraftOpen && (
+        {!pathwayDoc.paneOpen && (
           <div className="group relative hidden h-full flex-shrink-0 md:block">
             {/* Slim edge tab — always in-flow, doesn't steal chat width. The
                 full panel below is absolutely positioned and only reveals on

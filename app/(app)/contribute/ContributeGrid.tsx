@@ -6,6 +6,7 @@ import AdoptionWorkspace from '@/components/AdoptionWorkspace';
 import { AdoptionConversation } from '@/lib/adoption-conversation';
 import { createClient } from '@/lib/supabase/client';
 import { fetchAdoptionsList, setAdoptionsListCache } from '@/lib/adoptions-cache';
+import { PathwayDocStatus, getPathwayDocStatusesByDesignIds } from '@/lib/pathway-submission-versions';
 
 function formatRelativeTime(iso: string): string {
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -29,6 +30,7 @@ function ContributeGridContent() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [appliedOpenId, setAppliedOpenId] = useState<string | null>(null);
+  const [docStatuses, setDocStatuses] = useState<Record<string, PathwayDocStatus>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +53,21 @@ function ContributeGridContent() {
   // The full list is shared (same cache as /adoptions) — this page only
   // shows the Contributor-flow slice of it.
   const contributions = adoptions.filter((a) => a.meta.flow === 'contributor');
+  const contributionIds = contributions.map((c) => c.id).join(',');
+
+  // One batched lookup for every card's version/draft-or-published status,
+  // rather than a query per card — see getPathwayDocStatusesByDesignIds.
+  useEffect(() => {
+    if (!loaded || !contributionIds) return;
+    let cancelled = false;
+    getPathwayDocStatusesByDesignIds(contributionIds.split(',')).then((statuses) => {
+      if (!cancelled) setDocStatuses(statuses);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, contributionIds]);
 
   // Deep-links (e.g. /contribute?open=<id>). Adjusted during render (React's
   // documented pattern) — tracks the last-applied id so a different link
@@ -83,6 +100,7 @@ function ContributeGridContent() {
         key="new"
         initial={null}
         fixedFlow="contributor"
+        onBack={() => setSelection(null)}
         onCreated={(c) =>
           setAdoptions((prev) => {
             const next = [c, ...prev];
@@ -107,6 +125,7 @@ function ContributeGridContent() {
       <AdoptionWorkspace
         key={selection}
         initial={existing}
+        onBack={() => setSelection(null)}
         onChange={(c) =>
           setAdoptions((prev) => {
             const next = prev.map((a) => (a.id === c.id ? c : a));
@@ -121,12 +140,7 @@ function ContributeGridContent() {
   return (
     <div className="flex-1 overflow-y-auto bg-paper p-4 sm:p-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-medium tracking-tight text-navy">Your contributions</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Every deployment write-up you&apos;ve turned into a pathway draft, and where each one stands.
-          </p>
-        </div>
+        <h1 className="font-display text-2xl font-medium tracking-tight text-navy">Your Contributions</h1>
         <button
           onClick={() => setSelection('new')}
           className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral"
@@ -175,7 +189,10 @@ function ContributeGridContent() {
                   </div>
                 )}
                 {a.meta.summary && <p className="line-clamp-3 text-sm leading-relaxed text-ink-soft">{a.meta.summary}</p>}
-                <div className="mt-auto pt-2 text-[10px] text-ink-soft/70">Updated {formatRelativeTime(a.updatedAt)}</div>
+                <div className="mt-auto pt-2 text-[10px] text-ink-soft/70">
+                  Updated {formatRelativeTime(a.updatedAt)}
+                  {docStatuses[a.id] && ` · v${docStatuses[a.id].versionNumber} · ${docStatuses[a.id].published ? 'Published' : 'Draft'}`}
+                </div>
               </div>
             ))}
           </div>

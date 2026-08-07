@@ -8,6 +8,14 @@ import type { CellState } from '@/lib/dimensions';
 export const DELIVERABLE_START = '<deliverable>';
 export const DELIVERABLE_END = '</deliverable>';
 
+// Marks where a client-constructed (not model-authored) Contributor-flow
+// chat message should render a card that reopens the current pathway
+// document — see lib/adoption-conversation.ts's pathwayAction handling and
+// components/ChatPanel.tsx's rendering of it. Unlike DELIVERABLE_START/END,
+// this wraps no content — the card fetches the document from
+// pathway_submission_versions when opened, so nothing needs storing twice.
+export const PATHWAY_DOC_MARKER = '<pathway_doc/>';
+
 // Split out from lib/adoption-conversation.ts so it can be imported from
 // server code (app/api/chat/route.ts) without pulling in that file's React
 // hooks — Next.js refuses to bundle a route handler that transitively
@@ -49,6 +57,16 @@ export interface ParsedGridUpdate {
   // the model can't "read back" its own past JSON from history; the app has
   // to carry this state forward explicitly instead.
   flowStep?: number;
+  // Contributor-only: what the model wants the client to do about the
+  // pathway document this turn — see contributorSystemPrompt's JSON
+  // contract. "generate"/"revise" trigger an automatic pathway-draft mode
+  // call; "publish" triggers the push route directly from chat; "none" is
+  // every other turn (still waiting on documents, a paused insufficient-info
+  // state, or a genuine tangent).
+  pathwayAction?: {
+    type: 'none' | 'generate' | 'revise' | 'publish';
+    instruction?: string;
+  };
 }
 
 export function parseGridUpdate(text: string): ParsedGridUpdate | null {
@@ -61,6 +79,7 @@ export function parseGridUpdate(text: string): ParsedGridUpdate | null {
       meta: parsed.meta,
       pathwaysReferenced: parsed.pathwaysReferenced,
       flowStep: typeof parsed.flowStep === 'number' ? parsed.flowStep : undefined,
+      pathwayAction: parsed.pathwayAction,
     };
   } catch {
     return null;
