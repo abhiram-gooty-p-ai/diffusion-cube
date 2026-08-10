@@ -64,7 +64,7 @@ function LoginForm() {
       <div className="mb-8 text-center">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">100 Pathways</p>
         <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-navy">
-          Adoption <span className="font-serif italic text-coral">Companion</span>
+          Diffusion <span className="font-serif italic text-coral">Cube</span>
         </h1>
       </div>
 
