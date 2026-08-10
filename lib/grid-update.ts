@@ -1,4 +1,5 @@
 import type { CellState } from '@/lib/dimensions';
+import type { ExplorerIntent } from '@/lib/explorer-intents';
 
 // Step 5 (Generate Output) wraps the Deep Dive Report / Holistic Adoption
 // Plan's full markdown in this tag pair — shared between ChatPanel (renders
@@ -16,6 +17,14 @@ export const DELIVERABLE_END = '</deliverable>';
 // pathway_submission_versions when opened, so nothing needs storing twice.
 export const PATHWAY_DOC_MARKER = '<pathway_doc/>';
 
+// The Explorer equivalents: markers in a client-constructed chat message that
+// render a card reopening the stored Analysis Document / Executive Summary
+// (see lib/adoption-conversation.ts's explorerAction handling). Like
+// PATHWAY_DOC_MARKER these wrap no content — the document is read back from
+// `design_documents`, never stored twice.
+export const ANALYSIS_DOC_MARKER = '<analysis_doc/>';
+export const EXEC_SUMMARY_MARKER = '<exec_summary/>';
+
 // Split out from lib/adoption-conversation.ts so it can be imported from
 // server code (app/api/chat/route.ts) without pulling in that file's React
 // hooks — Next.js refuses to bundle a route handler that transitively
@@ -28,6 +37,10 @@ export interface ParsedGridUpdate {
     geography?: string;
     stage?: string;
     summary?: string;
+    // Explorer-only: which of the four intents this conversation is running
+    // (see lib/explorer-intents.ts). Chosen from the menu on /explore, and
+    // only ever changed by the model after the user has confirmed a switch.
+    intent?: ExplorerIntent;
     // The model's own working reasoning state — carried forward every turn
     // the same way flowStep is, since none of this survives in replayed
     // message history either (see AdoptionMeta in adoption-conversation.ts).
@@ -67,6 +80,13 @@ export interface ParsedGridUpdate {
     type: 'none' | 'generate' | 'revise' | 'publish';
     instruction?: string;
   };
+  // Explorer-only: what the model wants the client to generate this turn —
+  // the Guidance intent's Analysis Document, or the separate Executive
+  // Summary. Both are produced by their own /api/chat modes and stored in
+  // `design_documents`, the same way pathwayAction drives `pathway-draft`.
+  explorerAction?: {
+    type: 'none' | 'analysis' | 'executive-summary';
+  };
 }
 
 export function parseGridUpdate(text: string): ParsedGridUpdate | null {
@@ -80,6 +100,7 @@ export function parseGridUpdate(text: string): ParsedGridUpdate | null {
       pathwaysReferenced: parsed.pathwaysReferenced,
       flowStep: typeof parsed.flowStep === 'number' ? parsed.flowStep : undefined,
       pathwayAction: parsed.pathwayAction,
+      explorerAction: parsed.explorerAction,
     };
   } catch {
     return null;

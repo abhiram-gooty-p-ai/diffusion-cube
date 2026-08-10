@@ -7,6 +7,7 @@ import {
   planDocumentSystemPrompt,
   documentInsightSystemPrompt,
   pathwayDraftSystemPrompt,
+  executiveSummarySystemPrompt,
 } from '@/lib/system-prompts';
 import { logConversation } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
@@ -16,7 +17,14 @@ import { parseGridUpdate } from '@/lib/grid-update';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const MODES = ['companion', 'analysis-doc', 'plan-document', 'extract-insights', 'pathway-draft'] as const;
+const MODES = [
+  'companion',
+  'analysis-doc',
+  'executive-summary',
+  'plan-document',
+  'extract-insights',
+  'pathway-draft',
+] as const;
 
 function lastUserMessageText(messages: { role: string; content: unknown }[]): string {
   const last = [...messages].reverse().find((m) => m.role === 'user');
@@ -64,6 +72,14 @@ export async function POST(req: Request) {
   const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
   if (mode === 'analysis-doc') {
     systemPrompt = analysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt);
+  } else if (mode === 'executive-summary') {
+    systemPrompt = executiveSummarySystemPrompt(
+      wikiContent,
+      frameworkContent,
+      grid ?? EMPTY_GRID,
+      meta ?? {},
+      generatedAt
+    );
   } else if (mode === 'plan-document') {
     systemPrompt = planDocumentSystemPrompt(
       wikiContent,

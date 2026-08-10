@@ -3,8 +3,24 @@ import { EMPTY_GRID, type GridState } from '@/lib/dimensions';
 import { Message } from '@/components/ChatPanel';
 import { createClient } from '@/lib/supabase/client';
 import { extractTextFromFile, fileToImageBlock, getFileExtension, isImageFile } from '@/lib/extract-text';
-import { parseGridUpdate, stripGridUpdate, DELIVERABLE_START, PATHWAY_DOC_MARKER, type ParsedGridUpdate } from '@/lib/grid-update';
+import {
+  parseGridUpdate,
+  stripGridUpdate,
+  ANALYSIS_DOC_MARKER,
+  DELIVERABLE_START,
+  EXEC_SUMMARY_MARKER,
+  PATHWAY_DOC_MARKER,
+  type ParsedGridUpdate,
+} from '@/lib/grid-update';
 import { extractGapsFromPathwayDraft } from '@/lib/pathway-gaps';
+import type { ExplorerIntent } from '@/lib/explorer-intents';
+import {
+  DesignDocumentRow,
+  DocType,
+  getLatestDesignDocument,
+  hashConversationState,
+  insertDesignDocumentVersion,
+} from '@/lib/design-documents';
 import {
   PathwaySubmissionVersionRow,
   getPathwaySubmissionByDesign,
@@ -48,6 +64,13 @@ export interface AdoptionMeta {
   // Chosen once on the welcome screen, gated by role — fixes which system
   // prompt (explorer vs contributor) this adoption's companion turns use.
   flow: AdoptionFlow;
+  // Explorer-only: which of the four intents this conversation is running
+  // (see lib/explorer-intents.ts). Picked explicitly from the menu on
+  // /explore before the first message, never inferred from what the user
+  // types. Unlike `flow` it can change mid-conversation — but only after the
+  // model has flagged the mismatch and the user has confirmed the switch, at
+  // which point flowStep resets to the new intent's step 1.
+  intent: ExplorerIntent;
   // Which numbered step of that flow the model last reported being on (see
   // gridUpdateContract in lib/system-prompts.ts). 0 = no turn yet. Persisted
   // here and re-injected into the prompt every turn, since the grid_update
@@ -76,6 +99,7 @@ export const EMPTY_META: AdoptionMeta = {
   stage: '',
   summary: '',
   flow: '',
+  intent: '',
   flowStep: 0,
   hypothesis: '',
   biggestRisk: '',
@@ -157,6 +181,33 @@ export interface PathwayDocState {
   error: string | null;
 }
 
+// Explorer-only: the two documents the Guidance intent can produce. Both are
+// stored in `design_documents` (doc_type 'analysis' / 'plan') so they survive
+// a reload and can be reopened at any time — that persistence is the whole
+// point, since these are the flow's actual deliverable. Regenerating
+// supersedes the previous one rather than branching a version the user has to
+// choose between: only the latest row for each doc_type is ever read back, so
+// there is no version picker here (unlike the Contributor's pathway document,
+// where every revision is meant to stay retrievable).
+export interface ExplorerDocState {
+  analysis: DesignDocumentRow | null;
+  summary: DesignDocumentRow | null;
+  // Which document the modal is currently showing, or null when closed.
+  open: DocType | null;
+  // Which one is mid-generation, so the modal (and the chat's Thinking…
+  // indicator) can show the right label — null when nothing is generating.
+  generating: DocType | null;
+  error: string | null;
+}
+
+export const EMPTY_EXPLORER_DOC: ExplorerDocState = {
+  analysis: null,
+  summary: null,
+  open: null,
+  generating: null,
+  error: null,
+};
+
 export const EMPTY_PATHWAY_DOC: PathwayDocState = {
   submissionId: null,
   versions: [],
@@ -227,6 +278,34 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
       pathwayDocRef.current = next;
       return next;
     });
+  }, []);
+
+  // Explorer-only document state — see ExplorerDocState. Same ref-mirroring
+  // idiom as pathwayDoc above, for the same reason.
+  const [explorerDoc, setExplorerDoc] = useState<ExplorerDocState>(EMPTY_EXPLORER_DOC);
+  const explorerDocRef = useRef<ExplorerDocState>(EMPTY_EXPLORER_DOC);
+  const updateExplorerDoc = useCallback((updater: (d: ExplorerDocState) => ExplorerDocState) => {
+    setExplorerDoc((prev) => {
+      const next = updater(prev);
+      explorerDocRef.current = next;
+      return next;
+    });
+  }, []);
+
+  // Reads back an existing Explorer adoption's stored documents once, on
+  // mount, so the header's "Analysis Document" button and the chat cards work
+  // immediately on a reopened conversation — same one-shot pattern as the
+  // pathway-document effect below.
+  useEffect(() => {
+    if (!initial || initial.meta?.flow !== 'explorer') return;
+    (async () => {
+      const [analysis, summary] = await Promise.all([
+        getLatestDesignDocument(initial.id, 'analysis'),
+        getLatestDesignDocument(initial.id, 'plan'),
+      ]);
+      updateExplorerDoc((prev) => ({ ...prev, analysis, summary }));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Loads an existing contribution's pathway document state once, on mount —
@@ -423,6 +502,117 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     if (conversationRef.current) void persist(conversationRef.current);
   }
 
+  // Explorer-only: generates the Guidance intent's Analysis Document, or the
+  // separate Executive Summary, via its own /api/chat mode and stores it in
+  // design_documents. Triggered automatically from sendMessage below off the
+  // companion's explorerAction signal — there's no manual generate button;
+  // the model offers it, the user says yes, and this runs.
+  async function generateExplorerDocument(docType: DocType): Promise<DesignDocumentRow | null> {
+    const c = conversationRef.current;
+    if (!c) return null;
+
+    const stateKey = docType === 'analysis' ? 'analysis' : 'summary';
+    const previous = explorerDocRef.current[stateKey];
+    const hash = hashConversationState(c.messages, c.grid);
+
+    // Nothing has moved since the stored version — serve it rather than
+    // paying for an identical regeneration (see hashConversationState).
+    if (previous && previous.content_hash === hash) return previous;
+
+    updateExplorerDoc((prev) => ({ ...prev, generating: docType, error: null }));
+
+    try {
+      // The Executive Summary's second half summarizes the suggestions in the
+      // Analysis Document, so the current analysis is handed to the model as
+      // trailing context — same idiom generatePathwayDraft uses for a prior
+      // draft. Its prompt handles the "no analysis yet" case on its own.
+      const analysisContent = docType === 'plan' ? explorerDocRef.current.analysis?.content : undefined;
+      const trailing = [
+        ...(analysisContent ? [{ role: 'assistant', content: analysisContent }] : []),
+        {
+          role: 'user',
+          content:
+            docType === 'analysis'
+              ? 'Generate the analysis document now.'
+              : 'Generate the executive summary now.',
+        },
+      ];
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...toApiMessages(c.messages), ...trailing],
+          mode: docType === 'analysis' ? 'analysis-doc' : 'executive-summary',
+          grid: c.grid,
+          meta: c.meta,
+        }),
+      });
+      if (!res.body) throw new Error('No response from the server.');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+      }
+
+      const row = await insertDesignDocumentVersion(c.id, docType, hash, text, previous?.version_number ?? 0);
+      if (!row) throw new Error('Could not save the document.');
+
+      updateExplorerDoc((prev) => ({ ...prev, [stateKey]: row, generating: null }));
+      return row;
+    } catch {
+      updateExplorerDoc((prev) => ({
+        ...prev,
+        generating: null,
+        error: 'Could not generate that document. Try again.',
+      }));
+      return null;
+    }
+  }
+
+  function openExplorerDocument(docType: DocType) {
+    updateExplorerDoc((prev) => ({ ...prev, open: docType, error: null }));
+  }
+
+  function closeExplorerDocument() {
+    updateExplorerDoc((prev) => ({ ...prev, open: null }));
+  }
+
+  // Appends one client-constructed (never model-authored) assistant message
+  // carrying the marker that renders a card reopening the stored document —
+  // the Explorer equivalent of appendPathwayDocMessage above.
+  function appendExplorerDocMessage(docType: DocType) {
+    const content =
+      docType === 'analysis'
+        ? `Your analysis document is ready — it pulls together what we've covered so far.\n\n${ANALYSIS_DOC_MARKER}`
+        : `Here's the executive summary. It's the shorter companion piece — your analysis document is still the fuller picture.\n\n${EXEC_SUMMARY_MARKER}`;
+
+    update((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', content }] }));
+    if (conversationRef.current) void persist(conversationRef.current);
+  }
+
+  // Reacts to the Explorer companion's explorerAction — see the JSON contract
+  // in lib/system-prompts.ts. Runs after the companion's own reply has
+  // finished streaming (from inside sendMessage below), so the "Thinking…"
+  // indicator covers the extra generation round trip, and opens the document
+  // as soon as it exists rather than making the user go hunting for it.
+  async function handleExplorerAction(action: NonNullable<ParsedGridUpdate['explorerAction']>) {
+    const docType: DocType | null =
+      action.type === 'analysis' ? 'analysis' : action.type === 'executive-summary' ? 'plan' : null;
+    if (!docType) return;
+
+    // Opened first, not last, so the modal carries the generation's own
+    // loading state and surfaces a failure instead of it disappearing into
+    // explorerDoc.error with nothing rendering it.
+    openExplorerDocument(docType);
+    const row = await generateExplorerDocument(docType);
+    if (row) appendExplorerDocMessage(docType);
+  }
+
   // Reacts to the Contributor companion's pathwayAction — see
   // contributorSystemPrompt's JSON contract in lib/system-prompts.ts. Runs
   // after the companion's own reply has finished streaming, from inside
@@ -483,6 +673,11 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
               if (cell && key in nextGrid) nextGrid[key] = cell;
             }
             const m = parsed.meta;
+            // A confirmed intent switch (Explorer only) restarts the numbered
+            // flow — it's the one case where flowStep is allowed to go
+            // backward, since the new intent's steps are a different list.
+            const nextIntent = m?.intent || c.meta.intent;
+            const intentChanged = nextIntent !== c.meta.intent;
             const nextMeta: AdoptionMeta = {
               ...c.meta,
               name: m?.name || c.meta.name,
@@ -490,7 +685,12 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
               geography: m?.geography || c.meta.geography,
               stage: m?.stage || c.meta.stage,
               summary: m?.summary || c.meta.summary,
-              flowStep: parsed.flowStep != null ? Math.max(c.meta.flowStep, parsed.flowStep) : c.meta.flowStep,
+              intent: nextIntent,
+              flowStep: intentChanged
+                ? parsed.flowStep ?? 1
+                : parsed.flowStep != null
+                  ? Math.max(c.meta.flowStep, parsed.flowStep)
+                  : c.meta.flowStep,
               hypothesis: m?.hypothesis || c.meta.hypothesis,
               biggestRisk: m?.biggestRisk || c.meta.biggestRisk,
               confidence: m?.confidence || c.meta.confidence,
@@ -550,16 +750,24 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
         await handlePathwayAction(lastParsed.pathwayAction);
       }
 
+      // Explorer-only equivalent: the Guidance intent's Analysis Document /
+      // Executive Summary, generated the same way and for the same reason.
+      if (flow === 'explorer' && lastParsed?.explorerAction && lastParsed.explorerAction.type !== 'none') {
+        await handleExplorerAction(lastParsed.explorerAction);
+      }
+
       setLoading(false);
     },
     [update]
   );
 
   // Creates the row on first use; a no-op if the conversation already exists
-  // (in which case `flow` is ignored — it only matters at creation time).
-  // Concurrent callers (e.g. several dropped files each kicking off
-  // extraction) share the same in-flight insert rather than racing.
-  function ensureCreated(flow: AdoptionFlow = ''): Promise<AdoptionConversation> {
+  // (in which case `flow`/`intent` are ignored — they only matter at creation
+  // time; an intent can still change later, but only through a confirmed
+  // switch in sendMessage above). Concurrent callers (e.g. several dropped
+  // files each kicking off extraction) share the same in-flight insert rather
+  // than racing.
+  function ensureCreated(flow: AdoptionFlow = '', intent: ExplorerIntent = ''): Promise<AdoptionConversation> {
     if (conversationRef.current) return Promise.resolve(conversationRef.current);
     if (creatingRef.current) return creatingRef.current;
 
@@ -569,7 +777,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
         const { data, error } = await supabase
           .from('designs')
           .insert({
-            meta: { ...EMPTY_META, flow },
+            meta: { ...EMPTY_META, flow, intent },
             grid_state: EMPTY_GRID,
             messages: [],
           })
@@ -600,9 +808,9 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
   // seeds the grid immediately rather than waiting for a chat turn. Never
   // blocks or surfaces an error to the user — the document's text still
   // reaches the model normally once they do send a message.
-  async function extractInsightsForAttachment(text: string, flow: AdoptionFlow) {
+  async function extractInsightsForAttachment(text: string, flow: AdoptionFlow, intent: ExplorerIntent) {
     try {
-      const c = await ensureCreated(flow);
+      const c = await ensureCreated(flow, intent);
 
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -652,9 +860,9 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
   }
 
   const handleUserSend = useCallback(
-    async (text: string, flow: AdoptionFlow = '') => {
+    async (text: string, flow: AdoptionFlow = '', intent: ExplorerIntent = '') => {
       const readyAttachments = pendingAttachments.filter((a) => a.state === 'ready');
-      const c = await ensureCreated(flow);
+      const c = await ensureCreated(flow, intent);
       const activeFlow = c.meta.flow;
 
       if (readyAttachments.length > 0) {
@@ -694,7 +902,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     [pendingAttachments, sendMessage]
   );
 
-  function handleAttachFiles(files: File[], flow: AdoptionFlow = '') {
+  function handleAttachFiles(files: File[], flow: AdoptionFlow = '', intent: ExplorerIntent = '') {
     for (const file of files) {
       const attachmentId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -733,7 +941,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
             // text still reaches the model normally as part of the real
             // first message once they press Start, so nothing is lost by
             // waiting.
-            if (conversationRef.current) void extractInsightsForAttachment(text, flow);
+            if (conversationRef.current) void extractInsightsForAttachment(text, flow, intent);
           }
         } catch (err) {
           setPendingAttachments((s) =>
@@ -764,5 +972,8 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     closePathwayDocument,
     selectPathwayVersion,
     publishPathwayDocument,
+    explorerDoc,
+    openExplorerDocument,
+    closeExplorerDocument,
   };
 }

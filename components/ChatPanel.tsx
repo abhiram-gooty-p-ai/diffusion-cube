@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import HeatmapGrid from '@/components/HeatmapGrid';
 import { downloadPlanAsPdf } from '@/lib/adoption-plan-pdf';
-import { DELIVERABLE_START, DELIVERABLE_END, PATHWAY_DOC_MARKER } from '@/lib/grid-update';
+import {
+  ANALYSIS_DOC_MARKER,
+  DELIVERABLE_START,
+  DELIVERABLE_END,
+  EXEC_SUMMARY_MARKER,
+  PATHWAY_DOC_MARKER,
+} from '@/lib/grid-update';
+import type { DocType } from '@/lib/design-documents';
 import type { GridState } from '@/lib/dimensions';
 
 export interface Message {
@@ -92,18 +99,19 @@ function DeliverableCard({ markdown }: { markdown: string }) {
   );
 }
 
-// A card the Contributor flow's client-constructed doc messages embed (see
-// lib/adoption-conversation.ts's appendPathwayDocMessage/
-// appendPublishOutcomeMessage) — reopens the pane showing whatever the
-// current stored version is, never regenerating anything.
-function PathwayDocCard({ onOpen }: { onOpen: () => void }) {
+// The card a client-constructed doc message embeds — the Contributor flow's
+// pathway document (see lib/adoption-conversation.ts's
+// appendPathwayDocMessage/appendPublishOutcomeMessage) and the Explorer
+// flow's Analysis Document / Executive Summary (appendExplorerDocMessage).
+// Always reopens whatever is currently stored; it never regenerates anything.
+function DocCard({ title, cta, onOpen }: { title: string; cta: string; onOpen: () => void }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-navy/15 bg-paper-dim px-4 py-3">
       <span className="text-xl" aria-hidden>
         📄
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-navy">Pathway Document</p>
+        <p className="truncate text-sm font-medium text-navy">{title}</p>
         <p className="text-xs text-ink-soft">Click to view</p>
       </div>
       <button
@@ -111,20 +119,20 @@ function PathwayDocCard({ onOpen }: { onOpen: () => void }) {
         onClick={onOpen}
         className="flex-shrink-0 rounded-lg bg-navy px-3 py-1.5 text-xs font-medium text-white transition hover:bg-coral"
       >
-        View Pathway Document
+        {cta}
       </button>
     </div>
   );
 }
 
-// Splits a message on CUBE_GRID_MARKER, a <deliverable> block, or the
-// PATHWAY_DOC_MARKER and renders the real grid / download card / doc card in
-// place — surrounding text still goes through renderInlineMarkdown. A
-// message only ever contains one of the three.
+// Splits a message on the first document marker it carries and renders the
+// real grid / download card / doc card in place — surrounding text still goes
+// through renderInlineMarkdown. A message only ever carries one of these.
 function renderMessageContent(
   text: string,
   grid: GridState | undefined,
-  onOpenPathwayDocument: (() => void) | undefined
+  onOpenPathwayDocument: (() => void) | undefined,
+  onOpenExplorerDocument: ((docType: DocType) => void) | undefined
 ): React.ReactNode[] {
   const deliverable = extractDeliverable(text);
   if (deliverable) {
@@ -135,13 +143,32 @@ function renderMessageContent(
     return nodes;
   }
 
-  if (onOpenPathwayDocument && text.includes(PATHWAY_DOC_MARKER)) {
-    const segments = text.split(PATHWAY_DOC_MARKER);
+  const docMarker = onOpenPathwayDocument
+    ? { marker: PATHWAY_DOC_MARKER, title: 'Pathway Document', cta: 'View Pathway Document', open: onOpenPathwayDocument }
+    : onOpenExplorerDocument && text.includes(ANALYSIS_DOC_MARKER)
+      ? {
+          marker: ANALYSIS_DOC_MARKER,
+          title: 'Analysis Document',
+          cta: 'View Analysis Document',
+          open: () => onOpenExplorerDocument('analysis'),
+        }
+      : onOpenExplorerDocument && text.includes(EXEC_SUMMARY_MARKER)
+        ? {
+            marker: EXEC_SUMMARY_MARKER,
+            title: 'Executive Summary',
+            cta: 'View Executive Summary',
+            open: () => onOpenExplorerDocument('plan'),
+          }
+        : null;
+
+  if (docMarker && text.includes(docMarker.marker)) {
+    const segments = text.split(docMarker.marker);
     const nodes: React.ReactNode[] = [];
     segments.forEach((segment, i) => {
       const trimmed = segment.trim();
       if (trimmed) nodes.push(<span key={`t${i}`}>{renderInlineMarkdown(trimmed)}</span>);
-      if (i < segments.length - 1) nodes.push(<PathwayDocCard key={`d${i}`} onOpen={onOpenPathwayDocument} />);
+      if (i < segments.length - 1)
+        nodes.push(<DocCard key={`d${i}`} title={docMarker.title} cta={docMarker.cta} onOpen={docMarker.open} />);
     });
     return nodes;
   }
@@ -175,6 +202,10 @@ interface Props {
   // wherever a message contains PATHWAY_DOC_MARKER — Explorer callers omit
   // this, so those messages never contain the marker in the first place.
   onOpenPathwayDocument?: () => void;
+  // Only needed by Explorer-flow callers, to render a card wherever a message
+  // contains ANALYSIS_DOC_MARKER / EXEC_SUMMARY_MARKER — reopens the stored
+  // document in the modal (see AdoptionWorkspace).
+  onOpenExplorerDocument?: (docType: DocType) => void;
   // Shows a small attach icon in the composer itself when provided, so a
   // file can be staged without opening the separate AttachmentsPanel first.
   onAttachFiles?: (files: File[]) => void;
@@ -195,6 +226,7 @@ export default function ChatPanel({
   placeholder,
   grid,
   onOpenPathwayDocument,
+  onOpenExplorerDocument,
   onAttachFiles,
   onRemoveAttachment,
 }: Props) {
@@ -247,7 +279,9 @@ export default function ChatPanel({
             m.role === 'assistant' &&
             ((grid && text.includes(CUBE_GRID_MARKER)) ||
               text.includes(DELIVERABLE_START) ||
-              (onOpenPathwayDocument && text.includes(PATHWAY_DOC_MARKER)));
+              (onOpenPathwayDocument && text.includes(PATHWAY_DOC_MARKER)) ||
+              (onOpenExplorerDocument &&
+                (text.includes(ANALYSIS_DOC_MARKER) || text.includes(EXEC_SUMMARY_MARKER))));
           return (
             <div
               key={i}
@@ -269,7 +303,9 @@ export default function ChatPanel({
                     </div>
                   </div>
                 ) : isRich ? (
-                  <div className="space-y-3">{renderMessageContent(text, grid, onOpenPathwayDocument)}</div>
+                  <div className="space-y-3">
+                    {renderMessageContent(text, grid, onOpenPathwayDocument, onOpenExplorerDocument)}
+                  </div>
                 ) : (
                   renderInlineMarkdown(text)
                 )}

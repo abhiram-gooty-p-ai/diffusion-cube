@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import AdoptionWorkspace from '@/components/AdoptionWorkspace';
+import ExploreWorkspace from './ExploreWorkspace';
 import { createClient } from '@/lib/supabase/server';
 import { hasRole } from '@/lib/roles';
 
@@ -13,8 +13,8 @@ export default async function ExplorePage() {
   }
 
   // key="explore" forces a fresh mount when navigating here from /contribute
-  // — otherwise React reconciles both routes' AdoptionWorkspace as the same
-  // instance (same type, same tree position under the shared layout) and
-  // carries over the other flow's conversation state, ignoring fixedFlow.
-  return <AdoptionWorkspace key="explore" initial={null} fixedFlow="explorer" />;
+  // — otherwise React reconciles both routes' workspace as the same instance
+  // (same type, same tree position under the shared layout) and carries over
+  // the other flow's conversation state, ignoring fixedFlow.
+  return <ExploreWorkspace key="explore" />;
 }
