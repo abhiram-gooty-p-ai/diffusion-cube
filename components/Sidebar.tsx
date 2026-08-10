@@ -100,7 +100,10 @@ export default function Sidebar({ email, adoptions, isAdmin, canExplore, canCont
               {recentExplorations.map((a) => (
                 <div key={a.id} className="group/item flex items-center rounded-lg hover:bg-paper-dim">
                   <Link
-                    href={`/adoptions?open=${a.id}`}
+                    // Explorer sessions reopen inside /explore, not the
+                    // /adoptions grid — that keeps the way out of them the
+                    // intent menu rather than a list the user never visited.
+                    href={`/explore?open=${a.id}`}
                     className="block flex-1 truncate px-3 py-1.5 text-xs text-ink-soft transition group-hover/item:text-navy"
                     title={a.meta?.name || 'New exploration'}
                   >
