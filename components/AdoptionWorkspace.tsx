@@ -352,10 +352,18 @@ export default function AdoptionWorkspace({
         )}
 
         <div className="w-full max-w-2xl animate-fade-in-up">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">
-            {fixedFlow === 'contributor' ? 'Contribute a Pathway' : showExplorerMenu ? 'Explore with Pathways' : 'Diffusion Cube'}
-          </p>
-          <h1 className="mt-4 font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl">
+          {/* The intent menu opens on its question directly — a kicker above
+              it just delays the one thing the screen is actually asking. */}
+          {!showExplorerMenu && (
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">
+              {fixedFlow === 'contributor' ? 'Contribute a Pathway' : 'Diffusion Cube'}
+            </p>
+          )}
+          <h1
+            className={`font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl ${
+              showExplorerMenu ? '' : 'mt-4'
+            }`}
+          >
             {fixedFlow === 'contributor' ? (
               <>
                 Turn your deployment into a <span className="font-serif italic text-coral">pathway</span>

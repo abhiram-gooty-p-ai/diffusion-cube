@@ -139,8 +139,14 @@ function ContributeGridContent() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-paper p-4 sm:p-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl font-medium tracking-tight text-navy">Your Contributions</h1>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-xl">
+          <h1 className="font-display text-2xl font-medium tracking-tight text-navy">Share your learnings.</h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+            The Cube turns your adoption journey — the decisions, the frictions, what worked — into a pathway others
+            can learn from.
+          </p>
+        </div>
         <button
           onClick={() => setSelection('new')}
           className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral"

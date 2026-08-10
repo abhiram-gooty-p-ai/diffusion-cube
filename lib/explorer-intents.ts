@@ -46,7 +46,7 @@ export interface ExplorerIntentDef {
 // One line on what the Cube actually is, shown above the menu so someone
 // choosing has enough context to choose well.
 export const WHAT_THE_CUBE_DOES =
-  'The Cube holds documented AI adoption pathways — lived experiences of real deployments, the decisions behind them, what worked, and what did not.';
+  "The Cube holds real AI adoption journeys — the decisions behind them, what worked, what didn't — so you can see what applies to your own situation.";
 
 export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
   {
