@@ -63,8 +63,9 @@ export const WHAT_THE_CUBE_DOES =
 export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
   {
     id: 'browse',
-    label: 'See what the Cube has',
-    menuDescription: 'Browse the documented pathways — what exists, and what each one enabled and their learnings.',
+    label: 'Explore the Pathways Library',
+    menuDescription:
+      'Browse documented AI adoption journeys from around the world—what adopters set out to do, the decisions they made, what worked, what did not and what they learned.',
     chipLabel: 'Browsing the Cube',
     tracksDeployment: false,
     holdNoOpinion: false,
@@ -84,9 +85,9 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
   },
   {
     id: 'validate',
-    label: 'Validate what I am already doing',
+    label: 'Strengthen an Adoption Already Underway',
     menuDescription:
-      "You're already onto a use case adoption and want to reflect on your approach and explore what you can learn from other adoptions.",
+      'You are defining, piloting or scaling an AI use case and want to review your design or implementation. Draw on comparable pathways, reusable know-how and practical toolkits to identify what could be strengthened.',
     chipLabel: 'Validating an adoption',
     tracksDeployment: true,
     holdNoOpinion: true,
@@ -107,8 +108,9 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
   },
   {
     id: 'troubleshoot',
-    label: 'Get help with a specific issue',
-    menuDescription: "Something specific is blocking you, and you want to know how others handled it.",
+    label: 'Deep Dive into a Specific Question or Challenge',
+    menuDescription:
+      'Deep dive into a particular sector, use case, adoption stage or challenge. See how other adopters approached it and find relevant insights, examples and resources.',
     chipLabel: 'Working through an issue',
     tracksDeployment: false,
     holdNoOpinion: false,
@@ -127,8 +129,9 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
   },
   {
     id: 'guidance',
-    label: 'Explore what AI could do for me',
-    menuDescription: 'New to this, and looking for guidance on a set of use cases, or one you have in mind.',
+    label: 'Discover What AI Can Do',
+    menuDescription:
+      'You are new to AI adoption and want guidance on a use case—or a set of possible use cases. Explore where AI could create meaningful value and assess what it would take to move forward.',
     chipLabel: 'Exploring what AI could do',
     tracksDeployment: true,
     holdNoOpinion: true,
