@@ -30,6 +30,18 @@ export interface ExplorerIntentDef {
   // nothing else — rather than sprouting an adoption title, sector/stage
   // line, and summary for a deployment the user never came here to describe.
   tracksDeployment: boolean;
+  // Whether this intent's responses are restricted to exactly two moves: a
+  // direct question drawn from a Framework dimension, or a claim explicitly
+  // sourced to a named pathway or micro-innovation — no hypothesis, no
+  // praise, no naming a tension, no synthesis. When true, explorerSystemPrompt
+  // swaps out the shared "consultant" scaffolding (written for the old
+  // pre-intent workflow, and full of exactly the opinion/insight language
+  // this rule forbids) for a short, compatible substitute — see the
+  // explorer*Block() helpers above explorerSystemPrompt. Declared per-intent
+  // here rather than only in each flow's own standing rule, because a
+  // standing rule alone can't reliably out-argue several hundred lines of
+  // the shared prompt actively instructing the opposite.
+  holdNoOpinion: boolean;
   // The first assistant message this intent's chat opens on. Client-
   // constructed and never persisted — same idiom as the Contributor flow's
   // opening message, which keeps the stored history starting on a user turn
@@ -55,6 +67,7 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
     menuDescription: 'Browse the documented pathways — what exists, and what each one enabled and their learnings.',
     chipLabel: 'Browsing the Cube',
     tracksDeployment: false,
+    holdNoOpinion: false,
     openingMessage:
       "Happy to walk you through what's in here. Are you looking for a particular sector or use case, or would you like an overview of a few pathways first?",
     totalSteps: 4,
@@ -76,6 +89,7 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
       "You're already onto a use case adoption and want to reflect on your approach and explore what you can learn from other adoptions.",
     chipLabel: 'Validating an adoption',
     tracksDeployment: true,
+    holdNoOpinion: true,
     openingMessage:
       "Let's look at what you have. Tell me about the deployment — or upload the documents you're working from — and I'll go through it against what the documented pathways show. Sector, use case, and roughly what stage you're at are the three things I need to be clear on.",
     totalSteps: 5,
@@ -83,11 +97,11 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
 
 1. **Get the details of what they're working on — as text or as uploaded documents.** Three things have to be genuinely clear before you go further: the **sector**, the **use case**, and the **stage of adoption**. Ask for whatever is still missing, one question at a time, and read any uploaded document rather than asking them to repeat what's in it. Stay on this step until all three are clear.
 
-2. **Analyze what they've shared against the framework, and surface what it raises as questions to consider or decisions to take.** Never phrase any of it as a deficiency, a gap in their work, or something they're missing — "Have you decided who owns this once the pilot ends?" is right; "You're missing institutional ownership" is not, and so is any rephrasing that implies the same thing more gently ("what you haven't yet solved is...", "the tension I'm noticing is..."). Surface the questions as a plain list or one at a time — don't wrap them in a narrative, don't group them under a theme you've named yourself, and don't tell them what the pattern across the questions means. Weight your attention toward what the framework marks Primary at their current stage.
+2. **The moment step 1 is settled, check whether a relevant pathway exists — this happens right away, not after a round of framework questions.** Relevant means the matching definition above: same sector, same use-case category. If one exists, share its details and ask whether they want to know more, following the presentation rules — exact match presented directly, adjacent match presented with the caveat stated plainly. If none exists, say so plainly and move to step 4 to check for micro-innovations instead. Either way, this check happens in the very next message after step 1 settles — that same message can also carry your first framework question from step 3 below. If both genuinely happen together, report flowStep 3, not 2 — that's accurately reporting what the message did, not skipping ahead.
 
-3. **If a relevant pathway exists, share its details and ask whether they want to know more.** Relevant means the matching definition above: same sector, same use-case category. Follow the presentation rules — exact match presented directly, adjacent match presented with the caveat stated plainly.
+3. **Analyze what they've shared against the framework, and surface what it raises as questions to consider or decisions to take.** Never phrase any of it as a deficiency, a gap in their work, or something they're missing — "Have you decided who owns this once the pilot ends?" is right; "You're missing institutional ownership" is not, and so is any rephrasing that implies the same thing more gently ("what you haven't yet solved is...", "the tension I'm noticing is..."). Surface the questions as a plain list or one at a time — don't wrap them in a narrative, don't group them under a theme you've named yourself, and don't tell them what the pattern across the questions means. Weight your attention toward what the framework marks Primary at their current stage. Ask one sharply chosen question per turn — this is the step that carries most of the rest of the conversation, not a phase you finish once and move past.
 
-4. **If there is no relevant pathway, check the corpus for micro-innovations relevant to their adoption instead.** Say first, plainly, that there's no pathway matching their sector and use case. Then, if relevant micro-innovations exist, present them as suggested choices drawn from the lived experience of other adoptions — never as recommendations. They judge whether each one fits their context; offer to think through with them how a chosen one might be contextualized to their situation.
+4. **If there was no relevant pathway in step 2, check the corpus for micro-innovations relevant to their adoption instead.** Say first, plainly, that there's no pathway matching their sector and use case. Then, if relevant micro-innovations exist, present them as suggested choices drawn from the lived experience of other adoptions — never as recommendations. They judge whether each one fits their context; offer to think through with them how a chosen one might be contextualized to their situation.
 
 5. **If neither a relevant pathway nor relevant micro-innovations exist, state both absences explicitly.** Both, not one. "There's no pathway in the Cube for your sector and use case, and no micro-innovations that apply either" — then stop there rather than filling the space with general advice. From here on, keep working with them on whatever they raise, staying inside these same rules.`,
   },
@@ -97,6 +111,7 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
     menuDescription: "Something specific is blocking you, and you want to know how others handled it.",
     chipLabel: 'Working through an issue',
     tracksDeployment: false,
+    holdNoOpinion: false,
     openingMessage:
       "Tell me what you're running into — as specifically as you can. I'll search the documented pathways for how others handled it, and I'll tell you plainly if nothing in there speaks to it.",
     totalSteps: 5,
@@ -116,6 +131,7 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
     menuDescription: 'New to this, and looking for guidance on a set of use cases, or one you have in mind.',
     chipLabel: 'Exploring what AI could do',
     tracksDeployment: true,
+    holdNoOpinion: true,
     // This opener carries the flow's own orientation — what this conversation
     // can actually do for them — because it is the first thing on screen,
     // before they have typed anything, and because a fixed statement of the
