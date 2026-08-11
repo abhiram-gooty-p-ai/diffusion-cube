@@ -58,10 +58,11 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Submission not found.' }, { status: 404 });
   }
 
-  const design = submission.designs as unknown as { meta?: { name?: string; summary?: string } } | { meta?: { name?: string; summary?: string } }[] | null;
+  const design = submission.designs as unknown as { meta?: { name?: string; summary?: string; sector?: string } } | { meta?: { name?: string; summary?: string; sector?: string } }[] | null;
   const meta = Array.isArray(design) ? design[0]?.meta : design?.meta;
   const title = meta?.name || 'Untitled Adoption';
   const description = meta?.summary || '';
+  const sector = meta?.sector || null;
 
   const taken = await existingSlugs(admin);
   const slug = uniqueSlug(slugify(title), taken);
@@ -71,6 +72,7 @@ export async function POST(req: Request) {
     title,
     description,
     content: submission.content,
+    sector,
     source_submission_id: submission.id,
     published_by: user?.id,
   });

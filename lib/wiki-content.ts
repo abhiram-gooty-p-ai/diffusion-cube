@@ -21,6 +21,18 @@ export interface WikiPathwaySummary {
   title: string;
   description: string;
   category: string;
+  // The pathway's sector (e.g. Agriculture, Livelihoods) — distinct from
+  // `category` above, which is the index.md heading it's filed under (often
+  // a technology grouping like "Voice AI", not a sector). For static pathway
+  // docs this comes from the file's own `sector:` frontmatter; for
+  // community-published ones it's carried over at publish time from the
+  // adoption's own AdoptionMeta.sector (see app/api/pathway-submissions/push
+  // /route.ts) — undefined only for pathways published before that carry-over
+  // existed. "Cross-Sector" marks a deliberately horizontal pathway (a
+  // synthesis or diagnostic spanning many sectors) rather than a real sector
+  // — callers that want an actual sector list should filter it out, same as
+  // an undefined sector.
+  sector?: string;
 }
 
 // Parses the pathways index's grouped bullet list:
@@ -30,7 +42,7 @@ async function listStaticPathways(): Promise<WikiPathwaySummary[]> {
   const index = await readSource(path.join(WIKI_PATH, 'pathways', 'index.md'));
   if (!index) return [];
 
-  const pathways: WikiPathwaySummary[] = [];
+  const entries: { title: string; slug: string; description: string; category: string }[] = [];
   let category = '';
   const bulletRe = /^\*\s*\[(.+?)\]\((.+?)\.md\)\s*-\s*(.+)$/;
 
@@ -42,10 +54,16 @@ async function listStaticPathways(): Promise<WikiPathwaySummary[]> {
       continue;
     }
     const m = line.match(bulletRe);
-    if (m) pathways.push({ title: m[1], slug: m[2], description: m[3], category });
+    if (m) entries.push({ title: m[1], slug: m[2], description: m[3], category });
   }
 
-  return pathways;
+  return Promise.all(
+    entries.map(async (entry) => {
+      const raw = await readSource(path.join(WIKI_PATH, 'pathways', `${entry.slug}.md`));
+      const sectorMatch = raw.match(/^sector:\s*(.+)$/m);
+      return { ...entry, sector: sectorMatch?.[1]?.trim() };
+    })
+  );
 }
 
 // The curated corpus lives as static files; admin-published community
@@ -57,7 +75,10 @@ export async function listWikiPathways(): Promise<WikiPathwaySummary[]> {
     listStaticPathways(),
     (async () => {
       const supabase = await createClient();
-      return supabase.from('published_pathways').select('slug, title, description, category').order('created_at', { ascending: false });
+      return supabase
+        .from('published_pathways')
+        .select('slug, title, description, category, sector')
+        .order('created_at', { ascending: false });
     })(),
   ]);
 
@@ -66,9 +87,29 @@ export async function listWikiPathways(): Promise<WikiPathwaySummary[]> {
     title: p.title,
     description: p.description,
     category: p.category,
+    sector: p.sector ?? undefined,
   }));
 
   return [...staticPathways, ...published];
+}
+
+export interface WikiStats {
+  total: number;
+  // Unique real sectors across the merged static + published corpus (see
+  // WikiPathwaySummary.sector) — excludes "Cross-Sector" and any pathway with
+  // no sector tagged (all community-published ones, for now), since neither
+  // is an actual sector to name in browse-intent copy.
+  sectors: string[];
+}
+
+// Powers the "Explore the Pathways Library" intent's opening line (see
+// app/api/wiki-stats/route.ts) — how many pathways exist right now and which
+// sectors they span, so that line stays accurate as the corpus grows via
+// community publishing instead of being frozen in a prompt file.
+export async function getWikiStats(): Promise<WikiStats> {
+  const pathways = await listWikiPathways();
+  const sectors = Array.from(new Set(pathways.map((p) => p.sector).filter((s): s is string => Boolean(s) && s !== 'Cross-Sector')));
+  return { total: pathways.length, sectors };
 }
 
 // The Provenance appendix is contributor-only (see content/pathway-generation-

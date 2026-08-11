@@ -3,6 +3,7 @@ type: Pathway
 title: Bhili Language Enablement for Voice AI
 description: Bringing Dehwali Bhili, a zero-digital-resource tribal language, into ASR/NMT/TTS and into MahaVISTAAR's live voice bot in ~100 days.
 tags: [Voice AI, Language, Tribal Inclusion]
+sector: Agriculture
 stage: Pilot
 timestamp: 2026-07-31
 ---

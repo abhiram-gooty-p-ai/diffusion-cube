@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import ChatPanel, { Message } from '@/components/ChatPanel';
 import AttachmentsPanel from '@/components/AttachmentsPanel';
@@ -16,10 +16,12 @@ import {
   EXPLORER_INTENTS,
   WHAT_THE_CUBE_DOES,
   getExplorerIntent,
+  getBrowseOpeningMessage,
   type ExplorerIntent,
   type ExplorerIntentId,
 } from '@/lib/explorer-intents';
 import type { DocType } from '@/lib/design-documents';
+import type { WikiStats } from '@/lib/wiki-content';
 
 // The fixed opening line a brand-new Contributor conversation shows before
 // any row exists — the whole point of this flow is document-first, so it
@@ -137,10 +139,34 @@ export default function AdoptionWorkspace({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
+  // Backs the "browse" intent's opening line (how many pathways, which
+  // sectors) — fetched once on mount rather than hardcoded, so it stays
+  // accurate as the corpus grows via community publishing. Null until it
+  // resolves; getBrowseOpeningMessage falls back to a static line if so.
+  const [wikiStats, setWikiStats] = useState<WikiStats | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/wiki-stats')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setWikiStats(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Which flow's intent is currently in play, for the handlers below —
   // conversation.meta.intent once a row exists, the pending menu choice
   // before that.
   const activeIntent: ExplorerIntent = conversation?.meta.intent ?? pendingIntent ?? '';
+
+  // Resolves an intent's opening line — dynamic for "browse" (see
+  // wikiStats above), the fixed copy from lib/explorer-intents.ts otherwise.
+  function resolveOpeningMessage(intent: ExplorerIntentId): string {
+    return intent === 'browse' ? getBrowseOpeningMessage(wikiStats) : getExplorerIntent(intent)!.openingMessage;
+  }
 
   // The pane always shows the currently *selected* version (defaults to the
   // latest, versions[0], since listPathwaySubmissionVersions orders
@@ -153,6 +179,26 @@ export default function AdoptionWorkspace({
 
   const explorerDocMarkdown =
     (explorerDoc.open === 'analysis' ? explorerDoc.analysis?.content : explorerDoc.summary?.content) ?? '';
+
+  // The opening line is a deterministic function of flow/intent, never
+  // persisted to `messages` (see preChat above — the Messages API requires
+  // history to start on a user turn). Once a row exists it has to be
+  // re-derived and prepended for display here as well, or it disappears the
+  // moment the user's first real message lands and `conversation` stops
+  // being null.
+  const conversationOpeningMessage: Message | null = conversation
+    ? conversation.meta.flow === 'contributor'
+      ? CONTRIBUTOR_OPENING_MESSAGE
+      : conversation.meta.flow === 'explorer' && conversation.meta.intent
+        ? { role: 'assistant', content: resolveOpeningMessage(conversation.meta.intent) }
+        : null
+    : null;
+
+  const displayMessages = conversation
+    ? conversationOpeningMessage
+      ? [conversationOpeningMessage, ...conversation.messages]
+      : conversation.messages
+    : [];
 
   function handleWelcomeFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -195,7 +241,7 @@ export default function AdoptionWorkspace({
         ? { opening: CONTRIBUTOR_OPENING_MESSAGE, flow: 'contributor', intent: '' }
         : pendingIntent
           ? {
-              opening: { role: 'assistant', content: getExplorerIntent(pendingIntent)!.openingMessage },
+              opening: { role: 'assistant', content: resolveOpeningMessage(pendingIntent) },
               flow: 'explorer',
               intent: pendingIntent,
               onBackToMenu: () => setPendingIntent(null),
@@ -609,7 +655,7 @@ export default function AdoptionWorkspace({
       <div className="relative flex flex-1 overflow-hidden">
         <div className={`min-w-0 flex-1 ${pathwayDoc.paneOpen ? 'lg:max-w-[420px] lg:flex-shrink-0' : ''}`}>
           <ChatPanel
-            messages={conversation.messages}
+            messages={displayMessages}
             onSend={handleUserSend}
             onAttachFiles={handleAttachFiles}
             onRemoveAttachment={removeAttachment}

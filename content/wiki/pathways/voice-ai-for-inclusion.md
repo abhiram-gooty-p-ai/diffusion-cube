@@ -3,6 +3,7 @@ type: Pathway
 title: Voice AI for Inclusion
 description: A cross-deployment synthesis of what MahaVISTAAR, BharatVISTAAR, Amul/Sarlaben, Jal Jeevan Mission Assam, and the Bhili effort learned about reaching users excluded by literacy, language, device access, or connectivity.
 tags: [Voice AI, Inclusion, Cross-deployment]
+sector: Cross-Sector
 stage: Scale
 timestamp: 2026-07-31
 ---

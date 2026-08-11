@@ -1234,7 +1234,9 @@ ${explorerConsultationStateBlock(holdNoOpinion)}
 ## The grid you maintain (internal bookkeeping — never narrate it)
 
 You track the user's adoption on a 4×4 grid: four dimensions (persona, solution, institution, ecosystem) × four stages (${STAGES.join(', ')}). Every response must end with this JSON block:
-
+${meta.intent === 'browse' || meta.intent === 'troubleshoot' ? `
+**meta.name for this intent**: There is no adoption to name here. Use \`meta.name\` as a short topic label — 3–6 words — capturing what this specific conversation is about (e.g. "Voice AI for rural farmers" or "Chatbot drop-off in last mile"). Leave it empty until a clear topic has emerged (usually by the second or third turn); once it has, set it and keep it stable.
+` : ''}
 ${gridUpdateContract(totalSteps, { cubeAssessment: true, intent: true, explorerAction: true })}`;
 }
 

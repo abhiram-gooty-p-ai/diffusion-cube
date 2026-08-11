@@ -3,6 +3,7 @@ type: Pathway
 title: CEEW Climate Intelligence
 description: Two AI systems built with the Council on Energy, Environment and Water — a conversational climate-data agent and a dengue early-warning system — and the shared implementation lessons between them.
 tags: [Climate, Public Health, Policy]
+sector: Climate and Public Health
 stage: Pilot
 timestamp: 2026-07-31
 ---

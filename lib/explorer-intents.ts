@@ -66,7 +66,7 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
     label: 'Explore the Pathways Library',
     menuDescription:
       'Browse documented AI adoption journeys from around the world—what adopters set out to do, the decisions they made, what worked, what did not and what they learned.',
-    chipLabel: 'Browsing the Cube',
+    chipLabel: 'Explore the Pathways',
     tracksDeployment: false,
     holdNoOpinion: false,
     openingMessage:
@@ -88,7 +88,7 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
     label: 'Strengthen an Adoption Already Underway',
     menuDescription:
       'You are defining, piloting or scaling an AI use case and want to review your design or implementation. Draw on comparable pathways, reusable know-how and practical toolkits to identify what could be strengthened.',
-    chipLabel: 'Validating an adoption',
+    chipLabel: 'Strengthen an Adoption',
     tracksDeployment: true,
     holdNoOpinion: true,
     openingMessage:
@@ -111,7 +111,7 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
     label: 'Deep Dive into a Specific Question or Challenge',
     menuDescription:
       'Deep dive into a particular sector, use case, adoption stage or challenge. See how other adopters approached it and find relevant insights, examples and resources.',
-    chipLabel: 'Working through an issue',
+    chipLabel: 'Working through an Issue',
     tracksDeployment: false,
     holdNoOpinion: false,
     openingMessage:
@@ -166,6 +166,28 @@ export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
 
 export function getExplorerIntent(intent: ExplorerIntent | undefined): ExplorerIntentDef | null {
   return EXPLORER_INTENTS.find((i) => i.id === intent) ?? null;
+}
+
+function formatList(items: string[]): string {
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+// The "browse" intent's opening line names how many pathways exist and what
+// sectors they span, so it's built from live corpus stats (see
+// app/api/wiki-stats/route.ts) rather than the fixed `openingMessage` every
+// other intent uses. `stats` is null until that fetch resolves (or on
+// failure), in which case this falls back to the intent's plain
+// openingMessage rather than showing a broken sentence.
+export function getBrowseOpeningMessage(stats: { total: number; sectors: string[] } | null): string {
+  const fallback = getExplorerIntent('browse')!.openingMessage;
+  if (!stats || !stats.total) return fallback;
+
+  const countPhrase = `${stats.total} documented pathway${stats.total === 1 ? '' : 's'}`;
+  const sectorPhrase = stats.sectors?.length ? ` across ${formatList(stats.sectors)}` : '';
+  return `Happy to walk you through what's in here — ${countPhrase}${sectorPhrase}. Are you looking for a particular sector or use case, or would you like an overview of a few pathways first?`;
 }
 
 // The whole menu, rendered for the model — it needs to know what the other

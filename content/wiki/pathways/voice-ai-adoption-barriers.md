@@ -3,6 +3,7 @@ type: Pathway
 title: Voice AI Adoption Barriers
 description: Why organizations still don't adopt Voice AI even with subsidized access — a reframing from affordability to organizational absorption capacity, from ~40 practitioner interviews.
 tags: [Voice AI, Organizational Readiness]
+sector: Cross-Sector
 stage: Explore
 timestamp: 2026-07-31
 ---

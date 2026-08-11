@@ -4,6 +4,7 @@ title: MahaVISTAAR
 description: Maharashtra's state-run voice advisory line for farmers — 1.67M+ questions answered, and the architecture, data, and governance decisions behind it.
 resource: tel:155313
 tags: [Voice AI, Agriculture, Government]
+sector: Agriculture
 stage: Scale
 timestamp: 2026-07-31
 ---

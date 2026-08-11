@@ -75,10 +75,14 @@ export async function POST(req: Request) {
     return Response.json({ error: 'You can only push your own submissions.' }, { status: 403 });
   }
 
-  const design = submission.designs as unknown as { meta?: { name?: string; summary?: string } } | { meta?: { name?: string; summary?: string } }[] | null;
+  const design = submission.designs as unknown as { meta?: { name?: string; summary?: string; sector?: string } } | { meta?: { name?: string; summary?: string; sector?: string } }[] | null;
   const meta = Array.isArray(design) ? design[0]?.meta : design?.meta;
   const title = meta?.name || 'Untitled Adoption';
   const description = meta?.summary || '';
+  // Already required before a Contributor can even draft a pathway (see
+  // contributorSystemPrompt step 1) — carried onto the published row so the
+  // corpus's real sector spread can be surfaced without a separate picker.
+  const sector = meta?.sector || null;
   const commitMessage = typeof commit_message === 'string' ? commit_message : '';
 
   // Re-pushing an already-published submission updates the same row (and
@@ -94,7 +98,7 @@ export async function POST(req: Request) {
   if (slug) {
     const { error: updateError } = await admin
       .from('published_pathways')
-      .update({ title, description, content: submission.content, commit_message: commitMessage })
+      .update({ title, description, content: submission.content, commit_message: commitMessage, sector })
       .eq('slug', slug);
     if (updateError) return Response.json({ error: updateError.message }, { status: 500 });
   } else {
@@ -107,6 +111,7 @@ export async function POST(req: Request) {
       description,
       content: submission.content,
       commit_message: commitMessage,
+      sector,
       source_submission_id: submission.id,
       published_by: user.id,
     });

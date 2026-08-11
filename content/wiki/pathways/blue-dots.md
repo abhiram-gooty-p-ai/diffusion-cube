@@ -3,6 +3,7 @@ type: Pathway
 title: Blue Dots
 description: Open voice-AI discovery infrastructure making local jobs, talent, and services visible to each other within a district — modelled on UPI.
 tags: [Livelihoods, Discovery, District Economy]
+sector: Livelihoods
 stage: Scale
 timestamp: 2026-07-31
 ---

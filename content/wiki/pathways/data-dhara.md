@@ -3,6 +3,7 @@ type: Pathway
 title: Data DHARA
 description: A horizontal data-unlock pathway turning fragmented, siloed government records into coordinated, machine-readable systems — illustrated through Nivesh Suvidha (Invest UP) and three sibling deployments.
 tags: [Data Infrastructure, Governance]
+sector: Governance
 stage: Define
 timestamp: 2026-07-31
 ---
