@@ -541,6 +541,9 @@ export default function AdoptionWorkspace({
                   Ask an admin to grant you Explorer or Contributor access to get started.
                 </p>
               ))}
+            <p className="mt-3 text-center text-xs text-ink-soft">
+              Cube can make mistakes. Verify important information.
+            </p>
           </div>
         </div>
       </div>

@@ -390,6 +390,9 @@ export default function ChatPanel({
           Send
         </button>
         </div>
+        <p className="mt-2 text-center text-xs text-ink-soft">
+          Cube can make mistakes. Verify important information.
+        </p>
       </div>
     </div>
   );
