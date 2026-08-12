@@ -512,9 +512,9 @@ export default function AdoptionWorkspace({
                 placeholder="Describe your adoption, or drop a document…"
                 disabled={loading}
               />
-              {fixedFlow && !showExplorerMenu && (
+              {fixedFlow && (
                 <button
-                  onClick={() => handleWelcomeSend(fixedFlow)}
+                  onClick={() => handleWelcomeSend(showExplorerMenu ? 'explorer' : fixedFlow, showExplorerMenu ? 'open' : '')}
                   disabled={!canSend}
                   className="rounded-xl bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
                 >
