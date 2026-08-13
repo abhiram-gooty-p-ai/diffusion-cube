@@ -1418,6 +1418,76 @@ CORE RULES
 Your entire response must be the document itself (Sections 0-6 + Provenance appendix), titled "${title}" as the pathway title, or the fallback line above — no preamble, no meta-commentary.`;
 }
 
+// On-demand "Strengthening Review" — the Validate intent's analysis document.
+// Different from the Guidance intent's Analysis Doc: this is a design review
+// that actively names divergences from documented patterns (framed as
+// observations tied to evidence, never as flaws), whereas the Guidance doc
+// is purely descriptive and never names divergences. Called from the same
+// analysis-doc mode; the route handler dispatches here when meta.intent
+// is 'validate'.
+export function validateAnalysisDocSystemPrompt(
+  wikiContent: string,
+  frameworkContent: string,
+  grid: GridState,
+  meta: CompanionMeta,
+  generatedAt: string
+): string {
+  const title = `${meta.name || 'Untitled Adoption'} — Strengthening Review`;
+
+  return `You are generating a Strengthening Review for an AI adoption design being worked through in the 100 Pathways Adoption Companion — Validate intent. You are given the full conversation, the user's current 4×4 grid, and the pathway corpus for grounding.
+
+## Pathway corpus (for grounding only)
+
+${wikiContent}
+
+${frameworkBlock(frameworkContent)}
+
+${standingContext(grid, meta)}
+
+## Current date and time
+
+${generatedAt}
+
+CORE RULES
+
+1. Never fabricate. Every claim about the design must be traceable to the conversation or uploaded documents. If unsure whether something was established, treat it as not established.
+2. This document is a STRENGTHENING REVIEW, not an orientation. It can and should name where the design diverges from documented patterns — but every such observation must be tied to a specific pathway, micro-innovation, or toolkit finding, phrased as "worth reconsidering" or "diverges from X, which found Y." Never phrase a divergence as a flaw, a weakness, or something missing — "who owns this once the pilot ends?" is right; "institutional ownership is weak" or "this is missing" is not.
+3. This document DESCRIBES standing and divergence — it never prescribes sequence. Report what's decided, what diverges, and what's open; do not tell the user which stage to enter, what to do first, or in what order to act. Every open item is phrased as a question to consider or a decision to take.
+4. Pathway, micro-innovation, and toolkit references must be real, from the corpus, named, and specific — with condition tags where the corpus gives them. Paraphrase; never quote verbatim. If nothing is genuinely relevant to a section, say so plainly rather than forcing a weak comparison. Never draw on or surface a pathway document's Provenance appendix (contributor-only).
+5. Simple English throughout. Short sentences. No jargon and no classification machinery ("sub-category B," "density 2," "insight form," "the framework") — the dimension and stage names themselves are public 100 Pathways vocabulary and fine to use.
+6. Anything not-yet-settled is written as a question to consider or a decision to take — never as a deficiency, a gap, or something the user is missing.
+7. Micro-innovations and toolkits drawn from other adoptions are presented as suggested choices based on lived experience, never as recommendations — the reader judges whether each fits their context. If nothing relevant exists for a section, say so plainly rather than filling it.
+8. Relevance for this intent is strict: same sector AND same use-case category. A pathway from a different sector does not qualify, regardless of thematic similarity. Where a pathway is only adjacent (same broad sector, different sub-category, or vice versa), say so plainly in the bullet rather than presenting it as an exact match.
+
+OUTPUT FORMAT (exact structure):
+
+## ${title}
+*${[meta.sector, meta.geography].filter(Boolean).join(' · ') || '[sector · geography if known]'}*
+*Stage: ${meta.stage || '[defining / piloting / scaling if known]'}*
+*Generated ${generatedAt} — reflects the conversation up to this point*
+
+### Where This Design Stands
+
+[Per aspect — Persona and Problem, Solution, Institution, Ecosystem — 2-3 lines each on what's decided, based strictly on the conversation and any uploaded documents. Descriptive only. No evaluation here; evaluation belongs only in the next section.]
+
+### What Diverges from Documented Patterns
+
+[Up to 5 bullets. Each names a specific pathway, micro-innovation, or toolkit, states what it documented, and states plainly how the user's design differs — framed as "worth reconsidering," never as a flaw. Format: "On [topic the user raised]: [named pathway/toolkit] found/documented [X]. Your design currently [Y] — worth weighing against that." If nothing genuinely diverges from what's been discussed, write exactly: "Nothing surfaced yet that clearly diverges from documented patterns."]
+
+### Open Decisions
+
+[Up to 5 bullets, drawn from what the conversation surfaced against the framework at this design's current stage. Each written as a question to consider or a decision to take. Weight toward what matters most at the current stage (defining / piloting / scaling). If none have genuinely surfaced yet, write exactly: "None surfaced yet."]
+
+### What Transfers from Existing Know-How
+
+[One bullet per genuinely relevant pathway, micro-innovation, or toolkit insight actually used in the conversation, tied to something the user raised. Format: "On [topic the user raised]: [named pathway/toolkit] — [paraphrased insight], [applies-when / fails-when condition if the corpus gives one]. One to weigh against your own context, not a fixed answer." If nothing in the corpus is genuinely relevant, write exactly: "No pathway in the corpus matches this sector and use case."]
+
+If the conversation has not yet produced a meaningful pass through at least one aspect, output only:
+"Not enough of the conversation has happened yet to generate a useful strengthening review. Keep going through the design, and generate this once at least one aspect has been discussed in some depth."
+
+Your entire response must be the document itself (or the fallback line above) — no preamble, no meta-commentary.`;
+}
+
 // On-demand "Analysis Doc" — the full standing document. Not a chat turn.
 export function analysisDocSystemPrompt(
   wikiContent: string,
@@ -1445,12 +1515,11 @@ ${generatedAt}
 CORE RULES
 
 1. Never fabricate. Every claim about the adoption must be traceable to the conversation or uploaded documents. If unsure whether something was established, treat it as not established.
-2. This document DESCRIBES standing — it never prescribes sequence. Report what's established and what's thin per cell; do not tell the user which stage to enter or what to do first. A "Suggested strengthening" item must tie to something the user actually raised, phrased as an option, never as an ordered plan.
+2. This document DESCRIBES standing — it never prescribes sequence. Report what's established and what's open; do not tell the user which stage to enter or what to do first. A "Suggested strengthening" item must tie to something the user actually raised, phrased as an option, never as an ordered plan.
 3. Pathway references must be real, from the corpus, named, and specific — with condition tags where the corpus gives them. Paraphrase; never quote verbatim. If nothing is genuinely relevant, omit rather than force. Never draw on or surface a pathway document's Provenance appendix (contributor-only).
 4. Simple English throughout. Short sentences. No jargon and no classification machinery ("sub-category B," "density 2," "insight form," "the framework") — the dimension and stage names themselves are public 100 Pathways vocabulary and fine to use.
-5. Where a grid cell has density 0, write only "Not yet discussed." — no padding.
-6. Anything the framework surfaces as not-yet-settled is written as a **question to consider or a decision to take** — never as a deficiency, a gap in their work, or something they are missing. "Who owns this once the pilot ends?" is right; "Institutional ownership is missing" is not.
-7. Micro-innovations drawn from other adoptions are presented as **suggested choices based on lived experience**, never as recommendations — the reader judges whether each fits their context. If nothing relevant exists for a section, say so plainly rather than filling it.
+5. Anything the framework surfaces as not-yet-settled is written as a **question to consider or a decision to take** — never as a deficiency, a gap in their work, or something they are missing. "Who owns this once the pilot ends?" is right; "Institutional ownership is missing" is not.
+6. Micro-innovations drawn from other adoptions are presented as **suggested choices based on lived experience**, never as recommendations — the reader judges whether each fits their context. If nothing relevant exists for a section, say so plainly rather than filling it.
 
 OUTPUT FORMAT (exact structure):
 
@@ -1461,37 +1530,24 @@ OUTPUT FORMAT (exact structure):
 
 ### Where This Adoption Stands
 
-[2–4 sentences: what's being worked on, for whom, and an honest one-line read of overall coverage — which dimensions are well-developed and which are largely untouched. Descriptive only.]
+[2–4 sentences summary of: what's being worked on, for whom, and the solution.
+1-2 lines for each Dimension — what is covered, not covered. Descriptive only.]
 
-### Coverage Grid
+### Decisions Discussed
 
-[One line per dimension: the dimension name, then its four stages with density symbols (○ / ● / ●● / ●●●) — exactly matching the grid data above. Format: "**Persona** — Explore ●● · Define ● · Pilot ○ · Scale ○"]
+[Up to 5 bullets, drawn from what the conversation surfaced.]
 
-${DIMENSIONS.map(
-  (d) => `### ${d.name}
+### What transfers from existing know-how
 
-[For each stage with density ≥ 1, a short paragraph on what's actually been established, plus anything clearly thin. For stages at density 0 write nothing — cover them with one closing line: "Not yet discussed: [stages]." If the whole dimension is at 0, write only "Not yet discussed."]`
-).join('\n\n')}
+[One bullet per genuinely relevant pathway insight, tied to something the user actually raised and accepted. Format: "On [topic the user raised]: [named pathway] — [paraphrased insight, with its applies-when / fails-when condition if the corpus gives one]. One to weigh against your own context, not a fixed answer." Relevance means same sector and same use-case category; where a pathway is only adjacent, say so in the bullet. If nothing in the corpus is genuinely relevant, write exactly: "No pathway in the corpus matches this sector and use case."]
 
 ### Questions and Decisions to Consider
 
-[Up to 10 bullets, drawn from what the conversation surfaced against the framework at this adoption's current stage. Each one written as a question to consider or a decision to take — see rule 6. Weight toward what matters most at the current stage. If none have genuinely surfaced yet, write "None surfaced yet."]
-
-### Related Pathway Experience
-
-[One bullet per genuinely relevant pathway insight, tied to something the user actually raised. Format: "On [topic the user raised]: [named pathway] — [paraphrased insight, with its applies-when / fails-when condition if the corpus gives one]." Relevance means same sector and same use-case category; where a pathway is only adjacent, say so in the bullet. If nothing in the corpus is genuinely relevant, write exactly: "No pathway in the corpus matches this sector and use case."]
-
-### Suggested Choices from Other Adoptions
-
-[Micro-innovations from the corpus that speak to what the user raised, each as a suggested choice based on lived experience — never a recommendation (see rule 7). Name the adoption each came from and the condition it worked under. If none are relevant, write exactly: "No micro-innovations in the corpus apply to this adoption."]
-
-### Open Threads
-
-[Up to 8 bullets of things the user raised that remain unresolved — their words, their topics. Not a to-do list, not ordered by your priority. If none, write "None yet."]
+[Up to 5 bullets, drawn from what the conversation surfaced against the framework at this adoption's current stage. Each one written as a question to consider or a decision to take. Weight toward what matters most at the current stage. If none have genuinely surfaced yet, write "None surfaced yet."]
 
 If the conversation has not yet produced enough content for a meaningful document, output only:
 
-"Not enough of the conversation has happened yet to generate a useful analysis. Keep going, and generate this once a few things have been discussed."
+"Not enough of the conversation has happened yet to generate a useful summary. Keep going, and generate this once a few things have been discussed."
 
 Your entire response must be the document itself (or the fallback line above) — no preamble, no meta-commentary.`;
 }

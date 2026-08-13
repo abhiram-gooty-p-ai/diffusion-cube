@@ -4,6 +4,7 @@ import {
   explorerSystemPrompt,
   contributorSystemPrompt,
   analysisDocSystemPrompt,
+  validateAnalysisDocSystemPrompt,
   planDocumentSystemPrompt,
   documentInsightSystemPrompt,
   pathwayDraftSystemPrompt,
@@ -71,7 +72,9 @@ export async function POST(req: Request) {
   let systemPrompt: string;
   const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
   if (mode === 'analysis-doc') {
-    systemPrompt = analysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt);
+    systemPrompt = meta?.intent === 'validate'
+      ? validateAnalysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt)
+      : analysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt);
   } else if (mode === 'executive-summary') {
     systemPrompt = executiveSummarySystemPrompt(
       wikiContent,
