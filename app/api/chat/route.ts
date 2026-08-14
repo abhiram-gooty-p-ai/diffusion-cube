@@ -9,6 +9,7 @@ import {
   documentInsightSystemPrompt,
   pathwayDraftSystemPrompt,
   executiveSummarySystemPrompt,
+  pathwaySubmissionExecutiveSummarySystemPrompt,
 } from '@/lib/system-prompts';
 import { logConversation } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
@@ -25,6 +26,7 @@ const MODES = [
   'plan-document',
   'extract-insights',
   'pathway-draft',
+  'pathway-exec-summary',
 ] as const;
 
 function lastUserMessageText(messages: { role: string; content: unknown }[]): string {
@@ -103,6 +105,8 @@ export async function POST(req: Request) {
       meta ?? {},
       generatedAt
     );
+  } else if (mode === 'pathway-exec-summary') {
+    systemPrompt = pathwaySubmissionExecutiveSummarySystemPrompt(meta ?? {}, generatedAt);
   } else if (flow === 'contributor') {
     systemPrompt = contributorSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {});
   } else {

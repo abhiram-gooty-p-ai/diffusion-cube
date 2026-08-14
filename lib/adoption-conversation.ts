@@ -28,6 +28,7 @@ import {
   insertPathwaySubmissionVersion,
   listPathwaySubmissionVersions,
   upsertPathwaySubmission,
+  upsertPathwaySubmissionExecSummary,
 } from '@/lib/pathway-submission-versions';
 
 export type AdoptionFlow = 'explorer' | 'contributor' | '';
@@ -371,6 +372,42 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     update((cur) => ({ ...cur, updatedAt }));
   }
 
+  // Backend-only executive summary of a pathway submission — never shown to
+  // the contributor, only to admins (see PathwaySubmissionsPanel.tsx). Runs
+  // via its own `pathway-exec-summary` mode, given just the freshly
+  // generated draft as the message to summarize (it needs no conversation
+  // history or corpus — see pathwaySubmissionExecutiveSummarySystemPrompt).
+  // Called fire-and-forget from generatePathwayDraft below; failures are
+  // swallowed since this is an internal artifact, not worth surfacing to or
+  // blocking the contributor's own flow over.
+  async function generateSubmissionExecutiveSummary(submissionId: string, draftMarkdown: string): Promise<void> {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: draftMarkdown }],
+          mode: 'pathway-exec-summary',
+          meta: conversationRef.current?.meta ?? {},
+        }),
+      });
+      if (!res.body) return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+      }
+
+      await upsertPathwaySubmissionExecSummary(submissionId, text);
+    } catch {
+      // Silent — see function comment above.
+    }
+  }
+
   // Generates (revisionInstruction omitted) or regenerates (given) the
   // pathway document via the `pathway-draft` mode — same request shape the
   // old manual "Generate Pathway Wiki" button used — then stores the result
@@ -415,6 +452,11 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
 
       const submission = await upsertPathwaySubmission(c.id, text);
       if (!submission) throw new Error('Could not save the draft.');
+
+      // Fire-and-forget — the backend-only executive summary must never add
+      // latency to what the contributor sees (see generatePathwayDraft's own
+      // return below, which appendPathwayDocMessage acts on immediately).
+      void generateSubmissionExecutiveSummary(submission.id, text);
 
       const versions = await listPathwaySubmissionVersions(submission.id);
       const previousVersionNumber = versions[0]?.version_number ?? 0;

@@ -96,6 +96,23 @@ export function formatVersionLabel(versionNumber: number): string {
   return `v${versionNumber}`;
 }
 
+// Backend-only executive summary, generated alongside every draft/revision
+// (see generateSubmissionExecutiveSummary in lib/adoption-conversation.ts).
+// Latest only — upserts on submission_id rather than versioning. Never read
+// back by this app's client code; RLS has no select policy for this table
+// (see migration 0015), so this insert/update is the only operation that
+// will ever succeed from a contributor's own session.
+export async function upsertPathwaySubmissionExecSummary(submissionId: string, content: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('pathway_submission_exec_summaries')
+    .upsert({ submission_id: submissionId, content, updated_at: new Date().toISOString() }, { onConflict: 'submission_id' });
+
+  if (error) {
+    console.error('[pathway-submission-versions] Failed to upsert exec summary:', error.message);
+  }
+}
+
 // Whether/where a submission is currently live, and what's actually live —
 // used for the pane's "Draft" vs "Published" status line (compared against
 // whichever version is currently displayed, not just "has this submission

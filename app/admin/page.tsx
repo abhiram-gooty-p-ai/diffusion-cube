@@ -17,7 +17,7 @@ export default async function AdminPage() {
   }
 
   const admin = createAdminClient();
-  const [{ data: usersData }, { data: rolesData }, { data: submissionsData }, { data: publishedData }] =
+  const [{ data: usersData }, { data: rolesData }, { data: submissionsData }, { data: publishedData }, { data: execSummariesData }] =
     await Promise.all([
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
       admin.from('user_roles').select('user_id, role'),
@@ -26,11 +26,21 @@ export default async function AdminPage() {
         .select('id, design_id, content, status, created_at, designs(meta)')
         .order('created_at', { ascending: false }),
       admin.from('published_pathways').select('slug, source_submission_id'),
+      // Backend-only, admin-visible-only artifact — see PathwaySubmissionsPanel
+      // and lib/system-prompts.ts's pathwaySubmissionExecutiveSummarySystemPrompt.
+      // Read here via the service-role client since RLS grants contributors no
+      // select policy on this table at all (see migration 0015).
+      admin.from('pathway_submission_exec_summaries').select('submission_id, content'),
     ]);
 
   const slugBySubmission = new Map<string, string>();
   for (const p of publishedData ?? []) {
     if (p.source_submission_id) slugBySubmission.set(p.source_submission_id, p.slug);
+  }
+
+  const execSummaryBySubmission = new Map<string, string>();
+  for (const s of execSummariesData ?? []) {
+    execSummaryBySubmission.set(s.submission_id, s.content);
   }
 
   const rolesByUser = new Map<string, Role[]>();
@@ -60,6 +70,7 @@ export default async function AdminPage() {
       status: s.status,
       created_at: s.created_at,
       slug: slugBySubmission.get(s.id),
+      executiveSummary: execSummaryBySubmission.get(s.id),
     };
   });
 

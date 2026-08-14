@@ -11,6 +11,9 @@ export interface PathwaySubmissionRow {
   status: 'pending_review' | 'reviewed' | 'published';
   created_at: string;
   slug?: string;
+  // Backend-only — never shown to the contributor who submitted this, see
+  // lib/system-prompts.ts's pathwaySubmissionExecutiveSummarySystemPrompt.
+  executiveSummary?: string;
 }
 
 const STATUS_LABEL: Record<PathwaySubmissionRow['status'], string> = {
@@ -129,6 +132,16 @@ export default function PathwaySubmissionsPanel({ initialRows }: { initialRows: 
             </button>
             {isOpen && (
               <div className="max-h-[50vh] overflow-y-auto border-t border-navy/10 px-4 py-3">
+                <div className="mb-4 rounded-lg border border-navy/10 bg-paper-dim p-3">
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">
+                    Executive Summary (internal)
+                  </p>
+                  {row.executiveSummary ? (
+                    <WikiMarkdown markdown={row.executiveSummary} />
+                  ) : (
+                    <p className="text-sm text-ink-soft">Not generated yet.</p>
+                  )}
+                </div>
                 <WikiMarkdown markdown={row.content} />
               </div>
             )}

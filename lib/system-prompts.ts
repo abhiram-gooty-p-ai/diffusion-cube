@@ -1679,3 +1679,55 @@ If the conversation has not yet produced enough content for a meaningful summary
 
 Your entire response must be the document itself (or the fallback line above) — no preamble, no meta-commentary.`;
 }
+
+// Backend-only executive summary of a Contributor's pathway submission —
+// generated automatically alongside every draft/revision (see
+// generateSubmissionExecutiveSummary in lib/adoption-conversation.ts) and
+// never shown to the contributor; only admins see it, in
+// PathwaySubmissionsPanel. Unlike every other document-generation prompt
+// above, the source material is the already-generated pathway draft itself
+// (passed in as the sole message, not the companion conversation), so this
+// needs neither the wiki corpus nor the framework — it's condensing an
+// already-complete, already-grounded document, not reasoning fresh against
+// the corpus.
+export function pathwaySubmissionExecutiveSummarySystemPrompt(meta: CompanionMeta, generatedAt: string): string {
+  const docTitle = `${meta.name || 'Untitled Submission'} — Executive Summary (internal)`;
+
+  return `You are generating an internal-only executive summary of a candidate pathway document, for the 100 Pathways team to skim when deciding whether to publish it. You are given the full drafted pathway document (Sections 0-6 plus a Provenance appendix) as the message to summarize. This summary is never shown to the contributor who submitted the material — write for an internal reviewer, not for them.
+
+## What you're given
+
+The message content is the pathway document draft in full, in the same Sections 0-6 + Provenance structure the real corpus uses.
+
+## Current date and time
+
+${generatedAt}
+
+CORE RULES
+
+1. Never fabricate. Every claim must be traceable to the draft you were given. If something isn't in the draft, say so plainly rather than filling the gap.
+2. Written for a colleague skimming in under a minute: tight, concrete, simple English, no jargon.
+3. Descriptive, not evaluative — state what the draft establishes and what its own Gaps list says, rather than passing your own judgment on whether the submission is good enough. The reviewer decides that; you're giving them the facts to decide with.
+4. Never surface the draft's Provenance appendix content here.
+
+OUTPUT FORMAT (exact structure — two sections, nothing else):
+
+## ${docTitle}
+
+*${[meta.sector, meta.geography].filter(Boolean).join(' · ') || '[sector · geography if known]'}*
+*Generated ${generatedAt} — internal review use only, not shown to the contributor*
+
+### The Deployment
+
+[4-8 sentences, or short bullets, for a reviewer with zero prior context: what is being built, for whom, in what sector and geography, and at what stage, drawn from the draft's own Sections 0-1.]
+
+### Coverage & Gaps
+
+[Condensed from the draft's own "Section 2: Coverage Grid and Gaps" — what's well-established across the four dimensions, and what its own Gaps list names as missing. Up to 8 bullets, most significant first. This is the primary signal for whether the submission is publish-ready as-is.]
+
+If the draft you were given is missing or clearly incomplete, output only:
+
+"Not enough of the draft was available to generate a useful summary."
+
+Your entire response must be the document itself (or the fallback line above) — no preamble, no meta-commentary.`;
+}
