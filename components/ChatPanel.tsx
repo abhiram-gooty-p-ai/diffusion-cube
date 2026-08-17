@@ -288,7 +288,7 @@ export default function ChatPanel({
               className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`${isRich || m.generatingDoc ? 'max-w-full' : 'max-w-[75%]'} rounded-xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`${isRich || m.generatingDoc ? 'max-w-full' : 'max-w-[75%]'} rounded-xl px-4 py-2.5 text-base leading-relaxed whitespace-pre-wrap ${
                   m.role === 'user'
                     ? 'bg-navy text-white'
                     : 'bg-white text-ink border border-navy/10'
@@ -315,7 +315,7 @@ export default function ChatPanel({
         })}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-white text-ink-soft border border-navy/10 rounded-xl px-4 py-2.5 text-sm animate-pulse">
+            <div className="bg-white text-ink-soft border border-navy/10 rounded-xl px-4 py-2.5 text-base animate-pulse">
               Thinking…
             </div>
           </div>
@@ -374,7 +374,7 @@ export default function ChatPanel({
         )}
         <textarea
           ref={textareaRef}
-          className="flex-1 bg-white text-ink border border-navy/15 rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:border-coral placeholder-ink-soft overflow-y-auto"
+          className="flex-1 bg-white text-ink border border-navy/15 rounded-xl px-3.5 py-2.5 text-base resize-none focus:outline-none focus:border-coral placeholder-ink-soft overflow-y-auto"
           style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
           value={input}
           onChange={(e) => setInput(e.target.value)}

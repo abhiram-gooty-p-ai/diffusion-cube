@@ -443,10 +443,10 @@ export default function AdoptionWorkspace({
                   type="button"
                   onClick={() => handlePickIntent(intent.id)}
                   disabled={loading || hasBlockingAttachment}
-                  className="group rounded-xl border border-navy/15 bg-white p-4 text-left transition hover:border-coral disabled:opacity-40"
+                  className="group flex flex-col justify-start rounded-xl border border-navy/15 bg-white p-4 text-left transition hover:border-coral disabled:opacity-40"
                 >
                   <p className="text-sm font-medium text-navy transition group-hover:text-coral">{intent.label}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-soft">{intent.menuDescription}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-soft">{intent.menuDescription}</p>
                 </button>
               ))}
             </div>
