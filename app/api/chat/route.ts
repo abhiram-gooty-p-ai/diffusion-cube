@@ -134,17 +134,13 @@ export async function POST(req: Request) {
   const readable = new ReadableStream({
     async start(controller) {
       let fullResponse = '';
-      let controllerClosed = false;
       for await (const chunk of stream) {
         if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
           fullResponse += chunk.delta.text;
           controller.enqueue(encoder.encode(chunk.delta.text));
-        } else if (chunk.type === 'content_block_stop' && !controllerClosed) {
-          controller.close();
-          controllerClosed = true;
         }
       }
-      if (!controllerClosed) controller.close();
+      controller.close();
 
       // Fire-and-forget — never blocks the response
       logConversation({ mode, messages, response: fullResponse });
