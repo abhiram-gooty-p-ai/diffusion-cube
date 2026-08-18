@@ -30,8 +30,27 @@ const MOU_CLAUSES = [
 
 const inputClass =
   'border border-navy/15 rounded-lg px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/50 transition-colors focus:outline-none focus:border-coral focus:ring-1 focus:ring-coral/30';
+const inputErrorClass =
+  'border border-coral rounded-lg px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/50 transition-colors focus:outline-none focus:border-coral focus:ring-1 focus:ring-coral/30';
 const labelClass = 'font-mono text-[10px] uppercase tracking-[0.12em] text-ink-soft';
 const checkboxClass = 'mt-0.5 h-4 w-4 flex-shrink-0 accent-coral';
+
+// Deliberately permissive (this is a "does this look like a real address/
+// number" check, not a delivery guarantee) — rejects the obvious cases
+// (missing @, no digits at all) without fighting real-world international
+// formats.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\+?[\d\s()-]{7,20}$/;
+
+function isValidEmail(value: string): boolean {
+  return EMAIL_PATTERN.test(value.trim());
+}
+
+function isValidPhone(value: string): boolean {
+  const trimmed = value.trim();
+  const digitCount = trimmed.replace(/\D/g, '').length;
+  return PHONE_PATTERN.test(trimmed) && digitCount >= 7;
+}
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">{children}</p>;
@@ -74,8 +93,23 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
   const [consentQuote, setConsentQuote] = useState(false);
   const [consentBlog, setConsentBlog] = useState(false);
 
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const emailValid = isValidEmail(pocEmail);
+  const phoneValid = isValidPhone(pocPhone);
+  const emailError = emailTouched && !emailValid;
+  const phoneError = phoneTouched && !phoneValid;
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    setEmailTouched(true);
+    setPhoneTouched(true);
+
+    if (!emailValid || !phoneValid) {
+      setError('Check the point of contact email and phone number — they need to look like a real address and number.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -195,8 +229,11 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
                   required
                   value={pocEmail}
                   onChange={(e) => setPocEmail(e.target.value)}
-                  className={inputClass}
+                  onBlur={() => setEmailTouched(true)}
+                  aria-invalid={emailError}
+                  className={emailError ? inputErrorClass : inputClass}
                 />
+                {emailError && <p className="text-xs text-coral">Enter a valid email address.</p>}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="pocPhone" className={labelClass}>
@@ -208,8 +245,12 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
                   required
                   value={pocPhone}
                   onChange={(e) => setPocPhone(e.target.value)}
-                  className={inputClass}
+                  onBlur={() => setPhoneTouched(true)}
+                  placeholder="+91 98765 43210"
+                  aria-invalid={phoneError}
+                  className={phoneError ? inputErrorClass : inputClass}
                 />
+                {phoneError && <p className="text-xs text-coral">Enter a valid phone number (at least 7 digits).</p>}
               </div>
             </div>
 
