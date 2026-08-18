@@ -112,11 +112,12 @@ export async function getWikiStats(): Promise<WikiStats> {
   return { total: pathways.length, sectors };
 }
 
-// The Provenance appendix is contributor-only (see content/pathway-generation-
-// prompt.md) — never surfaced to adopters in any mode, including this
-// browsing page. Cuts at the first heading whose text mentions "Provenance".
+// The Source Trace appendix (previously "Provenance appendix") is contributor-
+// only — never surfaced to adopters in any mode, including this browsing page.
+// Cuts at the first heading whose text mentions "Source Trace" or "Provenance"
+// (the old name, still present in existing static pathway files).
 function stripProvenanceAppendix(markdown: string): string {
-  const match = markdown.match(/^#{1,6}\s*.*provenance.*$/im);
+  const match = markdown.match(/^#{1,6}\s*.*(provenance|source trace).*$/im);
   if (!match || match.index === undefined) return markdown;
   return markdown.slice(0, match.index).trim();
 }

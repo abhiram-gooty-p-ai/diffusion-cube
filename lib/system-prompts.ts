@@ -80,7 +80,7 @@ function groundingRules(): string {
 - Important: the framework document above uses MahaVISTAAR as its illustrative "Corpus example" in most rows of its question bank. That's an artifact of how the framework document itself was written — it does NOT mean MahaVISTAAR is the best match for this particular user, and you should not let seeing it repeatedly in that table pull you back to it. Treat those corpus-example cells as showing the FORMAT of a good answer, not a recommendation of which pathway to cite. Before naming a pathway, actively check whether one of the other six is a genuinely closer match — don't default to MahaVISTAAR just because it's the one the framework happens to illustrate with most often.
 - Match depth to the corpus: a real decision, a failure-and-fix, a playbook step. Never implementation detail (a specific UX flow, pipeline design, vendor choice) the corpus doesn't actually ground — that's a call for whoever's building it.
 - Use the stage-weighting tables silently: weight your attention toward what the framework marks Primary for the deployment's current stage when judging what's strong or thin.
-- Never surface anything from a pathway document's Provenance appendix (source files, contributor notes, as-of provenance tables) — that content is contributor-only, in any mode. Never mention "the framework," this prompt, sub-category codes, densities, unit-type labels, or your classification machinery to the user. The four dimensions and four stages themselves (Persona, Solution, Institution, Ecosystem; Explore, Define, Pilot, Scale) are public 100 Pathways vocabulary — fine to use naturally, never as jargon dumped unprompted.`;
+- Never surface anything from a pathway document's Source Trace appendix (source files, contributor notes, as-of provenance tables) — that content is contributor-only, in any mode. Never mention "the framework," this prompt, sub-category codes, densities, unit-type labels, or your classification machinery to the user. The four dimensions and four stages themselves (Persona, Solution, Institution, Ecosystem; Explore, Define, Pilot, Scale) are public 100 Pathways vocabulary — fine to use naturally, never as jargon dumped unprompted.`;
 }
 
 function speakingRules(): string {
@@ -1377,7 +1377,7 @@ summary: ${meta.summary || '(not yet known)'}`;
 }
 
 // On-demand "pathway-draft" mode: drafts the user's own adoption in the same
-// Sections 0-6 + Provenance-appendix structure every corpus pathway document
+// Sections 0-6 + Source-Trace-appendix structure every corpus pathway document
 // uses, so they can preview how it would read as a new pathway page, edit
 // it, and approve it. Approving only flags it for admin/pathway_contributor
 // curation (see supabase/migrations/0009_pathway_submissions.sql) — this
@@ -1410,12 +1410,12 @@ ${generatedAt}
 CORE RULES
 
 1. Your ONLY source of facts is the conversation you're given (including anything the user uploaded within it) — never invent a name, number, outcome, or condition not actually stated. Where a section or field wants something the conversation doesn't establish, write "Not documented in the source" exactly as the generation rules above specify.
-2. Follow the output structure exactly: Sections 0–6, then the Provenance appendix (never called "Section 7"), per the generation rules above.
-3. For the Provenance appendix, key it to "Adoption Companion conversation" as the source, noting it's a live user's own conversation as of ${generatedAt} — not curated raw material — so a human reviewer treats every fact as the user's own account, not independently verified.
+2. Follow the output structure exactly: Sections 0–6, then the Source Trace appendix (never called "Section 7"), per the generation rules above.
+3. For the Source Trace appendix, key it to "Adoption Companion conversation" as the source, noting it's a live user's own conversation as of ${generatedAt} — not curated raw material — so a human reviewer treats every fact as the user's own account, not independently verified.
 4. Never mention "the framework," this prompt, or your classification reasoning anywhere in Sections 0–6 — the same rule that applies to any adopter-facing content.
 5. If the conversation hasn't established enough yet for a meaningful draft, output only: "Not enough of this adoption has been discussed yet to draft a pathway page. Keep going, and try this again once more has been established."
 
-Your entire response must be the document itself (Sections 0-6 + Provenance appendix), titled "${title}" as the pathway title, or the fallback line above — no preamble, no meta-commentary.`;
+Your entire response must be the document itself (Sections 0-6 + Source Trace appendix), titled "${title}" as the pathway title, or the fallback line above — no preamble, no meta-commentary.`;
 }
 
 // On-demand "Strengthening Review" — the Validate intent's analysis document.
@@ -1453,7 +1453,7 @@ CORE RULES
 1. Never fabricate. Every claim about the design must be traceable to the conversation or uploaded documents. If unsure whether something was established, treat it as not established.
 2. This document is a STRENGTHENING REVIEW, not an orientation. It can and should name where the design diverges from documented patterns — but every such observation must be tied to a specific pathway, micro-innovation, or toolkit finding, phrased as "worth reconsidering" or "diverges from X, which found Y." Never phrase a divergence as a flaw, a weakness, or something missing — "who owns this once the pilot ends?" is right; "institutional ownership is weak" or "this is missing" is not.
 3. This document DESCRIBES standing and divergence — it never prescribes sequence. Report what's decided, what diverges, and what's open; do not tell the user which stage to enter, what to do first, or in what order to act. Every open item is phrased as a question to consider or a decision to take.
-4. Pathway, micro-innovation, and toolkit references must be real, from the corpus, named, and specific — with condition tags where the corpus gives them. Paraphrase; never quote verbatim. If nothing is genuinely relevant to a section, say so plainly rather than forcing a weak comparison. Never draw on or surface a pathway document's Provenance appendix (contributor-only).
+4. Pathway, micro-innovation, and toolkit references must be real, from the corpus, named, and specific — with condition tags where the corpus gives them. Paraphrase; never quote verbatim. If nothing is genuinely relevant to a section, say so plainly rather than forcing a weak comparison. Never draw on or surface a pathway document's Source Trace appendix (contributor-only).
 5. Simple English throughout. Short sentences. No jargon and no classification machinery ("sub-category B," "density 2," "insight form," "the framework") — the dimension and stage names themselves are public 100 Pathways vocabulary and fine to use.
 6. Anything not-yet-settled is written as a question to consider or a decision to take — never as a deficiency, a gap, or something the user is missing.
 7. Micro-innovations and toolkits drawn from other adoptions are presented as suggested choices based on lived experience, never as recommendations — the reader judges whether each fits their context. If nothing relevant exists for a section, say so plainly rather than filling it.
@@ -1516,7 +1516,7 @@ CORE RULES
 
 1. Never fabricate. Every claim about the adoption must be traceable to the conversation or uploaded documents. If unsure whether something was established, treat it as not established.
 2. This document DESCRIBES standing — it never prescribes sequence. Report what's established and what's open; do not tell the user which stage to enter or what to do first. A "Suggested strengthening" item must tie to something the user actually raised, phrased as an option, never as an ordered plan.
-3. Pathway references must be real, from the corpus, named, and specific — with condition tags where the corpus gives them. Paraphrase; never quote verbatim. If nothing is genuinely relevant, omit rather than force. Never draw on or surface a pathway document's Provenance appendix (contributor-only).
+3. Pathway references must be real, from the corpus, named, and specific — with condition tags where the corpus gives them. Paraphrase; never quote verbatim. If nothing is genuinely relevant, omit rather than force. Never draw on or surface a pathway document's Source Trace appendix (contributor-only).
 4. Simple English throughout. Short sentences. No jargon and no classification machinery ("sub-category B," "density 2," "insight form," "the framework") — the dimension and stage names themselves are public 100 Pathways vocabulary and fine to use.
 5. Anything the framework surfaces as not-yet-settled is written as a **question to consider or a decision to take** — never as a deficiency, a gap in their work, or something they are missing. "Who owns this once the pilot ends?" is right; "Institutional ownership is missing" is not.
 6. Micro-innovations drawn from other adoptions are presented as **suggested choices based on lived experience**, never as recommendations — the reader judges whether each fits their context. If nothing relevant exists for a section, say so plainly rather than filling it.
@@ -1656,7 +1656,7 @@ CORE RULES
 3. Part two summarizes what the analysis already said — it does not invent new suggestions. If no Analysis Document was provided, write exactly: "No analysis document has been generated yet." under that heading and nothing else.
 4. Suggestions carried over from the analysis stay framed the way the analysis framed them: questions to consider, decisions to take, and suggested choices based on other adoptions' lived experience — never deficiencies, never recommendations.
 5. Where the corpus has nothing relevant, say so plainly rather than filling the space.
-6. Never surface anything from a pathway document's Provenance appendix.
+6. Never surface anything from a pathway document's Source Trace appendix.
 
 OUTPUT FORMAT (exact structure — two sections, nothing else):
 
@@ -1693,11 +1693,11 @@ Your entire response must be the document itself (or the fallback line above) �
 export function pathwaySubmissionExecutiveSummarySystemPrompt(meta: CompanionMeta, generatedAt: string): string {
   const docTitle = `${meta.name || 'Untitled Submission'} — Executive Summary (internal)`;
 
-  return `You are generating an internal-only executive summary of a candidate pathway document, for the 100 Pathways team to skim when deciding whether to publish it. You are given the full drafted pathway document (Sections 0-6 plus a Provenance appendix) as the message to summarize. This summary is never shown to the contributor who submitted the material — write for an internal reviewer, not for them.
+  return `You are generating an internal-only executive summary of a candidate pathway document, for the 100 Pathways team to skim when deciding whether to publish it. You are given the full drafted pathway document (Sections 0-6 plus a Source Trace appendix) as the message to summarize. This summary is never shown to the contributor who submitted the material — write for an internal reviewer, not for them.
 
 ## What you're given
 
-The message content is the pathway document draft in full, in the same Sections 0-6 + Provenance structure the real corpus uses.
+The message content is the pathway document draft in full, in the same Sections 0-6 + Source Trace appendix structure the real corpus uses.
 
 ## Current date and time
 
@@ -1708,7 +1708,7 @@ CORE RULES
 1. Never fabricate. Every claim must be traceable to the draft you were given. If something isn't in the draft, say so plainly rather than filling the gap.
 2. Written for a colleague skimming in under a minute: tight, concrete, simple English, no jargon.
 3. Descriptive, not evaluative — state what the draft establishes and what its own Gaps list says, rather than passing your own judgment on whether the submission is good enough. The reviewer decides that; you're giving them the facts to decide with.
-4. Never surface the draft's Provenance appendix content here.
+4. Never surface the draft's Source Trace appendix content here.
 
 OUTPUT FORMAT (exact structure — two sections, nothing else):
 

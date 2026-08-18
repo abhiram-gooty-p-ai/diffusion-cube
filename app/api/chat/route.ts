@@ -125,7 +125,7 @@ export async function POST(req: Request) {
     // client can't extract it and falls back to showing raw text. 8192
     // comfortably covers a full report; ordinary short replies are
     // unaffected since this is a ceiling, not a target.
-    max_tokens: mode === 'companion' ? 8192 : mode === 'extract-insights' ? 1024 : mode === 'pathway-draft' ? 6144 : 4096,
+    max_tokens: mode === 'companion' ? 8192 : mode === 'extract-insights' ? 1024 : mode === 'pathway-draft' ? 9000 : 4096,
     system: systemPrompt,
     messages,
   });

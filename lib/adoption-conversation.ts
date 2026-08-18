@@ -422,7 +422,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     updatePathwayDoc((prev) => ({ ...prev, loading: true, error: null }));
 
     const trailingMessage = revisionInstruction
-      ? `Please revise the pathway draft as follows: ${revisionInstruction}. Return the full revised document in the same Sections 0-6 + Provenance appendix format.`
+      ? `Please revise the pathway draft as follows: ${revisionInstruction}. Return the full revised document in the same Sections 0-6 + Source Trace appendix format.`
       : 'Draft my adoption as a pathway page now.';
 
     try {

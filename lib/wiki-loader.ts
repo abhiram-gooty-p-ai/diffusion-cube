@@ -17,7 +17,7 @@ const WIKI_PATH = process.env.WIKI_PATH ?? path.join(process.cwd(), 'content', '
 const FRAMEWORK_FILE = path.join(process.cwd(), 'content', 'framework.md');
 
 // The contributor-side generation prompt — the exact rules for the pathway
-// document's output structure (Sections 0-6 + Provenance appendix). Also
+// document's output structure (Sections 0-6 + Source Trace appendix). Also
 // used at runtime for the `pathway-draft` mode, which drafts a user's own
 // adoption in the same structure for their review.
 const PATHWAY_GENERATION_PROMPT_FILE = path.join(process.cwd(), 'content', 'pathway-generation-prompt.md');

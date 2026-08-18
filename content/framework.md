@@ -134,12 +134,59 @@ Primary = directly relevant at this stage. Secondary = relevant only if the adop
 | E. Resilience, Portability, and Contingencies | Dormant | Dormant | Primary | Primary |
 | F. Ecosystem Learning and Diffusion | Dormant | Dormant | Secondary | Primary |
 
-## Extraction discipline (applies to reading uploaded documents too)
+**Using it for generation:** Check raw content against the relevant cell's insight form before tagging a unit — not by how the content sounds, but by whether it actually contains the insight form's components. Cross-check the Primary sub-categories: a dimension×stage cell can have units in it and still miss the stage's real concern if none of those units satisfy a Primary sub-category.
 
-- **Tag every unit**: Dimension + Sub-category + Stage + Type + Condition tag. No untagged units.
-- **Write the before→after**: every tactical/strategic unit needs an outcome statement. Without it, it's a lesson, not a finding.
-- **Name the failure specifically**: "it didn't work" is not a unit. Name the failure, the fix, and the threshold or insight the fix revealed.
-- **Flag the gaps**: check against Primary sub-categories per stage, not raw cell density — a filled cell can still miss its stage's real concern.
-- **Don't fabricate**: if a before→after, a named individual, or a condition isn't in the source, write "Not documented in the source" rather than inventing it.
+**Using it for adopter guidance:** The core question per dimension×stage is the agent's opening probe with a live adopter. If a Primary sub-category for their current stage is unaddressed, that's what the agent asks about next — surfacing relevant corpus units as it goes.
 
-**The synthesis test:** could someone who never saw the raw material make a different decision because of this unit? If yes, it's a real unit. If it just describes what happened, it isn't.
+## The pathway document — output structure
+
+A pathway document is not a case study. A case study documents what was built. A pathway document is written for the next adopter — what they would need to decide, the alternatives they would consider, the conditions under which different choices are correct. Physical analogy: a pathway is not the route the pioneer took. It is the marked trail they left for the next traveller.
+
+| # | Section | Purpose | Contents |
+|---|---|---|---|
+| 0 | Reading guide | Orients the adopter | What a pathway is. How retrieval works. Where reusable value concentrates. How to navigate by dimension/stage. |
+| 1 | Pathway identity | Names the deployment for retrieval | Deployment name, sector, geography, population served, stage reached, contributing organisation, key dates, 2-sentence summary, Scale/impact achieved — Headline usage and outcome numbers, as-of date |
+| 2 | Effort details | Details of cost, time and effort | 1. Cost anchor — Setup + run-rate cost order of magnitude, as-of date. 2. Build effort — Time, team size, partner count to reach current stage |
+| | Downstream Adoptions | Known downstream adopters / reuse record | Who has since built on this pathway, and how much faster — pathway-level metadata, not a tagged unit |
+| 2 | The 4×4 grid | Shows where knowledge is dense and where gaps remain | Coverage map: 4 dimensions × 4 stages, density symbols (●●● / ●● / ● / ○). Empty/thin cells checked against Primary sub-categories, not raw count. |
+| 3 | Micro-innovations | The core reusable content | Tagged units organised by dimension, then stage. Each unit: decision, alternative considered, reason for decision, condition tag (applies when / fails when), before→after outcome. |
+| 4 | Toolkits and playbooks | Reusable artefacts and process knowledge | Technical templates, governance frameworks, testing protocols, prompt patterns, vendor criteria — each tagged with the purpose and conditions for reuse. |
+| 5 | Problem→solution patterns | Maps recurring problems to known fixes | Problem → root cause → solution → result → condition. Built from Failure-and-Fix units and other clear problem→fix patterns across deployments. |
+| 6 | Retrieval guide | Helps the next adopter find what's relevant fast | Organised by adopter intent (e.g. "I need to avoid vendor lock-in at Define stage") → points to relevant units and toolkit assets. |
+| | Source Trace appendix (contributor-only — never adopter-facing) | Traces what was used to build the pathway, for future reconciliation | Table keyed by source file → which Sections/fields/units it covers, and whether it's primary or confirms-only |
+
+**Worked example — a single micro-innovation unit (Failure and Fix type):**
+
+- **Failure:** Direct hardwiring of the AI layer to the ICAR database — a backend change required an AI-layer rebuild.
+- **Fix:** Separated the AI layer from the data layer using a standardised API gateway. The AI system retrieves data but does not own it.
+- **Insight:** At scale with multiple data sources, this is the difference between a maintainable system and a fragile one.
+- **Condition — applies when:** Multiple data sources with different owners and update cadences; government deployment where data accountability must remain with named departments.
+- **Condition — fails when:** Single, stable, internally-owned data source with no requirement for departmental accountability separation.
+- **Before → After:** Before: data errors required rebuilding the bot prompt architecture. After: data errors are fixed by the data owner without touching the AI layer.
+
+## Extraction discipline — applying to raw material
+
+| Step | What it means |
+|---|---|
+| **Tag every unit** | Dimension + Sub-category + Stage + Type + Condition tag. No untagged units enter the corpus. `Also relevant at: [Stage, Stage]` — optional. Captures where a unit is useful beyond its stage of origin. Does not count toward the Section 2 coverage grid — grid density is driven by Stage (origin) alone, so gap-detection stays honest. This field feeds only the Section 6 retrieval guide and adopter-facing navigation. Stage reflects where the evidence was discovered (counted in the grid). "Also relevant at" reflects where it's useful (not counted, used for retrieval only). Never merge the two. |
+| **Write the before→after** | Every tactical/strategic unit needs an outcome statement. Without it, it's a lesson, not a finding. |
+| **Name the failure specifically** | "It didn't work" is not a unit. Name the failure, the fix, and the threshold or insight the fix revealed. |
+| **Flag the gaps** | Check against Primary sub-categories per stage, not raw cell density — a filled cell can still miss its stage's real concern. |
+| **Don't fabricate** | If a before→after, a named individual, or a condition isn't in the source, write "Not documented in the source" rather than inventing it. |
+
+**The synthesis test:** Could someone who never saw the raw material make a different decision because of this unit? If yes, it's a real unit. If it just describes what happened, it isn't.
+
+## Source Trace appendix — specification
+
+The Source Trace appendix is contributor-only — never surfaced in any adopter-facing response, in any mode. A table keyed by source file, not by unit:
+
+| Source file | Covers | Notes |
+|---|---|---|
+| [filename/doc, as-of date] | [Sections/fields/unit ranges populated from it] | [Primary source / confirms only / superseded by newer file, etc.] |
+
+Rules:
+
+- Key by raw source file, not by content item — scales better than a per-unit or per-field row.
+- "Covers" should reference actual Section numbers and unit ranges (e.g., "Pathway Identity — all fields; Units 1–20; Toolkits table; Problem→Solution patterns"), not vague descriptions.
+- When a file is derivative of another (a summary, an earlier draft), say so explicitly and mark it "confirms, doesn't add" rather than listing it as an independent source for the same content.
+- This appendix sits outside the Section 0–6 count — it is not part of the adopter-facing structure.
