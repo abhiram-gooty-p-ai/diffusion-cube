@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/client';
 import { GridState } from '@/lib/dimensions';
 import { Message } from '@/components/ChatPanel';
 
-export type DocType = 'analysis' | 'plan';
+export type DocType = 'analysis' | 'plan' | 'draft';
 
 export interface DesignDocumentRow {
   id: string;
@@ -95,6 +95,22 @@ export async function insertDesignDocumentVersion(
     return null;
   }
   return data as DesignDocumentRow;
+}
+
+// Contributor draft — single overwriting row per design. Deletes any
+// existing draft row then inserts a fresh one, so there is never more than
+// one draft version in the DB. The publish step is what creates a permanent
+// record (in contribution_units on GitHub via the assemble route).
+export async function upsertDraftDocument(designId: string, content: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.from('design_documents').delete().eq('design_id', designId).eq('doc_type', 'draft');
+  await supabase.from('design_documents').insert({
+    design_id: designId,
+    doc_type: 'draft' as DocType,
+    version_number: 1,
+    content_hash: String(Date.now()),
+    content,
+  });
 }
 
 // "v0.1", "v0.2", ... — matches the versioning scheme requested (v0.N per

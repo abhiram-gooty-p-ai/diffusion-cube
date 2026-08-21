@@ -33,6 +33,9 @@ export interface WikiPathwaySummary {
   // — callers that want an actual sector list should filter it out, same as
   // an undefined sector.
   sector?: string;
+  stage?: string;
+  timestamp?: string;
+  contributor?: string;
 }
 
 // Parses the pathways index's grouped bullet list:
@@ -61,7 +64,16 @@ async function listStaticPathways(): Promise<WikiPathwaySummary[]> {
     entries.map(async (entry) => {
       const raw = await readSource(path.join(WIKI_PATH, 'pathways', `${entry.slug}.md`));
       const sectorMatch = raw.match(/^sector:\s*(.+)$/m);
-      return { ...entry, sector: sectorMatch?.[1]?.trim() };
+      const stageMatch = raw.match(/^stage:\s*(.+)$/m);
+      const timestampMatch = raw.match(/^timestamp:\s*(.+)$/m);
+      const contributorMatch = raw.match(/^contributor:\s*(.+)$/m);
+      return {
+        ...entry,
+        sector: sectorMatch?.[1]?.trim(),
+        stage: stageMatch?.[1]?.trim(),
+        timestamp: timestampMatch?.[1]?.trim(),
+        contributor: contributorMatch?.[1]?.trim(),
+      };
     })
   );
 }

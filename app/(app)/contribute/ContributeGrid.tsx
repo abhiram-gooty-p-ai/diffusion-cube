@@ -3,10 +3,10 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AdoptionWorkspace from '@/components/AdoptionWorkspace';
+import PathwaySelector from '@/components/PathwaySelector';
 import { AdoptionConversation } from '@/lib/adoption-conversation';
 import { createClient } from '@/lib/supabase/client';
 import { fetchAdoptionsList, setAdoptionsListCache } from '@/lib/adoptions-cache';
-import { PathwayDocStatus, getPathwayDocStatusesByDesignIds } from '@/lib/pathway-submission-versions';
 
 function formatRelativeTime(iso: string): string {
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -17,9 +17,9 @@ function formatRelativeTime(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-// null = grid, 'new' = fresh contributor workspace, otherwise an existing
-// adoption's id.
-type Selection = string | 'new' | null;
+// null = grid, 'pick' = pathway selector, 'new' = fresh contributor workspace
+// (pathwayId set after pick), otherwise an existing adoption's id.
+type Selection = string | 'pick' | 'new' | null;
 
 function ContributeGridContent() {
   const searchParams = useSearchParams();
@@ -29,8 +29,8 @@ function ContributeGridContent() {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
+  const [selectedPathwayId, setSelectedPathwayId] = useState<string | null>(null);
   const [appliedOpenId, setAppliedOpenId] = useState<string | null>(null);
-  const [docStatuses, setDocStatuses] = useState<Record<string, PathwayDocStatus>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -53,21 +53,6 @@ function ContributeGridContent() {
   // The full list is shared (same cache as /adoptions) — this page only
   // shows the Contributor-flow slice of it.
   const contributions = adoptions.filter((a) => a.meta.flow === 'contributor');
-  const contributionIds = contributions.map((c) => c.id).join(',');
-
-  // One batched lookup for every card's version/draft-or-published status,
-  // rather than a query per card — see getPathwayDocStatusesByDesignIds.
-  useEffect(() => {
-    if (!loaded || !contributionIds) return;
-    let cancelled = false;
-    getPathwayDocStatusesByDesignIds(contributionIds.split(',')).then((statuses) => {
-      if (!cancelled) setDocStatuses(statuses);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, contributionIds]);
 
   // Deep-links (e.g. /contribute?open=<id>). Adjusted during render (React's
   // documented pattern) — tracks the last-applied id so a different link
@@ -94,12 +79,27 @@ function ContributeGridContent() {
     });
   }
 
+  // Step 1: pick (or create) the pathway this contribution belongs to.
+  if (selection === 'pick') {
+    return (
+      <PathwaySelector
+        onSelect={(pathwayId) => {
+          setSelectedPathwayId(pathwayId);
+          setSelection('new');
+        }}
+        onBack={() => setSelection(null)}
+      />
+    );
+  }
+
+  // Step 2: contributor workspace for a brand-new design, linked to the chosen pathway.
   if (selection === 'new') {
     return (
       <AdoptionWorkspace
         key="new"
         initial={null}
         fixedFlow="contributor"
+        pathwayId={selectedPathwayId ?? undefined}
         onBack={() => setSelection(null)}
         onCreated={(c) =>
           setAdoptions((prev) => {
@@ -148,7 +148,7 @@ function ContributeGridContent() {
           </p>
         </div>
         <button
-          onClick={() => setSelection('new')}
+          onClick={() => setSelection('pick')}
           className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral"
         >
           + New Contribution
@@ -197,7 +197,6 @@ function ContributeGridContent() {
                 {a.meta.summary && <p className="line-clamp-3 text-sm leading-relaxed text-ink-soft">{a.meta.summary}</p>}
                 <div className="mt-auto pt-2 text-[10px] text-ink-soft/70">
                   Updated {formatRelativeTime(a.updatedAt)}
-                  {docStatuses[a.id] && ` · v${docStatuses[a.id].versionNumber} · ${docStatuses[a.id].published ? 'Published' : 'Draft'}`}
                 </div>
               </div>
             ))}

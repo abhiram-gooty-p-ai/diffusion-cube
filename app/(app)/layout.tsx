@@ -38,12 +38,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const [{ data: adoptions }, canExplore, canContribute, adminAccess] = await Promise.all([
+  const [{ data: adoptions }, canExplore, adminAccess] = await Promise.all([
     supabase.from('designs').select('id, meta, updated_at').order('updated_at', { ascending: false }),
     hasRole(supabase, 'adopter'),
-    hasRole(supabase, 'pathway_contributor'),
     isAdmin(supabase, email),
   ]);
+  // Any approved user can navigate to /contribute — the page handles its own
+  // state (registration gate → pending review → grid).
+  const canContribute = true;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-paper md:flex-row">

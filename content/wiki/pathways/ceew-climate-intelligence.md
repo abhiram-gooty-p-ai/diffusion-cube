@@ -6,6 +6,7 @@ tags: [Climate, Public Health, Policy]
 sector: Climate and Public Health
 stage: Pilot
 timestamp: 2026-07-31
+contributor: EkStep Foundation
 ---
 
 # Section 0 — Overview

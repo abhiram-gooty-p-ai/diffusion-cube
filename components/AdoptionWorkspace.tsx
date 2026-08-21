@@ -70,6 +70,8 @@ const EXPLORER_DOC_LABELS: Record<DocType, { title: string; filenameSuffix: stri
     filenameSuffix: 'executive-summary',
     loadingLabel: 'Putting your executive summary together…',
   },
+  // 'draft' is Contributor-only and never opened as an explorer doc modal.
+  draft: { title: '', filenameSuffix: '', loadingLabel: '' },
 };
 
 interface Props {
@@ -78,6 +80,9 @@ interface Props {
   // welcome screen shows a single Start button bound to this flow instead
   // of a picker. Falls back to canExplore/canContribute below if omitted.
   fixedFlow?: AdoptionFlow;
+  // Contributor-only: the pathway this workspace is linked to, chosen via
+  // PathwaySelector before the workspace opens.
+  pathwayId?: string;
   canExplore?: boolean;
   canContribute?: boolean;
   onCreated?: (c: AdoptionConversation) => void;
@@ -93,9 +98,19 @@ interface Props {
   backLabel?: string;
 }
 
+type PathwayInfo = {
+  title: string;
+  description?: string;
+  sector?: string;
+  stage?: string;
+  timestamp?: string;
+  contributor?: string;
+};
+
 export default function AdoptionWorkspace({
   initial,
   fixedFlow,
+  pathwayId,
   canExplore = false,
   canContribute = false,
   onCreated,
@@ -113,12 +128,11 @@ export default function AdoptionWorkspace({
     pathwayDoc,
     openPathwayDocument,
     closePathwayDocument,
-    selectPathwayVersion,
     publishPathwayDocument,
     explorerDoc,
     openExplorerDocument,
     closeExplorerDocument,
-  } = useAdoptionConversation({ initial, onCreated, onChange });
+  } = useAdoptionConversation({ initial, pathwayId, onCreated, onChange });
 
   // Resolved once, at the top level, so both the welcome screen's file/drop
   // handlers and its Start button use the exact same flow — a prior bug had
@@ -157,6 +171,19 @@ export default function AdoptionWorkspace({
     };
   }, []);
 
+  const [pathwayLookup, setPathwayLookup] = useState<Record<string, PathwayInfo>>({});
+  useEffect(() => {
+    fetch('/api/wiki-pathways')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: (PathwayInfo & { slug: string })[] | null) => {
+        if (!data) return;
+        const lookup: Record<string, PathwayInfo> = {};
+        for (const { slug, ...info } of data) lookup[slug] = info;
+        setPathwayLookup(lookup);
+      })
+      .catch(() => {});
+  }, []);
+
   // Which flow's intent is currently in play, for the handlers below —
   // conversation.meta.intent once a row exists, the pending menu choice
   // before that.
@@ -168,14 +195,7 @@ export default function AdoptionWorkspace({
     return intent === 'browse' ? getBrowseOpeningMessage(wikiStats) : getExplorerIntent(intent)!.openingMessage;
   }
 
-  // The pane always shows the currently *selected* version (defaults to the
-  // latest, versions[0], since listPathwaySubmissionVersions orders
-  // newest-first) — never regenerated, just read back from
-  // pathway_submission_versions.
-  const pathwayDocMarkdown =
-    pathwayDoc.versions.find((v) => v.version_number === pathwayDoc.selectedVersionNumber)?.content ??
-    pathwayDoc.versions[0]?.content ??
-    '';
+  const pathwayDocMarkdown = pathwayDoc.content ?? '';
 
   const explorerDocMarkdown =
     (explorerDoc.open === 'analysis' ? explorerDoc.analysis?.content : explorerDoc.summary?.content) ?? '';
@@ -303,6 +323,7 @@ export default function AdoptionWorkspace({
               pendingAttachments={pendingAttachments}
               loading={loading}
               placeholder="Ask, share, or think out loud…"
+              pathwayLookup={pathwayLookup}
             />
           </div>
 
@@ -583,7 +604,7 @@ export default function AdoptionWorkspace({
             {flow === 'contributor' && (
               <button
                 onClick={openPathwayDocument}
-                disabled={!pathwayDoc.submissionId}
+                disabled={!pathwayDoc.content}
                 className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
               >
                 View Pathway Document
@@ -668,6 +689,7 @@ export default function AdoptionWorkspace({
             grid={conversation.grid}
             onOpenPathwayDocument={flow === 'contributor' ? openPathwayDocument : undefined}
             onOpenExplorerDocument={flow === 'explorer' ? openExplorerDocument : undefined}
+            pathwayLookup={pathwayLookup}
           />
         </div>
 
@@ -678,11 +700,7 @@ export default function AdoptionWorkspace({
               loading={pathwayDoc.loading}
               error={pathwayDoc.error}
               onPublish={publishPathwayDocument}
-              versions={pathwayDoc.versions}
-              selectedVersionNumber={pathwayDoc.selectedVersionNumber}
-              onSelectVersion={selectPathwayVersion}
               publishedSlug={pathwayDoc.publishedSlug}
-              publishedContent={pathwayDoc.publishedContent}
               onClose={closePathwayDocument}
             />
           </div>

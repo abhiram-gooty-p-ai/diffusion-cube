@@ -6,6 +6,7 @@ tags: [Voice AI, Language, Tribal Inclusion]
 sector: Agriculture
 stage: Pilot
 timestamp: 2026-07-31
+contributor: EkStep Foundation
 ---
 
 # 0. Overview

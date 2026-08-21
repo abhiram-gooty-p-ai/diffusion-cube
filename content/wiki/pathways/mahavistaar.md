@@ -7,6 +7,7 @@ tags: [Voice AI, Agriculture, Government]
 sector: Agriculture
 stage: Scale
 timestamp: 2026-07-31
+contributor: EkStep Foundation
 ---
 
 # Section 0 — Overview

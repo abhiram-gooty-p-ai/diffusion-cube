@@ -73,7 +73,7 @@ function gridContext(grid: GridState): string {
 // around it differs) and the grounding/no-fabrication/no-jargon rules that
 // apply regardless of flow.
 function groundingRules(): string {
-  return `- Every recommendation, risk, or example must trace to the pathway corpus or the framework above. Name the pathway it comes from (e.g. "Blue Dots built shared voice-AI discovery infrastructure rather than a one-off tool — designed for reuse from day one"). If nothing in the corpus speaks to what they raised, say so plainly rather than inventing a plausible-sounding specific.
+  return `- Every recommendation, risk, or example must trace to the pathway corpus or the framework above. When you name a pathway, always attribute it to its contributor in the same sentence — the contributor is shown as "Contributed by" in each pathway's entry in the corpus. Format: "[Contributor]'s account of [Pathway] shows..." or "According to [Contributor]'s [Pathway] pathway..." (e.g. "EkStep Foundation's account of Blue Dots shows that shared infrastructure was designed for reuse from day one"). The contributor owns the accuracy of that account; never present it as the Cube's own assertion or as general fact. If nothing in the corpus speaks to what they raised, say so plainly rather than inventing a plausible-sounding specific.
 - The first time you name a pathway in a conversation, give a one-clause plain-language background on what it actually is (what was built, for whom, roughly at what scale) before or alongside the specific insight — never drop a pathway name on its own and assume the user knows what it refers to. "MahaVISTAAR — a voice line Maharashtra's government runs for farmers — kept data ownership with the departments" works; "MahaVISTAAR kept data ownership with the departments" on its own doesn't, unless you've already introduced it earlier in this conversation.
 - When you surface a pathway insight, carry its condition tag where the corpus gives one: what it applies to, and when it fails. "X worked when Y was true" travels; "do X" doesn't.
 - Draw from the whole corpus, not just the pathway you know best. The corpus has several distinct pathways (MahaVISTAAR, Bhili Language Enablement, Blue Dots, CEEW Climate Intelligence, Data DHARA, Voice AI Adoption Barriers, Voice AI for Inclusion) — actively consider which of them is genuinely the best match for what the user raised, rather than defaulting to the most familiar one out of habit. If more than one pathway is genuinely relevant, prefer one you haven't already cited this conversation over repeating the same reference.
@@ -188,7 +188,7 @@ Density scale per cell — grounded in the framework's insight forms, not just w
 - 2: developing — real specifics established (a named person, a real decision, a concrete number)
 - 3: dense — what's established substantively satisfies the insight form for that dimension × stage cell
 
-Notes are one plain line on what's actually been established, in the user's own terms. Update cells only from what the user actually said or shared — never from your own recommendations. Never lower a density unless the user corrects earlier information. Fill meta fields only from genuine information; never overwrite known values with guesses. pathwaysReferenced is internal bookkeeping only (used to log what this turn drew on, never shown to the user) — list the exact slug shown after "# Pathway:" for every pathway you actually named or drew on this turn (an empty array if you referenced none).
+Notes are one plain line on what's actually been established, in the user's own terms. Update cells only from what the user actually said or shared — never from your own recommendations. Never lower a density unless the user corrects earlier information. Fill meta fields only from genuine information; never overwrite known values with guesses. pathwaysReferenced — list the exact slug shown after "# Pathway:" for every pathway you explicitly named by title in your prose response this turn. Only pathways whose name actually appears in your text — not pathways you read for background context but did not cite. An empty array if you named none. These slugs are shown to the user as sources, so accuracy matters: if your text says "MahaVISTAAR" the slug "mahavistaar" must be in this array; if your text does not name a pathway, its slug must not be here.
 
 flowStep is an integer 1-${totalSteps}, the numbered step of YOUR CURRENT FLOW (the numbered list given to you below) that you are on or just completed this turn. It only ever increases (never goes backward${includeIntent ? ', except on a confirmed intent switch — see intent below' : ''}), and only advances one step at a time — never skip a number even if the user's message seems to answer two steps at once; advance one step per turn at most, and let the next turn catch up. Some steps below are branches of each other rather than a strict sequence (e.g. "if X do this, if not X do that") — in that case report the step whose branch you actually took, and don't walk through the branch you skipped. Your starting point each turn is the "Current progress" section given to you below, not anything you infer from the conversation's prose — that section is ground truth, always trust it over your own re-reading of the chat. Never mention "flowStep," step numbers, or this JSON in your prose.
 
@@ -1164,6 +1164,12 @@ Example:
 After that,
 refer to it naturally.
 Do not repeatedly reintroduce it.
+
+Every time you cite a pathway's content — a lesson, decision, comparison, or example — name its contributor in the same sentence.
+The contributor is shown as "Contributed by" in each pathway entry in the corpus above.
+Frame it as their documented experience, not as a general fact or the Cube's own assertion.
+Example: "EkStep Foundation's account of MahaVISTAAR shows..." or "According to the pathway contributed by EkStep Foundation..."
+The contributor owns the accuracy of that account — the Cube does not.
 
 ---------------------------------------------------------
 Pathway variety
