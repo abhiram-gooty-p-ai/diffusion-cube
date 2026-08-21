@@ -122,7 +122,7 @@ export async function assemblePathway(pathwayId: string): Promise<AssemblyResult
     const contributor = contributorMap.get(row.user_id) ?? {
       name: 'Contributor',
       org_name: '',
-      org_role: '',
+      role: '',
     }
     const unit: AssemblyUnit = { ...row, content: row.content ?? '', contributor }
 
@@ -344,7 +344,7 @@ Rules: cover the range of dimensions; use plain adopter language, no framework j
 }
 
 function buildProvenance(
-  contribRows: Array<{ user_id: string; org_role: string }>,
+  contribRows: Array<{ user_id: string; role: string }>,
   contributorMap: Map<string, ContributorInfo>,
   units: NumberedUnit[]
 ): string {

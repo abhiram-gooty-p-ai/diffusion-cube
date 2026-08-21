@@ -3,7 +3,8 @@
 import { FormEvent, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { PATHWAY_ROLES, submitContributorRegistration } from '@/lib/contributor-registration';
+import { PATHWAY_ROLES, submitContributorRegistration, type SharingLevel } from '@/lib/contributor-registration';
+import OrganisationInput from '@/components/OrganisationInput';
 
 const DECLARATION_SUMMARY =
   "100 Pathways may reference, summarise, and republish information you share — including in pathway documents, microsites, and derived content — to advise future adopters. Inclusion does not constitute an endorsement.";
@@ -35,6 +36,7 @@ function LoginForm() {
 
   // Contributor sign-up extras
   const [wantsToContribute, setWantsToContribute] = useState(false);
+  const [organisationUrl, setOrganisationUrl] = useState('');
   const [pathwayRole, setPathwayRole] = useState<string>(PATHWAY_ROLES[0]);
   const [pathwayDescription, setPathwayDescription] = useState('');
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
@@ -43,6 +45,19 @@ function LoginForm() {
   const [consentLogo, setConsentLogo] = useState(false);
   const [consentQuote, setConsentQuote] = useState(false);
   const [consentBlog, setConsentBlog] = useState(false);
+  const [sharingLevel, setSharingLevel] = useState<SharingLevel>('none');
+
+  const SHARING_OPTIONS: { value: SharingLevel; label: string }[] = [
+    { value: 'none', label: "Don't share my contact details" },
+    { value: 'name', label: 'Share my name only' },
+    { value: 'name_and_email', label: 'Share my name and email' },
+  ];
+
+  function handleOrgChange(name: string, canonicalRole?: string, url?: string) {
+    setOrganization(name);
+    if (canonicalRole) setPathwayRole(canonicalRole);
+    if (url) setOrganisationUrl(url);
+  }
 
   async function handleSignIn(e: FormEvent) {
     e.preventDefault();
@@ -92,6 +107,7 @@ function LoginForm() {
     if (wantsToContribute && data.user) {
       await submitContributorRegistration(data.user.id, {
         organisationName: organization,
+        organisationUrl,
         pathwayRole,
         pocName: name,
         pocEmail: email,
@@ -102,6 +118,7 @@ function LoginForm() {
         consentLogo,
         consentQuote,
         consentBlog,
+        sharingLevel,
       });
     }
 
@@ -198,18 +215,7 @@ function LoginForm() {
               />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label htmlFor="organization" className={labelClass}>Organisation</label>
-              <input
-                id="organization"
-                type="text"
-                required
-                autoComplete="organization"
-                value={organization}
-                onChange={(e) => setOrganization(e.target.value)}
-                className={inputClass}
-              />
-            </div>
+            <OrganisationInput value={organization} onChange={handleOrgChange} label="Organisation" />
 
             <div className="flex flex-col gap-1">
               <label htmlFor="request-password" className={labelClass}>Password</label>
@@ -245,6 +251,20 @@ function LoginForm() {
                   {/* Pathway details */}
                   <div className="flex flex-col gap-3 rounded-lg bg-paper-dim p-4">
                     <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-coral">Your pathway</p>
+
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor="organisationUrl" className={labelClass}>
+                        Organisation website — optional
+                      </label>
+                      <input
+                        id="organisationUrl"
+                        type="url"
+                        value={organisationUrl}
+                        onChange={(e) => setOrganisationUrl(e.target.value)}
+                        placeholder="https://…"
+                        className={inputClass}
+                      />
+                    </div>
 
                     <div className="flex flex-col gap-1">
                       <label htmlFor="pathwayRole" className={labelClass}>
@@ -341,6 +361,29 @@ function LoginForm() {
                             className="h-3.5 w-3.5 accent-coral"
                           />
                           {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Personal sharing preference */}
+                  <div className="flex flex-col gap-2 rounded-lg bg-paper-dim p-4">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-coral">Sharing your contact details</p>
+                    <p className="text-[11px] leading-relaxed text-ink-soft">
+                      Separate from organisation attribution above — whether Explorers can see who to reach out to,
+                      personally, when your pathway is cited.
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {SHARING_OPTIONS.map((opt) => (
+                        <label key={opt.value} className="flex items-center gap-2 text-xs text-ink">
+                          <input
+                            type="radio"
+                            name="sharingLevel"
+                            checked={sharingLevel === opt.value}
+                            onChange={() => setSharingLevel(opt.value)}
+                            className="h-3.5 w-3.5 accent-coral"
+                          />
+                          {opt.label}
                         </label>
                       ))}
                     </div>

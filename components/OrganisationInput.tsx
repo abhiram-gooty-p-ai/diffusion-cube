@@ -6,33 +6,40 @@ interface Org {
   id: string;
   name: string;
   canonical_role: string | null;
+  url: string | null;
 }
 
 interface Props {
   value: string;
-  onChange: (name: string, canonicalRole?: string) => void;
+  onChange: (name: string, canonicalRole?: string, url?: string) => void;
   placeholder?: string;
   label?: string;
 }
 
 export default function OrganisationInput({ value, onChange, placeholder = 'Start typing…', label = 'Organisation' }: Props) {
   const [query, setQuery] = useState(value);
+  const [prevValue, setPrevValue] = useState(value);
   const [results, setResults] = useState<Org[]>([]);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // Sync local query with the controlled `value` prop when it changes
+  // externally (e.g. a form reset) — done during render, not in an effect,
+  // per React's "adjusting state when a prop changes" pattern, so it doesn't
+  // trigger an extra render pass.
+  if (value !== prevValue) {
+    setPrevValue(value);
     setQuery(value);
-  }, [value]);
+  }
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
     debounceRef.current = setTimeout(async () => {
+      if (!query.trim()) {
+        setResults([]);
+        return;
+      }
       try {
         const res = await fetch(`/api/organisations?q=${encodeURIComponent(query)}`);
         if (res.ok) setResults(await res.json());
@@ -56,7 +63,7 @@ export default function OrganisationInput({ value, onChange, placeholder = 'Star
   function handleSelect(org: Org) {
     setQuery(org.name);
     setOpen(false);
-    onChange(org.name, org.canonical_role ?? undefined);
+    onChange(org.name, org.canonical_role ?? undefined, org.url ?? undefined);
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {

@@ -5,6 +5,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin, type Role } from '@/lib/roles';
 import AdminDashboard, { AdminUserRow } from '@/components/AdminDashboard';
 import PathwaySubmissionsPanel, { PathwaySubmissionRow } from '@/components/PathwaySubmissionsPanel';
+import AdminPathwaysPanel, { AdminPathwayRow } from '@/components/AdminPathwaysPanel';
+import AdminContributorRegistrationsPanel, {
+  AdminContributorRegistrationRow,
+} from '@/components/AdminContributorRegistrationsPanel';
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -17,8 +21,16 @@ export default async function AdminPage() {
   }
 
   const admin = createAdminClient();
-  const [{ data: usersData }, { data: rolesData }, { data: submissionsData }, { data: publishedData }, { data: execSummariesData }] =
-    await Promise.all([
+  const [
+    { data: usersData },
+    { data: rolesData },
+    { data: submissionsData },
+    { data: publishedData },
+    { data: execSummariesData },
+    { data: pathwaysData },
+    { data: pathwayContributorsData },
+    { data: registrationsData },
+  ] = await Promise.all([
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
       admin.from('user_roles').select('user_id, role'),
       admin
@@ -31,6 +43,12 @@ export default async function AdminPage() {
       // Read here via the service-role client since RLS grants contributors no
       // select policy on this table at all (see migration 0015).
       admin.from('pathway_submission_exec_summaries').select('submission_id, content'),
+      admin.from('pathways').select('id, slug, title, sector, created_at').order('created_at', { ascending: false }),
+      admin.from('pathway_contributors').select('pathway_id'),
+      admin
+        .from('contributor_registrations')
+        .select('id, poc_name, poc_email, organisation_name, pathway_role, pathway_description, access_status, created_at')
+        .order('created_at', { ascending: false }),
     ]);
 
   const slugBySubmission = new Map<string, string>();
@@ -42,6 +60,31 @@ export default async function AdminPage() {
   for (const s of execSummariesData ?? []) {
     execSummaryBySubmission.set(s.submission_id, s.content);
   }
+
+  const contributorCountByPathway = new Map<string, number>();
+  for (const c of pathwayContributorsData ?? []) {
+    contributorCountByPathway.set(c.pathway_id, (contributorCountByPathway.get(c.pathway_id) ?? 0) + 1);
+  }
+
+  const registrationRows: AdminContributorRegistrationRow[] = (registrationsData ?? []).map((r) => ({
+    id: r.id,
+    pocName: r.poc_name ?? '',
+    pocEmail: r.poc_email ?? '',
+    organisationName: r.organisation_name ?? '',
+    pathwayRole: r.pathway_role ?? '',
+    pathwayDescription: r.pathway_description ?? '',
+    accessStatus: r.access_status,
+    createdAt: r.created_at,
+  }));
+
+  const pathwayRows: AdminPathwayRow[] = (pathwaysData ?? []).map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    sector: p.sector ?? '',
+    created_at: p.created_at,
+    contributorCount: contributorCountByPathway.get(p.id) ?? 0,
+  }));
 
   const rolesByUser = new Map<string, Role[]>();
   for (const row of rolesData ?? []) {
@@ -83,11 +126,24 @@ export default async function AdminPage() {
       <p className="text-sm text-ink-soft mb-6">Approve signups and manage roles.</p>
       <AdminDashboard initialRows={rows} />
 
+      <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Contributor Registrations</h2>
+      <p className="text-sm text-ink-soft mb-4">
+        Approve to grant the Contributor role and let them start joining/creating pathways. Reject to turn them away.
+      </p>
+      <AdminContributorRegistrationsPanel initialRows={registrationRows} />
+
       <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathway Submissions</h2>
       <p className="text-sm text-ink-soft mb-4">
         Drafts users approved from their own adoption — review before adding any of them to the wiki.
       </p>
       <PathwaySubmissionsPanel initialRows={submissionRows} />
+
+      <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathways</h2>
+      <p className="text-sm text-ink-soft mb-4">
+        Every pathway contributors can join or have joined. Delete to remove a pathway and its contribution units
+        from the database — does not touch anything already published to GitHub.
+      </p>
+      <AdminPathwaysPanel initialRows={pathwayRows} />
     </div>
   );
 }

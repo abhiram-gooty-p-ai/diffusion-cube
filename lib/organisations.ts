@@ -7,6 +7,7 @@ export interface Organisation {
   id: string
   name: string
   canonical_role: string | null
+  url: string | null
 }
 
 /** Search by name prefix — used for the autocomplete in OrganisationInput. */
@@ -14,7 +15,7 @@ export async function searchOrganisations(query: string): Promise<Organisation[]
   const admin = createAdminClient()
   const { data } = await admin
     .from('organisations')
-    .select('id, name, canonical_role')
+    .select('id, name, canonical_role, url')
     .ilike('name', `%${query}%`)
     .order('name', { ascending: true })
     .limit(10)
@@ -23,9 +24,11 @@ export async function searchOrganisations(query: string): Promise<Organisation[]
 
 /**
  * Find an existing org by exact name (case-insensitive) or create it.
- * Returns the org id. Used by the join-pathway route.
+ * Returns the org id. Used by the join-pathway route. `url`, when given, is
+ * only ever set on create — an existing org's URL is never overwritten by a
+ * later contributor's registration, since it's shared/canonical.
  */
-export async function ensureOrganisation(name: string, canonicalRole?: string): Promise<string> {
+export async function ensureOrganisation(name: string, canonicalRole?: string, url?: string): Promise<string> {
   const admin = createAdminClient()
   const trimmed = name.trim()
 
@@ -42,7 +45,7 @@ export async function ensureOrganisation(name: string, canonicalRole?: string): 
   // Create a new org (service-role bypasses the "inserts via service-role only" RLS)
   const { data: created, error } = await admin
     .from('organisations')
-    .insert({ name: trimmed, canonical_role: canonicalRole ?? null })
+    .insert({ name: trimmed, canonical_role: canonicalRole ?? null, url: url?.trim() ?? '' })
     .select('id')
     .single()
 

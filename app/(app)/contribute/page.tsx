@@ -33,6 +33,21 @@ export default async function ContributePage() {
     );
   }
 
+  if (registration.access_status === 'rejected') {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-paper p-8 text-center">
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">100 Pathways · Contribute</p>
+        <h1 className="font-display text-2xl font-medium tracking-tight text-navy">
+          Registration not <span className="font-serif italic text-coral">approved</span>
+        </h1>
+        <p className="max-w-sm text-sm leading-relaxed text-ink-soft">
+          Your contributor registration wasn&apos;t approved. If you think this is a mistake, reach out to the 100
+          Pathways team directly.
+        </p>
+      </div>
+    );
+  }
+
   // Registration submitted but admin hasn't granted pathway_contributor role yet
   const isContributor = await hasRole(supabase, 'pathway_contributor');
   if (!isContributor) {

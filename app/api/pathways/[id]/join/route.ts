@@ -34,12 +34,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // provided this at registration time, no need to ask again.
   const { data: registration } = await supabase
     .from('contributor_registrations')
-    .select('organisation_name, pathway_role')
+    .select('organisation_name, pathway_role, public_links')
     .eq('user_id', user.id)
     .maybeSingle()
 
   const orgName = registration?.organisation_name?.trim() ?? ''
   const orgRole = registration?.pathway_role?.trim() ?? ''
+  const orgUrl = registration?.public_links?.trim() ?? ''
 
   if (!orgName) {
     return NextResponse.json(
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Find or create the org
   let orgId: string | null = null
   try {
-    orgId = await ensureOrganisation(orgName, orgRole)
+    orgId = await ensureOrganisation(orgName, orgRole, orgUrl)
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

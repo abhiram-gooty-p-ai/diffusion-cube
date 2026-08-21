@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { PATHWAY_ROLES, submitContributorRegistration } from '@/lib/contributor-registration';
+import { PATHWAY_ROLES, submitContributorRegistration, type SharingLevel } from '@/lib/contributor-registration';
+import OrganisationInput from '@/components/OrganisationInput';
 
 const DECLARATION_TEXT =
   "100 Pathways compiles this information to help other organisations learn from real deployments. Inclusion in the program does not constitute an endorsement of the contributor's product, service, or claims by 100 Pathways initiative. Information is presented as reported by the contributor.";
@@ -24,6 +25,12 @@ const MOU_CLAUSES = [
     label: 'No IP transfer',
     text: "I retain all rights to my own materials (decks, docs, code); 100 Pathways' use is limited to the pathway document, microsite, and derived summaries.",
   },
+];
+
+const SHARING_OPTIONS: { value: SharingLevel; label: string; description: string }[] = [
+  { value: 'none', label: "Don't share my contact details", description: 'Nothing about you personally is shown to Explorers.' },
+  { value: 'name', label: 'Share my name only', description: 'Your name is shown alongside citations of your pathway.' },
+  { value: 'name_and_email', label: 'Share my name and email', description: 'Explorers can also see your email to follow up directly.' },
 ];
 
 const inputClass =
@@ -65,6 +72,8 @@ export default function ContributorRegistrationGate({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [organisationName, setOrganisationName] = useState(userOrganisation);
+  const [organisationUrl, setOrganisationUrl] = useState('');
   const [pathwayRole, setPathwayRole] = useState<string>(PATHWAY_ROLES[0]);
   const [pathwayDescription, setPathwayDescription] = useState('');
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
@@ -73,6 +82,13 @@ export default function ContributorRegistrationGate({
   const [consentLogo, setConsentLogo] = useState(false);
   const [consentQuote, setConsentQuote] = useState(false);
   const [consentBlog, setConsentBlog] = useState(false);
+  const [sharingLevel, setSharingLevel] = useState<SharingLevel>('none');
+
+  function handleOrgChange(name: string, canonicalRole?: string, url?: string) {
+    setOrganisationName(name);
+    if (canonicalRole) setPathwayRole(canonicalRole);
+    if (url) setOrganisationUrl(url);
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -80,7 +96,8 @@ export default function ContributorRegistrationGate({
     setError(null);
 
     const result = await submitContributorRegistration(userId, {
-      organisationName: userOrganisation,
+      organisationName,
+      organisationUrl,
       pathwayRole,
       pocName: userName,
       pocEmail: userEmail,
@@ -91,6 +108,7 @@ export default function ContributorRegistrationGate({
       consentLogo,
       consentQuote,
       consentBlog,
+      sharingLevel,
     });
 
     if (!result.ok) {
@@ -135,9 +153,25 @@ export default function ContributorRegistrationGate({
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-7 rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-8">
 
-          {/* Step 1: Pathway details */}
+          {/* Step 1: Organisation + pathway details */}
           <div className="flex flex-col gap-4">
-            <SectionHeading step={1} title="Your pathway" />
+            <SectionHeading step={1} title="Your organisation and pathway" />
+
+            <OrganisationInput value={organisationName} onChange={handleOrgChange} label="Organisation" />
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="organisationUrl" className={labelClass}>
+                Organisation website — optional
+              </label>
+              <input
+                id="organisationUrl"
+                type="url"
+                value={organisationUrl}
+                onChange={(e) => setOrganisationUrl(e.target.value)}
+                placeholder="https://…"
+                className={inputClass}
+              />
+            </div>
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="pathwayRole" className={labelClass}>
@@ -237,6 +271,35 @@ export default function ContributorRegistrationGate({
                 <input type="checkbox" checked={consentBlog} onChange={(e) => setConsentBlog(e.target.checked)} className="h-4 w-4 accent-coral" />
                 Feature us in a derived blog/article for external publication
               </label>
+            </div>
+          </div>
+
+          {/* Step 5: Personal sharing preference */}
+          <div className="flex flex-col gap-3 border-t border-navy/10 pt-6">
+            <SectionHeading step={5} title="Sharing your own contact details" />
+            <p className="text-[13px] leading-relaxed text-ink-soft">
+              Separate from your organisation&apos;s attribution above — this is about whether Explorers using the
+              Cube can see who to reach out to, personally, when your pathway is cited in a conversation.
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {SHARING_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex items-start gap-2.5 rounded-lg border border-navy/10 px-3 py-2.5 text-sm text-ink transition-colors hover:border-coral/30"
+                >
+                  <input
+                    type="radio"
+                    name="sharingLevel"
+                    checked={sharingLevel === opt.value}
+                    onChange={() => setSharingLevel(opt.value)}
+                    className="mt-0.5 h-4 w-4 flex-shrink-0 accent-coral"
+                  />
+                  <span>
+                    <span className="block font-medium">{opt.label}</span>
+                    <span className="block text-xs text-ink-soft">{opt.description}</span>
+                  </span>
+                </label>
+              ))}
             </div>
           </div>
 

@@ -20,6 +20,34 @@ interface Props {
   onBack: () => void;
 }
 
+// Lightweight, dependency-free similarity check — no need for anything
+// fancier than "do these titles share most of their meaningful words,"
+// enough to catch "Voice AI for Farmers" vs "Voice AI for Farmer Support"
+// before a genuine duplicate pathway gets created. Not a semantic/embedding
+// match — a deliberate, cheap first line of defense; the admin's own
+// offline review remains the fallback for anything subtler this misses.
+function normalizedTokens(s: string): Set<string> {
+  return new Set(
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((t) => t.length > 2)
+  );
+}
+
+function titleSimilarity(a: string, b: string): number {
+  const setA = normalizedTokens(a);
+  const setB = normalizedTokens(b);
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let intersection = 0;
+  for (const t of setA) if (setB.has(t)) intersection++;
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+const SIMILARITY_THRESHOLD = 0.4;
+
 export default function PathwaySelector({ onSelect, onBack }: Props) {
   const [pathways, setPathways] = useState<PathwaySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +58,8 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
   const [newSector, setNewSector] = useState('');
 
   const [joining, setJoining] = useState(false);
+  const [selectedId, setSelectedId] = useState('');
+  const [similarMatch, setSimilarMatch] = useState<PathwaySummary | null>(null);
 
   useEffect(() => {
     fetch('/api/pathways')
@@ -70,8 +100,32 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
     }
   }
 
-  async function handleCreate() {
+  // "Did you mean this one?" — checked against the already-loaded pathway
+  // list before anything is created. If the user has already seen and
+  // dismissed a match for the current title (similarMatch was set, and
+  // they clicked through anyway), this second click skips straight to
+  // actually creating it.
+  function handleCreateClick() {
     if (!newTitle.trim()) return;
+    if (!similarMatch) {
+      let best: PathwaySummary | null = null;
+      let bestScore = 0;
+      for (const p of pathways) {
+        const score = titleSimilarity(newTitle, p.title);
+        if (score > bestScore) {
+          bestScore = score;
+          best = p;
+        }
+      }
+      if (best && bestScore >= SIMILARITY_THRESHOLD) {
+        setSimilarMatch(best);
+        return;
+      }
+    }
+    void createPathway();
+  }
+
+  async function createPathway() {
     setCreating(true);
     setError(null);
     try {
@@ -105,30 +159,41 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
           <p className="mt-4 text-sm text-ink-soft">Joining pathway…</p>
         )}
 
-        <div className="mt-6 space-y-3">
-          {loading ? (
-            <p className="text-sm text-ink-soft">Loading…</p>
-          ) : pathways.length === 0 ? (
-            <p className="text-sm text-ink-soft">No pathways yet — create the first one below.</p>
-          ) : (
-            pathways.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                disabled={joining}
-                onClick={() => joinAndSelect(p.id, p.isContributor)}
-                className="flex w-full items-start justify-between gap-4 rounded-xl border border-navy/10 bg-white p-4 text-left transition hover:border-coral/50 hover:shadow-sm disabled:opacity-50"
-              >
-                <div className="min-w-0">
-                  <div className="font-display font-medium text-navy">{p.title}</div>
-                  {p.sector && <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-ink-soft">{p.sector}</div>}
-                </div>
-                {p.isContributor && (
-                  <span className="flex-shrink-0 rounded-full bg-navy/8 px-2 py-0.5 text-[10px] font-medium text-navy">Contributing</span>
-                )}
-              </button>
-            ))
-          )}
+        <div className="mt-6">
+          <label htmlFor="pathwaySelect" className="mb-1 block text-xs font-medium text-ink-soft">
+            Existing pathways
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select
+              id="pathwaySelect"
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              disabled={loading || joining || pathways.length === 0}
+              className="w-full rounded-lg border border-navy/15 bg-white px-3 py-2 text-sm text-navy outline-none focus:border-coral focus:ring-1 focus:ring-coral/30 disabled:opacity-50"
+            >
+              <option value="" disabled>
+                {loading ? 'Loading…' : pathways.length === 0 ? 'No pathways yet — create the first one below' : 'Select a pathway…'}
+              </option>
+              {pathways.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                  {p.sector ? ` — ${p.sector}` : ''}
+                  {p.isContributor ? ' (already contributing)' : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!selectedId || joining}
+              onClick={() => {
+                const p = pathways.find((x) => x.id === selectedId);
+                if (p) joinAndSelect(p.id, p.isContributor);
+              }}
+              className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
+            >
+              {joining ? 'Joining…' : 'Continue →'}
+            </button>
+          </div>
         </div>
 
         {/* Create new pathway */}
@@ -141,7 +206,10 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
               <input
                 type="text"
                 value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
+                onChange={(e) => {
+                  setNewTitle(e.target.value);
+                  setSimilarMatch(null);
+                }}
                 placeholder="e.g. Voice AI for Agricultural Extension"
                 className="w-full rounded-lg border border-navy/15 bg-paper px-3 py-2 text-sm text-navy placeholder-ink-soft/50 outline-none focus:border-coral focus:ring-1 focus:ring-coral/30"
               />
@@ -156,10 +224,39 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
                 className="w-full rounded-lg border border-navy/15 bg-paper px-3 py-2 text-sm text-navy placeholder-ink-soft/50 outline-none focus:border-coral focus:ring-1 focus:ring-coral/30"
               />
             </div>
+
+            {similarMatch && (
+              <div className="rounded-lg border border-coral/30 bg-coral-soft p-3">
+                <p className="text-sm text-navy">
+                  Did you mean <span className="font-medium">{similarMatch.title}</span>
+                  {similarMatch.sector ? ` (${similarMatch.sector})` : ''}? Joining an existing pathway keeps
+                  everyone&apos;s contributions in one document.
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => joinAndSelect(similarMatch.id, similarMatch.isContributor)}
+                    disabled={joining}
+                    className="rounded-lg bg-navy px-3 py-1.5 text-xs font-medium text-white transition hover:bg-coral disabled:opacity-50"
+                  >
+                    Join that one instead
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void createPathway()}
+                    disabled={creating}
+                    className="rounded-lg border border-navy/20 px-3 py-1.5 text-xs font-medium text-navy transition hover:border-coral hover:text-coral disabled:opacity-50"
+                  >
+                    {creating ? 'Creating…' : "No, this is genuinely different"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               type="button"
-              onClick={handleCreate}
-              disabled={!newTitle.trim() || creating || joining}
+              onClick={handleCreateClick}
+              disabled={!newTitle.trim() || creating || joining || !!similarMatch}
               className="rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
             >
               {creating ? 'Creating…' : 'Create and continue →'}

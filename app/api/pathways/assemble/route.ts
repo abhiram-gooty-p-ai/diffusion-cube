@@ -32,12 +32,14 @@ where unit_type is one of: name, sector, stage, problem, solution
 For each numbered entry in Section 3 (Micro-Innovations) return:
 { "section": "micro-innovation", "unit_type": "<type>", "dimension": "<dim>", "stage": "<stage>", "content": "<full text>" }
 where:
-- unit_type is one of: strategic-decision, tactical-decision, failure-fix, playbook, toolkit-asset (read from the **Type:** line)
-- dimension is one of: persona, solution, institution, ecosystem (from the ## subsection header)
-- stage is one of: explore, define, pilot, scale (from the unit code, e.g. [P1.x] → explore, [P2.x] → define, [P3.x] → pilot, [P4.x] → scale)
-- content: include the full unit text (title, type line, condition line, body)
+- unit_type is one of: strategic-decision, tactical-decision, failure-fix, playbook, toolkit-asset — read from the unit's own \`Type:\` line in its tag block (Strategic Decision → strategic-decision, Tactical Decision → tactical-decision, Failure and Fix → failure-fix, Playbook → playbook, Toolkit Asset → toolkit-asset)
+- dimension is one of: persona, solution, institution, ecosystem — read from the unit's own \`Dimension:\` line in its tag block (lowercase it), not from the subsection heading alone (headings can be omitted or reused across units)
+- stage is one of: explore, define, pilot, scale — read from the unit's own \`Stage:\` line in its tag block (lowercase it). This is the stage of ORIGIN. If the unit also has an \`Also relevant at:\` line, ignore it for this field — that line is for retrieval only and must never be used as the stage value.
+- content: include the full unit text (title, full tag block, all body fields)
 
-Ignore Sections 0, 2, 4, 5, 6 and the Provenance appendix.
+Units are plain sequentially numbered (**1.**, **2.**, ...) — there is no composite ID code to parse; every tag comes from the bulleted lines directly under each unit's title.
+
+Ignore Sections 0, 2, 4, 5, 6 and the Source Trace appendix.
 
 Document:
 ${draft}`
