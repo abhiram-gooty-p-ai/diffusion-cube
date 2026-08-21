@@ -304,7 +304,11 @@ export default function AdoptionWorkspace({
                 📎 Files
               </button>
               {preChat.flow === 'contributor' && (
-                <button disabled className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft/40">
+                <button
+                  onClick={openPathwayDocument}
+                  disabled={!pathwayDocMarkdown}
+                  className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
+                >
                   View Pathway Document
                 </button>
               )}
@@ -318,7 +322,7 @@ export default function AdoptionWorkspace({
         </div>
 
         <div className="relative flex flex-1 overflow-hidden">
-          <div className="min-w-0 flex-1">
+          <div className={`min-w-0 flex-1 ${pathwayDoc.paneOpen ? 'lg:max-w-[420px] lg:flex-shrink-0' : ''}`}>
             <ChatPanel
               messages={[preChat.opening]}
               onSend={(text) => handleUserSend(text, preChat.flow, preChat.intent)}
@@ -331,20 +335,35 @@ export default function AdoptionWorkspace({
             />
           </div>
 
-          <div className="group relative hidden h-full flex-shrink-0 md:block">
-            <div className="flex h-full w-8 cursor-default items-center justify-center border-l border-navy/10 text-ink-soft transition group-hover:border-coral/40 group-hover:text-coral">
-              <span aria-hidden className="rotate-180 font-mono text-[10px] uppercase tracking-[0.2em] [writing-mode:vertical-lr]">
-                Files
-              </span>
-            </div>
-            <div className="invisible absolute inset-y-0 right-0 z-30 w-[280px] overflow-y-auto border-l border-navy/10 bg-paper p-3 opacity-0 shadow-lg transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
-              <AttachmentsPanel
-                attachments={pendingAttachments}
-                onAttachFiles={(files) => handleAttachFiles(files, preChat.flow, preChat.intent)}
-                onRemoveAttachment={removeAttachment}
+          {pathwayDoc.paneOpen && (
+            <div className="fixed inset-0 z-50 bg-paper lg:static lg:z-auto lg:min-w-0 lg:flex-1 lg:border-l lg:border-navy/10">
+              <PathwayDocumentPane
+                markdown={pathwayDocMarkdown}
+                loading={pathwayDoc.loading}
+                error={pathwayDoc.error}
+                onPublish={publishPathwayDocument}
+                publishedSlug={pathwayDocPublishedSlug}
+                onClose={closePathwayDocument}
               />
             </div>
-          </div>
+          )}
+
+          {!pathwayDoc.paneOpen && (
+            <div className="group relative hidden h-full flex-shrink-0 md:block">
+              <div className="flex h-full w-8 cursor-default items-center justify-center border-l border-navy/10 text-ink-soft transition group-hover:border-coral/40 group-hover:text-coral">
+                <span aria-hidden className="rotate-180 font-mono text-[10px] uppercase tracking-[0.2em] [writing-mode:vertical-lr]">
+                  Files
+                </span>
+              </div>
+              <div className="invisible absolute inset-y-0 right-0 z-30 w-[280px] overflow-y-auto border-l border-navy/10 bg-paper p-3 opacity-0 shadow-lg transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
+                <AttachmentsPanel
+                  attachments={pendingAttachments}
+                  onAttachFiles={(files) => handleAttachFiles(files, preChat.flow, preChat.intent)}
+                  onRemoveAttachment={removeAttachment}
+                />
+              </div>
+            </div>
+          )}
 
           {filesOpen && (
             <div className="fixed inset-0 z-40 flex items-end bg-navy/40 md:hidden" onClick={() => setFilesOpen(false)}>
