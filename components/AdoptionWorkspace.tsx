@@ -195,7 +195,11 @@ export default function AdoptionWorkspace({
     return intent === 'browse' ? getBrowseOpeningMessage(wikiStats) : getExplorerIntent(intent)!.openingMessage;
   }
 
-  const pathwayDocMarkdown = pathwayDoc.content ?? '';
+  // Own draft always wins; otherwise fall back to the pathway's already-
+  // published document, so a contributor who hasn't drafted anything in this
+  // chat yet can still view what another contributor published.
+  const pathwayDocMarkdown = pathwayDoc.content ?? pathwayDoc.pathwayPublishedContent ?? '';
+  const pathwayDocPublishedSlug = pathwayDoc.publishedSlug ?? pathwayDoc.pathwayPublishedSlug;
 
   const explorerDocMarkdown =
     (explorerDoc.open === 'analysis' ? explorerDoc.analysis?.content : explorerDoc.summary?.content) ?? '';
@@ -604,7 +608,7 @@ export default function AdoptionWorkspace({
             {flow === 'contributor' && (
               <button
                 onClick={openPathwayDocument}
-                disabled={!pathwayDoc.content}
+                disabled={!pathwayDocMarkdown}
                 className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
               >
                 View Pathway Document
@@ -700,7 +704,7 @@ export default function AdoptionWorkspace({
               loading={pathwayDoc.loading}
               error={pathwayDoc.error}
               onPublish={publishPathwayDocument}
-              publishedSlug={pathwayDoc.publishedSlug}
+              publishedSlug={pathwayDocPublishedSlug}
               onClose={closePathwayDocument}
             />
           </div>

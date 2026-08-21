@@ -21,37 +21,6 @@ interface Props {
   onBack: () => void;
 }
 
-// Lightweight, dependency-free similarity check — no need for anything
-// fancier than "do these titles share most of their meaningful words,"
-// enough to catch "Voice AI for Farmers" vs "Voice AI for Farmer Support"
-// before a genuine duplicate pathway gets created. Not a semantic/embedding
-// match — a deliberate, cheap first line of defense; the admin's own
-// offline review remains the fallback for anything subtler this misses.
-function normalizedTokens(s: string): Set<string> {
-  return new Set(
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((t) => t.length > 2)
-  );
-}
-
-// Compares combined title + description text rather than title alone, so
-// two pathways with generic titles ("Voice AI Pilot") but the same
-// underlying deployment still get caught by their description overlap.
-function textSimilarity(aTitle: string, aDescription: string, bTitle: string, bDescription: string): number {
-  const setA = normalizedTokens(`${aTitle} ${aDescription}`);
-  const setB = normalizedTokens(`${bTitle} ${bDescription}`);
-  if (setA.size === 0 || setB.size === 0) return 0;
-  let intersection = 0;
-  for (const t of setA) if (setB.has(t)) intersection++;
-  const union = setA.size + setB.size - intersection;
-  return union === 0 ? 0 : intersection / union;
-}
-
-const SIMILARITY_THRESHOLD = 0.4;
-
 export default function PathwaySelector({ onSelect, onBack }: Props) {
   const [pathways, setPathways] = useState<PathwaySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +34,7 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
   const [joining, setJoining] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [similarMatch, setSimilarMatch] = useState<PathwaySummary | null>(null);
+  const [checkingSimilar, setCheckingSimilar] = useState(false);
 
   useEffect(() => {
     fetch('/api/pathways')
@@ -105,26 +75,38 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
     }
   }
 
-  // "Did you mean this one?" — checked against the already-loaded pathway
-  // list before anything is created. If the user has already seen and
-  // dismissed a match for the current title (similarMatch was set, and
-  // they clicked through anyway), this second click skips straight to
-  // actually creating it.
-  function handleCreateClick() {
-    if (!newTitle.trim() || !newDescription.trim()) return;
+  // "Did you mean this one?" — an LLM call compares the candidate against
+  // every existing pathway's title/sector/description for a genuine
+  // same-underlying-deployment match (not just overlapping words), before
+  // anything is created. If the user has already seen and dismissed a match
+  // for the current fields (similarMatch was set, and they clicked through
+  // anyway), this click skips straight to actually creating it.
+  async function handleCreateClick() {
+    if (!newTitle.trim() || !newDescription.trim() || !newSector.trim()) return;
     if (!similarMatch) {
-      let best: PathwaySummary | null = null;
-      let bestScore = 0;
-      for (const p of pathways) {
-        const score = textSimilarity(newTitle, newDescription, p.title, p.description ?? '');
-        if (score > bestScore) {
-          bestScore = score;
-          best = p;
+      setCheckingSimilar(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/pathways/check-similar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: newTitle.trim(), sector: newSector.trim(), description: newDescription.trim() }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.matchId) {
+            const match = pathways.find((p) => p.id === data.matchId) ?? null;
+            if (match) {
+              setSimilarMatch(match);
+              return;
+            }
+          }
         }
-      }
-      if (best && bestScore >= SIMILARITY_THRESHOLD) {
-        setSimilarMatch(best);
-        return;
+      } catch {
+        // Best-effort check — if it fails, fall through to creating rather
+        // than blocking the contributor entirely.
+      } finally {
+        setCheckingSimilar(false);
       }
     }
     void createPathway();
@@ -207,7 +189,7 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
           <p className="mt-1 text-xs text-ink-soft">Only if your adoption domain isn&apos;t covered above.</p>
           <div className="mt-4 space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-ink-soft">Pathway name</label>
+              <label className="mb-1 block text-xs font-medium text-ink-soft">Pathway name *</label>
               <input
                 type="text"
                 value={newTitle}
@@ -220,7 +202,7 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-ink-soft">Short description</label>
+              <label className="mb-1 block text-xs font-medium text-ink-soft">Short description *</label>
               <textarea
                 rows={3}
                 value={newDescription}
@@ -233,15 +215,20 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-ink-soft">Sector</label>
+              <label className="mb-1 block text-xs font-medium text-ink-soft">Sector *</label>
               <input
                 type="text"
                 value={newSector}
-                onChange={(e) => setNewSector(e.target.value)}
+                onChange={(e) => {
+                  setNewSector(e.target.value);
+                  setSimilarMatch(null);
+                }}
                 placeholder="e.g. Agriculture, Health, Education"
                 className="w-full rounded-lg border border-navy/15 bg-paper px-3 py-2 text-sm text-navy placeholder-ink-soft/50 outline-none focus:border-coral focus:ring-1 focus:ring-coral/30"
               />
             </div>
+
+            {checkingSimilar && <p className="text-xs text-ink-soft">Checking for similar pathways…</p>}
 
             {similarMatch && (
               <div className="rounded-lg border border-coral/30 bg-coral-soft p-3">
@@ -273,11 +260,19 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
 
             <button
               type="button"
-              onClick={handleCreateClick}
-              disabled={!newTitle.trim() || !newDescription.trim() || creating || joining || !!similarMatch}
+              onClick={() => void handleCreateClick()}
+              disabled={
+                !newTitle.trim() ||
+                !newDescription.trim() ||
+                !newSector.trim() ||
+                creating ||
+                joining ||
+                checkingSimilar ||
+                !!similarMatch
+              }
               className="rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
             >
-              {creating ? 'Creating…' : 'Create and continue →'}
+              {creating ? 'Creating…' : checkingSimilar ? 'Checking…' : 'Create and continue →'}
             </button>
           </div>
         </div>

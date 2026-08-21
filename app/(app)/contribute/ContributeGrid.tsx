@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import AdoptionWorkspace from '@/components/AdoptionWorkspace';
 import PathwaySelector from '@/components/PathwaySelector';
 import { AdoptionConversation } from '@/lib/adoption-conversation';
-import { createClient } from '@/lib/supabase/client';
 import { fetchAdoptionsList, setAdoptionsListCache } from '@/lib/adoptions-cache';
 
 interface PathwaySummary {
@@ -28,14 +27,13 @@ function formatRelativeTime(iso: string): string {
 }
 
 // 'pathways' — top level, one block per pathway the user contributes to.
-// 'chats'    — one pathway's own chats/workspaces, as blocks.
+//              Clicking a block goes straight into that pathway's chat: the
+//              existing one if there is already one, otherwise a fresh one.
 // 'pick'     — the pathway selector, for a genuinely new contribution.
-// 'new'      — a fresh workspace linked to a pathway (either just picked, or
-//              "+ New Chat" within a pathway already being viewed).
+// 'new'      — a fresh workspace linked to a pathway just picked/created.
 // 'existing' — an existing chat/workspace, opened directly.
 type View =
   | { kind: 'pathways' }
-  | { kind: 'chats'; pathwayId: string }
   | { kind: 'pick' }
   | { kind: 'new'; pathwayId: string }
   | { kind: 'existing'; id: string };
@@ -91,23 +89,6 @@ function ContributeGridContent() {
     setView({ kind: 'existing', id: openId });
   }
 
-  async function deleteContribution(e: React.MouseEvent, id: string) {
-    e.stopPropagation();
-    if (!window.confirm('Delete this contribution? This cannot be undone.')) return;
-
-    const supabase = createClient();
-    const { error } = await supabase.from('designs').delete().eq('id', id);
-    if (error) {
-      setLoadError('Could not delete that contribution. Try again.');
-      return;
-    }
-    setAdoptions((prev) => {
-      const next = prev.filter((a) => a.id !== id);
-      setAdoptionsListCache(next);
-      return next;
-    });
-  }
-
   // Step: pick (or create) the pathway a brand-new contribution belongs to.
   if (view.kind === 'pick') {
     return (
@@ -127,8 +108,7 @@ function ContributeGridContent() {
   }
 
   // Step: contributor workspace for a brand-new design, linked to a pathway
-  // — either just picked via PathwaySelector, or "+ New Chat" within a
-  // pathway already being viewed (skips the picker entirely).
+  // just picked or created via PathwaySelector.
   if (view.kind === 'new') {
     return (
       <AdoptionWorkspace
@@ -136,7 +116,7 @@ function ContributeGridContent() {
         initial={null}
         fixedFlow="contributor"
         pathwayId={view.pathwayId}
-        onBack={() => setView({ kind: 'chats', pathwayId: view.pathwayId })}
+        onBack={() => setView({ kind: 'pathways' })}
         onCreated={(c) =>
           setAdoptions((prev) => {
             const next = [c, ...prev];
@@ -157,12 +137,11 @@ function ContributeGridContent() {
 
   if (view.kind === 'existing') {
     const existing = contributions.find((a) => a.id === view.id) ?? null;
-    const backPathwayId = existing?.meta.pathwayId;
     return (
       <AdoptionWorkspace
         key={view.id}
         initial={existing}
-        onBack={() => setView(backPathwayId ? { kind: 'chats', pathwayId: backPathwayId } : { kind: 'pathways' })}
+        onBack={() => setView({ kind: 'pathways' })}
         onChange={(c) =>
           setAdoptions((prev) => {
             const next = prev.map((a) => (a.id === c.id ? c : a));
@@ -174,78 +153,14 @@ function ContributeGridContent() {
     );
   }
 
-  // Step: one pathway's own chats, as blocks.
-  if (view.kind === 'chats') {
-    const pathway = pathways.find((p) => p.id === view.pathwayId);
-    const chats = contributions.filter((a) => a.meta.pathwayId === view.pathwayId);
-
-    return (
-      <div className="flex-1 overflow-y-auto bg-paper p-4 sm:p-8">
-        <button
-          type="button"
-          onClick={() => setView({ kind: 'pathways' })}
-          className="mb-4 text-xs font-medium text-ink-soft transition hover:text-coral"
-        >
-          ← All pathways
-        </button>
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div className="max-w-xl">
-            <h1 className="font-display text-2xl font-medium tracking-tight text-navy">
-              {pathway?.title ?? 'Pathway'}
-            </h1>
-            {pathway?.sector && (
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">{pathway.sector}</p>
-            )}
-            {pathway?.description && <p className="mt-2 text-sm leading-relaxed text-ink-soft">{pathway.description}</p>}
-          </div>
-          <button
-            onClick={() => setView({ kind: 'new', pathwayId: view.pathwayId })}
-            className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral"
-          >
-            + New Chat
-          </button>
-        </div>
-
-        {chats.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-            <p className="text-sm text-ink-soft">Start a new chat from the button above to see it here.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {chats.map((a) => (
-              <div
-                key={a.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setView({ kind: 'existing', id: a.id })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setView({ kind: 'existing', id: a.id });
-                  }
-                }}
-                className="group relative flex cursor-pointer flex-col gap-2 rounded-2xl border border-navy/10 bg-white p-5 text-left transition hover:border-coral/50 hover:shadow-sm"
-              >
-                <button
-                  type="button"
-                  onClick={(e) => deleteContribution(e, a.id)}
-                  aria-label="Delete chat"
-                  className="absolute top-3 right-3 text-ink-soft/50 opacity-0 transition hover:text-coral group-hover:opacity-100"
-                >
-                  🗑
-                </button>
-                <div className="pr-5 font-display font-medium text-navy">{a.meta.name || 'New chat'}</div>
-                {a.meta.summary && <p className="line-clamp-3 text-sm leading-relaxed text-ink-soft">{a.meta.summary}</p>}
-                <div className="mt-auto pt-2 text-[10px] text-ink-soft/70">Updated {formatRelativeTime(a.updatedAt)}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+  // Top level: one block per pathway the user contributes to. Clicking a
+  // block goes straight into that pathway's chat — the most recently updated
+  // one if it already has one, otherwise a fresh chat linked to it.
+  function openPathway(pathwayId: string) {
+    const chat = contributions.find((a) => a.meta.pathwayId === pathwayId);
+    setView(chat ? { kind: 'existing', id: chat.id } : { kind: 'new', pathwayId });
   }
 
-  // Top level: one block per pathway the user contributes to.
   return (
     <div className="flex-1 overflow-y-auto bg-paper p-4 sm:p-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
@@ -276,17 +191,17 @@ function ContributeGridContent() {
           {loadError && <p className="mb-4 text-xs text-coral">{loadError}</p>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {myPathways.map((p) => {
-              const chatCount = contributions.filter((a) => a.meta.pathwayId === p.id).length;
+              const chat = contributions.find((a) => a.meta.pathwayId === p.id);
               return (
                 <div
                   key={p.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setView({ kind: 'chats', pathwayId: p.id })}
+                  onClick={() => openPathway(p.id)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setView({ kind: 'chats', pathwayId: p.id });
+                      openPathway(p.id);
                     }
                   }}
                   className="flex cursor-pointer flex-col gap-2 rounded-2xl border border-navy/10 bg-white p-5 text-left transition hover:border-coral/50 hover:shadow-sm"
@@ -297,7 +212,7 @@ function ContributeGridContent() {
                   )}
                   {p.description && <p className="line-clamp-3 text-sm leading-relaxed text-ink-soft">{p.description}</p>}
                   <div className="mt-auto pt-2 text-[10px] text-ink-soft/70">
-                    {chatCount} chat{chatCount === 1 ? '' : 's'}
+                    {chat ? `Updated ${formatRelativeTime(chat.updatedAt)}` : 'Not started yet'}
                   </div>
                 </div>
               );

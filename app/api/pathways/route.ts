@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const { title, sector, description } = body as { title?: string; sector?: string; description?: string }
   if (!title?.trim()) return NextResponse.json({ error: 'title required' }, { status: 400 })
+  if (!sector?.trim()) return NextResponse.json({ error: 'sector required' }, { status: 400 })
   if (!description?.trim()) return NextResponse.json({ error: 'description required' }, { status: 400 })
 
   const slug = await uniqueSlug(slugify(title.trim()))
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
     .insert({
       slug,
       title: title.trim(),
-      sector: sector?.trim() ?? null,
+      sector: sector.trim(),
       description: description.trim(),
       created_by: user.id,
     })

@@ -163,7 +163,15 @@ interface AdoptionRow {
 export interface PathwayDocState {
   content: string | null;       // latest generated draft text
   versionNumber: number;         // version_number from design_documents
-  publishedSlug: string | null;  // set after a successful publish
+  publishedSlug: string | null;  // set after a successful publish in this chat
+  // The pathway's own already-published document (pathways.content_cache),
+  // fetched once on mount so a contributor who hasn't generated a draft in
+  // THIS chat yet — e.g. a second contributor joining a pathway another
+  // contributor already published — can still view what's live via "View
+  // Pathway Document" instead of seeing nothing. Only ever a fallback: an
+  // own in-progress draft (content, above) always takes precedence.
+  pathwayPublishedContent: string | null;
+  pathwayPublishedSlug: string | null;
   paneOpen: boolean;
   loading: boolean;
   error: string | null;
@@ -200,6 +208,8 @@ export const EMPTY_PATHWAY_DOC: PathwayDocState = {
   content: null,
   versionNumber: 0,
   publishedSlug: null,
+  pathwayPublishedContent: null,
+  pathwayPublishedSlug: null,
   paneOpen: false,
   loading: false,
   error: null,
@@ -310,6 +320,28 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         content: doc.content,
         versionNumber: doc.version_number,
       }));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetches the pathway's own already-published document once, as a
+  // fallback for "View Pathway Document" when this chat has no draft of its
+  // own yet (see pathwayPublishedContent's comment above) — covers both a
+  // brand-new chat (pathwayId passed as a prop) and a reopened existing one
+  // (pathwayId only known from the loaded row's meta).
+  useEffect(() => {
+    const pid = pathwayId || initial?.meta.pathwayId;
+    if (!pid) return;
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from('pathways').select('slug, content_cache').eq('id', pid).maybeSingle();
+      if (data?.content_cache) {
+        updatePathwayDoc((prev) => ({
+          ...prev,
+          pathwayPublishedContent: data.content_cache,
+          pathwayPublishedSlug: data.slug,
+        }));
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
