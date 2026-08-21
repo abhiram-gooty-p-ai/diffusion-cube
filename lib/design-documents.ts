@@ -104,13 +104,16 @@ export async function insertDesignDocumentVersion(
 export async function upsertDraftDocument(designId: string, content: string): Promise<void> {
   const supabase = createClient();
   await supabase.from('design_documents').delete().eq('design_id', designId).eq('doc_type', 'draft');
-  await supabase.from('design_documents').insert({
+  const { error } = await supabase.from('design_documents').insert({
     design_id: designId,
     doc_type: 'draft' as DocType,
     version_number: 1,
     content_hash: String(Date.now()),
     content,
   });
+  if (error) {
+    console.error('[design-documents] Failed to save draft:', error.message);
+  }
 }
 
 // "v0.1", "v0.2", ... — matches the versioning scheme requested (v0.N per

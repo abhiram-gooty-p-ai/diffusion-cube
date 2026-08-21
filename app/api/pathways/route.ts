@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   const { data: pathways, error } = await supabase
     .from('pathways')
-    .select('id, slug, title, sector, created_at')
+    .select('id, slug, title, sector, description, created_at')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -67,8 +67,9 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}))
-  const { title, sector } = body as { title?: string; sector?: string }
+  const { title, sector, description } = body as { title?: string; sector?: string; description?: string }
   if (!title?.trim()) return NextResponse.json({ error: 'title required' }, { status: 400 })
+  if (!description?.trim()) return NextResponse.json({ error: 'description required' }, { status: 400 })
 
   const slug = await uniqueSlug(slugify(title.trim()))
   const admin = createAdminClient()
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
       slug,
       title: title.trim(),
       sector: sector?.trim() ?? null,
+      description: description.trim(),
       created_by: user.id,
     })
     .select('id, slug')

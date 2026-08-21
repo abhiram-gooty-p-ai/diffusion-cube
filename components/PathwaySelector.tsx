@@ -11,6 +11,7 @@ interface PathwaySummary {
   slug: string;
   title: string;
   sector: string | null;
+  description: string | null;
   created_at: string;
   isContributor: boolean;
 }
@@ -36,9 +37,12 @@ function normalizedTokens(s: string): Set<string> {
   );
 }
 
-function titleSimilarity(a: string, b: string): number {
-  const setA = normalizedTokens(a);
-  const setB = normalizedTokens(b);
+// Compares combined title + description text rather than title alone, so
+// two pathways with generic titles ("Voice AI Pilot") but the same
+// underlying deployment still get caught by their description overlap.
+function textSimilarity(aTitle: string, aDescription: string, bTitle: string, bDescription: string): number {
+  const setA = normalizedTokens(`${aTitle} ${aDescription}`);
+  const setB = normalizedTokens(`${bTitle} ${bDescription}`);
   if (setA.size === 0 || setB.size === 0) return 0;
   let intersection = 0;
   for (const t of setA) if (setB.has(t)) intersection++;
@@ -56,6 +60,7 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newSector, setNewSector] = useState('');
+  const [newDescription, setNewDescription] = useState('');
 
   const [joining, setJoining] = useState(false);
   const [selectedId, setSelectedId] = useState('');
@@ -106,12 +111,12 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
   // they clicked through anyway), this second click skips straight to
   // actually creating it.
   function handleCreateClick() {
-    if (!newTitle.trim()) return;
+    if (!newTitle.trim() || !newDescription.trim()) return;
     if (!similarMatch) {
       let best: PathwaySummary | null = null;
       let bestScore = 0;
       for (const p of pathways) {
-        const score = titleSimilarity(newTitle, p.title);
+        const score = textSimilarity(newTitle, newDescription, p.title, p.description ?? '');
         if (score > bestScore) {
           bestScore = score;
           best = p;
@@ -132,7 +137,7 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
       const res = await fetch('/api/pathways', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle.trim(), sector: newSector.trim() }),
+        body: JSON.stringify({ title: newTitle.trim(), sector: newSector.trim(), description: newDescription.trim() }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Could not create pathway.'); return; }
@@ -215,6 +220,19 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
               />
             </div>
             <div>
+              <label className="mb-1 block text-xs font-medium text-ink-soft">Short description</label>
+              <textarea
+                rows={3}
+                value={newDescription}
+                onChange={(e) => {
+                  setNewDescription(e.target.value);
+                  setSimilarMatch(null);
+                }}
+                placeholder="What was built, for whom, and roughly what problem it solves — a couple of sentences is enough"
+                className="w-full resize-none rounded-lg border border-navy/15 bg-paper px-3 py-2 text-sm text-navy placeholder-ink-soft/50 outline-none focus:border-coral focus:ring-1 focus:ring-coral/30"
+              />
+            </div>
+            <div>
               <label className="mb-1 block text-xs font-medium text-ink-soft">Sector</label>
               <input
                 type="text"
@@ -256,7 +274,7 @@ export default function PathwaySelector({ onSelect, onBack }: Props) {
             <button
               type="button"
               onClick={handleCreateClick}
-              disabled={!newTitle.trim() || creating || joining || !!similarMatch}
+              disabled={!newTitle.trim() || !newDescription.trim() || creating || joining || !!similarMatch}
               className="rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
             >
               {creating ? 'Creating…' : 'Create and continue →'}
