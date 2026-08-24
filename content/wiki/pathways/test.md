@@ -19,7 +19,7 @@ Navigate by what you need: if you're still asking whether AI is the right tool, 
 | **Geography** | India |
 | **Population served** | Early-stage Indian founders; freelancers and consultants; small agency owners (expansion) |
 | **Stage reached** | Explore |
-| **Contributing organisation** | EkStep Foundation |
+| **Contributing organisation** | Not documented in the source |
 | **Key dates** | As of August 24, 2026 |
 | **Summary** | Savyasachi is an AI personal assistant built for Indian founders and operators. It converts voice memos and calls into structured memory and automated actions across Notion, Calendar, Gmail, and WhatsApp. V1 is in build; 10 early users are being recruited. The core problem is context loss and execution gaps for founders managing multiple tools and relationships simultaneously. |
 | **Scale / impact achieved** | Not documented in the source (pre-launch, 10 early users targeted) |
@@ -213,4 +213,3 @@ The deployment is at Explore stage, so empty Define/Pilot/Scale cells are expect
 |---|---|---|
 | `savyasachi_pitch.pptx` (as of August 24, 2026) | Section 1 — all fields except contributing organisation and build effort; Section 3 — Units 1–7 (all content); Section 4 — all entries; Section 2 — gap identification for Units 1, 2, 3, 4 | Primary source. All factual claims in Sections 1–4 derive from this file. No independent verification. Contributor's own account. |
 | Adoption Companion conversation (as of August 24, 2026, 2:52 AM) | Section 1 — build effort field ("2 months total — 1 month for building, 1 month for testing"); stage confirmed as Explore; Section 2 — gap framing | Contributor's own account. Build effort figure introduced in this conversation; not present in the pitch deck. |
-| Adoption Companion conversation (as of August 24, 2026, 5:48 AM) | Section 1 — contributing organisation field updated to "EkStep Foundation" | Contributor's own account. Supersedes the earlier "Not documented in the source" entry for this field. |
