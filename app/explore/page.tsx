@@ -11,7 +11,17 @@ import ExploreLibrary from './ExploreLibrary';
 // with (app)/layout.tsx) so the app doesn't visually change out from under
 // them; a genuinely anonymous visitor gets the same shell with everything
 // role-gated hidden, since Sidebar already degrades gracefully with no user.
-export default async function PublicExplorePage() {
+//
+// ?open=<id> reopens a saved conversation — Sidebar's "Recent Explorations"
+// links here the same way it links to /strengthen?open=<id>. Resolved
+// server-side (RLS already scopes it to the caller's own rows) rather than a
+// client fetch, so there's no flash of the library grid before it loads.
+export default async function PublicExplorePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ open?: string }>;
+}) {
+  const { open } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,14 +38,22 @@ export default async function PublicExplorePage() {
   // proxy.ts only sets this header once a session is confirmed — true here.
   const email = (await headers()).get('x-user-email');
 
-  const [{ data: adoptions }, adminAccess] = await Promise.all([
+  const [{ data: adoptions }, adminAccess, initialConversation] = await Promise.all([
     supabase.from('designs').select('id, meta, updated_at').order('updated_at', { ascending: false }),
     isAdmin(supabase, email),
+    open
+      ? supabase
+          .from('library_conversations')
+          .select('id, pathway_slug, pathway_title, messages')
+          .eq('id', open)
+          .maybeSingle()
+          .then((r) => r.data)
+      : Promise.resolve(null),
   ]);
 
   return (
     <AppShell email={email} adoptions={adoptions ?? []} isAdmin={adminAccess}>
-      <ExploreLibrary signedIn />
+      <ExploreLibrary signedIn initialConversation={initialConversation} />
     </AppShell>
   );
 }

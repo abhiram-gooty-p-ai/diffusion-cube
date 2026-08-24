@@ -25,21 +25,14 @@ type View = 'library' | 'chat';
 
 // A signed-in visitor's saved chat (library_conversations) — an anonymous
 // visitor never has any of these, and their own chats stay purely in-memory.
+// Listed in the sidebar's "Recent Explorations" (alongside Strengthen
+// sessions), not as blocks on this page — reopened here via ?open=<id>,
+// resolved server-side into `initialConversation` (see app/explore/page.tsx).
 interface SavedConversation {
   id: string;
   pathway_slug: string | null;
   pathway_title: string | null;
   messages: ChatMessage[];
-  updated_at: string;
-}
-
-function formatRelativeTime(iso: string): string {
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
 }
 
 const ACCENT_ROTATION: Accent[] = ['coral', 'yellow', 'blue', 'navy'];
@@ -69,22 +62,29 @@ const accentBadge: Record<Accent, string> = {
 
 const STAGE_ORDER: Stage[] = ['Explore', 'Define', 'Pilot', 'Scale'];
 
-export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolean }) {
+export default function ExploreLibrary({
+  signedIn = false,
+  initialConversation = null,
+}: {
+  signedIn?: boolean;
+  // Set when this page was opened via ?open=<id> (a sidebar "Recent
+  // Explorations" link) — resolved server-side in app/explore/page.tsx.
+  initialConversation?: SavedConversation | null;
+}) {
   const [pathways, setPathways] = useState<LibraryPathway[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [activeStage, setActiveStage] = useState<Stage | 'All'>('All');
   const [selected, setSelected] = useState<LibraryPathway | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialConversation?.messages ?? []);
   const [draft, setDraft] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [view, setView] = useState<View>('library');
+  const [view, setView] = useState<View>(initialConversation ? 'chat' : 'library');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Signed-in only — see SavedConversation's comment. currentConversationId
   // tracks which row (if any) this chat continues, so saves after the first
   // one update in place instead of creating a new row per turn.
-  const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(initialConversation?.id ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,8 +92,14 @@ export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolea
       .then((res) => (res.ok ? res.json() : []))
       .then((data: WikiPathwayIndexEntry[]) => {
         if (cancelled) return;
-        setPathways(data.map((p, i) => ({ ...p, accent: ACCENT_ROTATION[i % ACCENT_ROTATION.length] })));
+        const withAccents = data.map((p, i) => ({ ...p, accent: ACCENT_ROTATION[i % ACCENT_ROTATION.length] }));
+        setPathways(withAccents);
         setLoaded(true);
+        // Re-match the reopened conversation's pathway once the list is in —
+        // only needed for the chat header's badge/icon, not the messages.
+        if (initialConversation?.pathway_slug) {
+          setSelected(withAccents.find((p) => p.slug === initialConversation.pathway_slug) ?? null);
+        }
       })
       .catch(() => {
         if (cancelled) return;
@@ -102,55 +108,30 @@ export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolea
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!signedIn) return;
-    let cancelled = false;
-    const supabase = createClient();
-    supabase
-      .from('library_conversations')
-      .select('id, pathway_slug, pathway_title, messages, updated_at')
-      .order('updated_at', { ascending: false })
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setSavedConversations(data as SavedConversation[]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [signedIn]);
 
   // Upserts the current conversation for a signed-in visitor — fire-and-
   // forget, called right after each assistant reply finishes so a refresh
-  // mid-conversation never loses anything. Silent on failure: this is a
+  // mid-conversation never loses anything, and so it shows up promptly under
+  // the sidebar's "Recent Explorations". Silent on failure: this is a
   // convenience cache, not the primary experience.
   async function saveConversation(history: ChatMessage[], pathway: LibraryPathway | null | undefined) {
     if (!signedIn) return;
     const supabase = createClient();
     if (currentConversationId) {
-      const { error } = await supabase
+      await supabase
         .from('library_conversations')
         .update({ messages: history, updated_at: new Date().toISOString() })
         .eq('id', currentConversationId);
-      if (!error) {
-        setSavedConversations((prev) =>
-          prev
-            .map((c) => (c.id === currentConversationId ? { ...c, messages: history, updated_at: new Date().toISOString() } : c))
-            .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
-        );
-      }
       return;
     }
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('library_conversations')
       .insert({ pathway_slug: pathway?.slug ?? null, pathway_title: pathway?.title ?? null, messages: history })
-      .select('id, pathway_slug, pathway_title, messages, updated_at')
+      .select('id')
       .single();
-    if (!error && data) {
-      setCurrentConversationId(data.id);
-      setSavedConversations((prev) => [data as SavedConversation, ...prev]);
-    }
+    if (data) setCurrentConversationId(data.id);
   }
 
   const availableStages = STAGE_ORDER.filter((s) => pathways.some((p) => p.stage === s));
@@ -196,7 +177,7 @@ export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolea
     } catch {
       setMessages([
         ...history,
-        { role: 'assistant', content: "Sorry, I couldn't reach Jude. Try again in a moment." },
+        { role: 'assistant', content: "Sorry, I couldn't reach the assistant. Try again in a moment." },
       ]);
     } finally {
       setIsThinking(false);
@@ -234,16 +215,6 @@ export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolea
     sendMessage(text, { historyOverride: [] });
   }
 
-  // Reopens a signed-in visitor's saved chat — re-matches its pathway_slug
-  // against the loaded pathway list purely for the chat header's badge/icon;
-  // the conversation itself replays from its own stored messages either way.
-  function reopenConversation(conv: SavedConversation) {
-    setCurrentConversationId(conv.id);
-    setMessages(conv.messages);
-    setSelected(conv.pathway_slug ? (pathways.find((p) => p.slug === conv.pathway_slug) ?? null) : null);
-    setView('chat');
-  }
-
   if (view === 'chat') {
     return (
       <ChatView
@@ -269,7 +240,7 @@ export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolea
         </h1>
         <p className="mt-6 max-w-2xl text-base leading-relaxed text-ink-soft sm:text-lg">
           A use case shows what worked in one place. A pathway captures what can travel to the next — and what has to
-          be adapted. Ask Jude anything, or explore the pathways below.
+          be adapted. Ask, or explore any of the pathways below.
         </p>
       </section>
 
@@ -286,7 +257,7 @@ export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolea
               value={draft}
               onChange={setDraft}
               onSubmit={() => handleAskGeneral(draft)}
-              placeholder="Ask Jude anything about the pathways…"
+              placeholder="Ask anything about the pathways…"
               className="flex-1 resize-none bg-transparent px-4 py-3 text-lg outline-none placeholder:text-ink-soft"
               minHeight={32}
               maxHeight={200}
@@ -296,17 +267,6 @@ export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolea
         </section>
       </div>
       <p className="mx-auto mb-14 max-w-2xl px-6 text-center text-sm text-ink-soft">or click a pathway below to start</p>
-
-      {signedIn && savedConversations.length > 0 && (
-        <section className="mx-auto max-w-6xl px-6 pb-10">
-          <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-coral">Your conversations</p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {savedConversations.map((conv) => (
-              <SavedConversationCard key={conv.id} conversation={conv} onOpen={() => reopenConversation(conv)} />
-            ))}
-          </div>
-        </section>
-      )}
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-coral">Browse the pathways</p>
@@ -331,21 +291,6 @@ export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolea
         )}
       </section>
     </div>
-  );
-}
-
-function SavedConversationCard({ conversation, onOpen }: { conversation: SavedConversation; onOpen: () => void }) {
-  const lastMessage = conversation.messages[conversation.messages.length - 1];
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex flex-col gap-1.5 rounded-2xl border border-navy/10 bg-white p-4 text-left shadow-sm transition hover:border-coral/50 hover:shadow-md"
-    >
-      <div className="font-display font-medium text-navy">{conversation.pathway_title || 'General question'}</div>
-      {lastMessage && <p className="line-clamp-2 text-sm text-ink-soft">{lastMessage.content}</p>}
-      <div className="mt-auto pt-1 text-[10px] text-ink-soft/70">Updated {formatRelativeTime(conversation.updated_at)}</div>
-    </button>
   );
 }
 
@@ -458,7 +403,7 @@ function ChatView({
             </div>
           ) : (
             <div className="mb-6 border-b border-navy/10 pb-6">
-              <h1 className="font-display text-lg font-medium text-navy">Ask Jude</h1>
+              <h1 className="font-display text-lg font-medium text-navy">Ask a question</h1>
               <p className="text-xs text-ink-soft">A general question — not tied to one pathway yet</p>
             </div>
           )}

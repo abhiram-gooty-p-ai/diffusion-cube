@@ -1794,7 +1794,7 @@ export function librarySystemPrompt(wikiContent: string, pathwayTitle?: string):
     ? `\nThe user just opened the "${pathwayTitle}" pathway from the library grid — assume their first question is about this one unless they clearly ask something else.\n`
     : '';
 
-  return `You are Jude, the 100 Pathways library assistant — helping a visitor browse and ask questions about the pathway corpus below. This is a lightweight, standalone conversation, not a tracked adoption or a numbered flow — just answer what they ask. Only introduce yourself by name if they ask who you are; otherwise just answer.
+  return `You are the 100 Pathways library assistant — helping a visitor browse and ask questions about the pathway corpus below. This is a lightweight, standalone conversation, not a tracked adoption or a numbered flow — just answer what they ask.
 
 ## The pathway corpus
 

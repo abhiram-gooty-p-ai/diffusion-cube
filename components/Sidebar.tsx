@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import SignOutButton from '@/components/SignOutButton';
@@ -12,10 +12,28 @@ interface AdoptionSummary {
   updated_at: string;
 }
 
+interface LibraryConversationSummary {
+  id: string;
+  pathway_title: string | null;
+  updated_at: string;
+}
+
 interface Props {
   email: string | null;
   adoptions: AdoptionSummary[];
   isAdmin?: boolean;
+}
+
+// One shared "Recent Explorations" shape covering both Strengthen sessions
+// (designs, flow==='explorer') and Explore/Library chats (library_conversations)
+// — the boss wanted Explore's history to live here rather than as its own
+// block section on the page itself, same list treatment as Strengthen's.
+interface RecentItem {
+  id: string;
+  kind: 'strengthen' | 'library';
+  title: string;
+  href: string;
+  updatedAt: string;
 }
 
 export default function Sidebar({ email, adoptions, isAdmin }: Props) {
@@ -25,18 +43,41 @@ export default function Sidebar({ email, adoptions, isAdmin }: Props) {
   // Optimistic client-side removal — `adoptions` itself is a server-fetched
   // prop (re-populated on navigation), so a deleted row is masked out here
   // rather than mutated in place; it's simply absent again on the next
-  // real fetch anyway.
+  // real fetch anyway. Shared across both kinds since ids never collide.
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
-  async function handleDeleteExploration(e: React.MouseEvent, id: string) {
+  const [libraryConversations, setLibraryConversations] = useState<LibraryConversationSummary[]>([]);
+
+  useEffect(() => {
+    // No user to fetch for — leave state as-is rather than a synchronous
+    // setState-in-effect; a sign-out remounts the sidebar on the next
+    // navigation anyway, so stale data here never actually surfaces.
+    if (!email) return;
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from('library_conversations')
+      .select('id, pathway_title, updated_at')
+      .order('updated_at', { ascending: false })
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setLibraryConversations(data);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [email]);
+
+  async function handleDeleteRecent(e: React.MouseEvent, item: RecentItem) {
     e.preventDefault();
     e.stopPropagation();
     if (!window.confirm('Delete this exploration? This cannot be undone.')) return;
 
     const supabase = createClient();
-    const { error } = await supabase.from('designs').delete().eq('id', id);
+    const table = item.kind === 'library' ? 'library_conversations' : 'designs';
+    const { error } = await supabase.from(table).delete().eq('id', item.id);
     if (error) return;
-    setDeletedIds((prev) => new Set(prev).add(id));
+    setDeletedIds((prev) => new Set(prev).add(item.id));
   }
 
   // Auto-close the mobile drawer whenever the route changes (link clicked).
@@ -61,10 +102,32 @@ export default function Sidebar({ email, adoptions, isAdmin }: Props) {
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 
-  // Contributions now live in their own grid at /contribute — this list is
-  // Strengthen-only, so it's a real "recent explorations" shortcut rather
-  // than a mixed-flow dump.
-  const recentExplorations = adoptions.filter((a) => a.meta?.flow === 'explorer' && !deletedIds.has(a.id));
+  // Contributions now live in their own grid at /contribute — this list
+  // combines Strengthen sessions and Explore/Library chats, the two flows
+  // that don't have their own dedicated grid page.
+  const recentExplorations: RecentItem[] = [
+    ...adoptions
+      .filter((a) => a.meta?.flow === 'explorer' && !deletedIds.has(a.id))
+      .map((a) => ({
+        id: a.id,
+        kind: 'strengthen' as const,
+        title: a.meta?.name || 'New exploration',
+        // Strengthen sessions reopen inside /strengthen, not the /adoptions
+        // grid — that keeps the way out of them the intent menu rather than
+        // a list the user never visited.
+        href: `/strengthen?open=${a.id}`,
+        updatedAt: a.updated_at,
+      })),
+    ...libraryConversations
+      .filter((c) => !deletedIds.has(c.id))
+      .map((c) => ({
+        id: c.id,
+        kind: 'library' as const,
+        title: c.pathway_title || 'General question',
+        href: `/explore?open=${c.id}`,
+        updatedAt: c.updated_at,
+      })),
+  ].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
 
   const body = (
     <>
@@ -97,21 +160,18 @@ export default function Sidebar({ email, adoptions, isAdmin }: Props) {
               Recent Explorations
             </p>
             <div className="space-y-0.5">
-              {recentExplorations.map((a) => (
-                <div key={a.id} className="group/item flex items-center rounded-lg hover:bg-paper-dim">
+              {recentExplorations.map((item) => (
+                <div key={`${item.kind}-${item.id}`} className="group/item flex items-center rounded-lg hover:bg-paper-dim">
                   <Link
-                    // Strengthen sessions reopen inside /strengthen, not the
-                    // /adoptions grid — that keeps the way out of them the
-                    // intent menu rather than a list the user never visited.
-                    href={`/strengthen?open=${a.id}`}
+                    href={item.href}
                     className="block flex-1 truncate px-3 py-1.5 text-xs text-ink-soft transition group-hover/item:text-navy"
-                    title={a.meta?.name || 'New exploration'}
+                    title={item.title}
                   >
-                    {a.meta?.name || 'New exploration'}
+                    {item.title}
                   </Link>
                   <button
                     type="button"
-                    onClick={(e) => handleDeleteExploration(e, a.id)}
+                    onClick={(e) => handleDeleteRecent(e, item)}
                     aria-label="Delete exploration"
                     className="flex-shrink-0 px-2 text-ink-soft/50 opacity-0 transition hover:text-coral group-hover/item:opacity-100"
                   >
