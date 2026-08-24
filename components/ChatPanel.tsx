@@ -421,45 +421,54 @@ export default function ChatPanel({
             ))}
           </div>
         )}
-        <div className="flex gap-3">
-        {onAttachFiles && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={loading}
-              aria-label="Attach files"
-              className="flex-shrink-0 self-end rounded-xl border border-navy/15 bg-white px-3 py-2.5 text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40"
-            >
-              📎
-            </button>
-          </>
-        )}
-        <textarea
-          ref={textareaRef}
-          className="flex-1 bg-white text-ink border border-navy/15 rounded-xl px-3.5 py-2.5 text-base resize-none focus:outline-none focus:border-coral placeholder-ink-soft overflow-y-auto"
-          style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder={placeholder ?? 'Type a message…'}
-          disabled={loading}
-        />
-        <button
-          onClick={handleSend}
-          disabled={!canSend}
-          className="px-4 py-2 bg-navy hover:bg-coral disabled:opacity-40 text-white rounded-xl text-sm font-medium transition-colors"
-        >
-          Send
-        </button>
+        <div className="flex items-end gap-3 rounded-2xl border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral">
+          {onAttachFiles && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                aria-label="Attach files"
+                className="flex-shrink-0 self-end rounded-full p-2.5 text-ink-soft transition hover:bg-paper-dim hover:text-coral disabled:opacity-40"
+              >
+                📎
+              </button>
+            </>
+          )}
+          <textarea
+            ref={textareaRef}
+            className="flex-1 resize-none bg-transparent px-2 py-2.5 text-base text-ink outline-none placeholder-ink-soft overflow-y-auto"
+            style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder={placeholder ?? 'Type a message…'}
+            disabled={loading}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!canSend}
+            aria-label="Send"
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-navy text-paper transition hover:scale-105 hover:bg-coral active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M8 13V3M8 3L3.5 7.5M8 3L12.5 7.5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
         <p className="mt-2 text-center text-xs text-ink-soft">
           Cube can make mistakes. Verify important information.
