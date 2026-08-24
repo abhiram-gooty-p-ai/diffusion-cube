@@ -97,23 +97,16 @@ export async function insertDesignDocumentVersion(
   return data as DesignDocumentRow;
 }
 
-// Contributor draft — single overwriting row per design. Deletes any
-// existing draft row then inserts a fresh one, so there is never more than
-// one draft version in the DB. The publish step is what creates a permanent
-// record (in contribution_units on GitHub via the assemble route).
-export async function upsertDraftDocument(designId: string, content: string): Promise<void> {
-  const supabase = createClient();
-  await supabase.from('design_documents').delete().eq('design_id', designId).eq('doc_type', 'draft');
-  const { error } = await supabase.from('design_documents').insert({
-    design_id: designId,
-    doc_type: 'draft' as DocType,
-    version_number: 1,
-    content_hash: String(Date.now()),
-    content,
-  });
-  if (error) {
-    console.error('[design-documents] Failed to save draft:', error.message);
-  }
+// Contributor draft — every generate/revise appends a new version rather
+// than overwriting, so the pane's version dropdown has real history to show.
+// `previousVersionNumber` should be the caller's own latest-known version (0
+// if there's none yet), matching insertDesignDocumentVersion's convention.
+export async function insertDraftVersion(
+  designId: string,
+  content: string,
+  previousVersionNumber: number
+): Promise<DesignDocumentRow | null> {
+  return insertDesignDocumentVersion(designId, 'draft', String(Date.now()), content, previousVersionNumber);
 }
 
 // "v0.1", "v0.2", ... — matches the versioning scheme requested (v0.N per

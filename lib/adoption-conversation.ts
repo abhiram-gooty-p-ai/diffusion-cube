@@ -20,7 +20,8 @@ import {
   getLatestDesignDocument,
   hashConversationState,
   insertDesignDocumentVersion,
-  upsertDraftDocument,
+  insertDraftVersion,
+  listDesignDocumentVersions,
 } from '@/lib/design-documents';
 // pathway-submission-versions removed — retired in migration 0018.
 // Contributor drafts now stored in design_documents (doc_type='draft').
@@ -161,8 +162,16 @@ interface AdoptionRow {
 // The draft is stored in design_documents (doc_type='draft') and assembled
 // into the canonical pathway via /api/pathways/assemble on publish.
 export interface PathwayDocState {
-  content: string | null;       // latest generated draft text
-  versionNumber: number;         // version_number from design_documents
+  content: string | null;       // latest generated draft text — always the basis for revisions/publish, regardless of what's being viewed
+  versionNumber: number;         // latest version_number from design_documents
+  // Full version history for this chat's draft, newest first — backs the
+  // pane's version dropdown. Empty until the first generation.
+  versions: DesignDocumentRow[];
+  // Which version the pane is currently displaying. null means "the latest"
+  // (content, above) — set to a specific number when the user picks an
+  // older version from the dropdown, purely for viewing; it never changes
+  // what a revision or publish acts on.
+  selectedVersionNumber: number | null;
   publishedSlug: string | null;  // set after a successful publish in this chat
   // The pathway's own already-published document (pathways.content_cache),
   // fetched once on mount so a contributor who hasn't generated a draft in
@@ -207,6 +216,8 @@ export const EMPTY_EXPLORER_DOC: ExplorerDocState = {
 export const EMPTY_PATHWAY_DOC: PathwayDocState = {
   content: null,
   versionNumber: 0,
+  versions: [],
+  selectedVersionNumber: null,
   publishedSlug: null,
   pathwayPublishedContent: null,
   pathwayPublishedSlug: null,
@@ -308,17 +319,21 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
   }, []);
 
   // Loads the latest stored draft for an existing contributor workspace once,
-  // on mount. design_documents doc_type='draft' is the new storage for
-  // contributor-generated pathway drafts (pathway_submissions was retired).
+  // on mount, loading its full version history so the pane's version
+  // dropdown works immediately on a reopened chat. design_documents
+  // doc_type='draft' is the storage for contributor-generated pathway
+  // drafts (pathway_submissions was retired).
   useEffect(() => {
     if (!initial || initial.meta?.flow !== 'contributor') return;
     (async () => {
-      const doc = await getLatestDesignDocument(initial.id, 'draft');
-      if (!doc) return;
+      const versions = await listDesignDocumentVersions(initial.id, 'draft');
+      if (versions.length === 0) return;
+      const latest = versions[0];
       updatePathwayDoc((prev) => ({
         ...prev,
-        content: doc.content,
-        versionNumber: doc.version_number,
+        content: latest.content,
+        versionNumber: latest.version_number,
+        versions,
       }));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -433,12 +448,19 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         text += decoder.decode(value, { stream: true });
       }
 
-      // Overwrite the single draft row — no versioning during iteration.
-      // This becomes the published document verbatim on Publish (see
-      // publishPathwayDocument / app/api/pathways/assemble/route.ts).
-      await upsertDraftDocument(c.id, text);
+      // Every generate/revise is its own version — this is what backs the
+      // pane's version dropdown. Becomes the published document verbatim on
+      // Publish (see publishPathwayDocument / app/api/pathways/assemble/route.ts).
+      const saved = await insertDraftVersion(c.id, text, pathwayDocRef.current.versionNumber);
 
-      updatePathwayDoc((prev) => ({ ...prev, content: text, loading: false }));
+      updatePathwayDoc((prev) => ({
+        ...prev,
+        content: text,
+        versionNumber: saved?.version_number ?? prev.versionNumber,
+        versions: saved ? [saved, ...prev.versions] : prev.versions,
+        selectedVersionNumber: null, // jump back to viewing the latest
+        loading: false,
+      }));
 
       return text;
     } catch {
@@ -474,13 +496,9 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       const data = await res.json();
       if (!res.ok) return { ok: false, error: data.error ?? 'Publish failed.' };
 
-      // The response echoes back exactly what got published — normally
-      // identical to what this pane already showed, but syncing explicitly
-      // keeps the pane and the persisted draft row correct even if that
-      // ever changes.
-      if (typeof data.content === 'string') {
-        await upsertDraftDocument(c.id, data.content);
-      }
+      // The server publishes this design's latest draft version verbatim, so
+      // the response's content should already match what the pane shows —
+      // syncing explicitly keeps them correct even if that ever changes.
       updatePathwayDoc((prev) => ({
         ...prev,
         content: typeof data.content === 'string' ? data.content : prev.content,
@@ -498,6 +516,17 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
 
   function closePathwayDocument() {
     updatePathwayDoc((prev) => ({ ...prev, paneOpen: false }));
+  }
+
+  // Switches which version the pane displays — purely a viewing choice, see
+  // selectedVersionNumber's comment on PathwayDocState. versionNumber ===
+  // the latest version collapses back to null so the pane tracks new
+  // generations again instead of staying pinned to a now-stale "latest".
+  function selectPathwayDocVersion(versionNumber: number) {
+    updatePathwayDoc((prev) => ({
+      ...prev,
+      selectedVersionNumber: versionNumber === prev.versionNumber ? null : versionNumber,
+    }));
   }
 
   // Appends one client-constructed (never model-authored) assistant message
@@ -1014,6 +1043,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     pathwayDoc,
     openPathwayDocument,
     closePathwayDocument,
+    selectPathwayDocVersion,
     publishPathwayDocument,
     explorerDoc,
     openExplorerDocument,

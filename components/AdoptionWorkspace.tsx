@@ -128,6 +128,7 @@ export default function AdoptionWorkspace({
     pathwayDoc,
     openPathwayDocument,
     closePathwayDocument,
+    selectPathwayDocVersion,
     publishPathwayDocument,
     explorerDoc,
     openExplorerDocument,
@@ -195,10 +196,16 @@ export default function AdoptionWorkspace({
     return intent === 'browse' ? getBrowseOpeningMessage(wikiStats) : getExplorerIntent(intent)!.openingMessage;
   }
 
-  // Own draft always wins; otherwise fall back to the pathway's already-
-  // published document, so a contributor who hasn't drafted anything in this
-  // chat yet can still view what another contributor published.
-  const pathwayDocMarkdown = pathwayDoc.content ?? pathwayDoc.pathwayPublishedContent ?? '';
+  // A specific older version picked from the pane's dropdown wins first;
+  // otherwise the latest own draft; otherwise fall back to the pathway's
+  // already-published document, so a contributor who hasn't drafted
+  // anything in this chat yet can still view what another contributor
+  // published.
+  const selectedPathwayDocVersion =
+    pathwayDoc.selectedVersionNumber !== null
+      ? pathwayDoc.versions.find((v) => v.version_number === pathwayDoc.selectedVersionNumber)
+      : undefined;
+  const pathwayDocMarkdown = selectedPathwayDocVersion?.content ?? pathwayDoc.content ?? pathwayDoc.pathwayPublishedContent ?? '';
   const pathwayDocPublishedSlug = pathwayDoc.publishedSlug ?? pathwayDoc.pathwayPublishedSlug;
 
   const explorerDocMarkdown =
@@ -343,6 +350,10 @@ export default function AdoptionWorkspace({
                 error={pathwayDoc.error}
                 onPublish={publishPathwayDocument}
                 publishedSlug={pathwayDocPublishedSlug}
+                versions={pathwayDoc.versions}
+                selectedVersionNumber={pathwayDoc.selectedVersionNumber}
+                latestVersionNumber={pathwayDoc.versionNumber}
+                onSelectVersion={selectPathwayDocVersion}
                 onClose={closePathwayDocument}
               />
             </div>
@@ -724,6 +735,10 @@ export default function AdoptionWorkspace({
               error={pathwayDoc.error}
               onPublish={publishPathwayDocument}
               publishedSlug={pathwayDocPublishedSlug}
+              versions={pathwayDoc.versions}
+              selectedVersionNumber={pathwayDoc.selectedVersionNumber}
+              latestVersionNumber={pathwayDoc.versionNumber}
+              onSelectVersion={selectPathwayDocVersion}
               onClose={closePathwayDocument}
             />
           </div>

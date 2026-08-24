@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import WikiMarkdown from '@/components/WikiMarkdown';
+import type { VersionOption } from '@/components/AdoptionPlanModal';
 
 interface Props {
   markdown: string;
@@ -12,12 +13,32 @@ interface Props {
   onPublish: (commitMessage: string) => Promise<{ ok: boolean; slug?: string; error?: string }>;
   // Set once this adoption's contribution has ever been pushed live.
   publishedSlug: string | null;
+  // Full version history, newest first — hidden when there's one or none.
+  versions: VersionOption[];
+  // null means "the latest" — see PathwayDocState.selectedVersionNumber.
+  selectedVersionNumber: number | null;
+  latestVersionNumber: number;
+  onSelectVersion: (versionNumber: number) => void;
 }
 
-// A persistent side panel next to the chat — read-only preview plus a
-// Publish button. Revisions happen entirely through chat (see
-// contributorSystemPrompt's pathwayAction contract), not in this pane.
-export default function PathwayDocumentPane({ markdown, loading, error, onClose, onPublish, publishedSlug }: Props) {
+// A persistent side panel next to the chat — read-only preview, a version
+// dropdown, and a Publish button. Revisions happen entirely through chat
+// (see contributorSystemPrompt's pathwayAction contract), not in this pane —
+// the dropdown is for browsing history, not editing. Publish always acts on
+// the latest version regardless of which one is being viewed (see the
+// disabled-Publish branch below).
+export default function PathwayDocumentPane({
+  markdown,
+  loading,
+  error,
+  onClose,
+  onPublish,
+  publishedSlug,
+  versions,
+  selectedVersionNumber,
+  latestVersionNumber,
+  onSelectVersion,
+}: Props) {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
@@ -46,9 +67,27 @@ export default function PathwayDocumentPane({ markdown, loading, error, onClose,
             </p>
           )}
         </div>
-        <button onClick={onClose} aria-label="Close" className="px-1 text-lg leading-none text-ink-soft transition hover:text-navy">
-          ×
-        </button>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {versions.length > 1 && (
+            <select
+              value={selectedVersionNumber ?? latestVersionNumber}
+              onChange={(e) => onSelectVersion(Number(e.target.value))}
+              className="rounded-lg border border-navy/15 bg-white px-2 py-1.5 text-xs text-ink"
+              aria-label="Select version"
+            >
+              {versions.map((v) => (
+                <option key={v.version_number} value={v.version_number}>
+                  v0.{v.version_number}
+                  {v.version_number === latestVersionNumber ? ' (latest)' : ''} —{' '}
+                  {new Date(v.created_at).toLocaleString()}
+                </option>
+              ))}
+            </select>
+          )}
+          <button onClick={onClose} aria-label="Close" className="px-1 text-lg leading-none text-ink-soft transition hover:text-navy">
+            ×
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -60,13 +99,19 @@ export default function PathwayDocumentPane({ markdown, loading, error, onClose,
       {!error && markdown && (
         <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-navy/10 p-3">
           {publishError && <p className="mr-auto text-xs text-coral">{publishError}</p>}
-          <button
-            onClick={handlePublish}
-            disabled={publishing || loading}
-            className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
-          >
-            {publishing ? 'Publishing…' : 'Publish'}
-          </button>
+          {selectedVersionNumber !== null && selectedVersionNumber !== latestVersionNumber ? (
+            <p className="mr-auto text-xs text-ink-soft">
+              Viewing v0.{selectedVersionNumber} — publishing always uses the latest version.
+            </p>
+          ) : (
+            <button
+              onClick={handlePublish}
+              disabled={publishing || loading}
+              className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
+            >
+              {publishing ? 'Publishing…' : 'Publish'}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -50,11 +50,15 @@ export async function POST(req: NextRequest) {
     .single()
   if (pwErr || !pathway) return NextResponse.json({ error: 'Pathway not found' }, { status: 404 })
 
+  // Drafts are versioned (every generate/revise appends a row — see
+  // insertDraftVersion in lib/design-documents.ts), so this must pick the
+  // latest explicitly rather than an arbitrary row.
   const { data: draftRow } = await admin
     .from('design_documents')
     .select('content')
     .eq('design_id', designId)
     .eq('doc_type', 'draft')
+    .order('version_number', { ascending: false })
     .limit(1)
     .maybeSingle()
 
