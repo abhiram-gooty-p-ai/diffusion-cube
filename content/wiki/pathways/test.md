@@ -4,7 +4,7 @@ title: Savyasachi (Savya)
 sector: Founder Tools / Productivity
 stage: Explore
 timestamp: 2026-08-24
-version: v5
+version: v6
 ---
 
 # 0. Overview
@@ -189,20 +189,20 @@ None documented.
 
 # 6. Retrieval Guide
 
-- *"Why does this use WhatsApp instead of a proper app dashboard?"* → Unit 1
-- *"How does the system know when to flag something for me to review versus just handling it?"* → Unit 1, Unit 2
-- *"Is this tool meant for me as the founder, or for someone I hire to run it?"* → Unit 2
-- *"Will the AI actually get smarter about my business over time, or do I have to keep re-explaining things?"* → Unit 3, Unit 4
-- *"What happens to everything the system learns if I switch tools or start a new project?"* → Unit 3, Unit 4
-- *"How is this priced — is it based on what I'd pay a Western SaaS product or something else?"* → Unit 5, Unit 6
-- *"Why does the pricing feel different from most software subscriptions I've seen?"* → Unit 5, Unit 6
-- *"What's the actual cost benchmark this was designed around?"* → Unit 6
-- *"Which tools does this connect with — does it work with what I already use?"* → Unit 7, Unit 8
-- *"If I don't use one of the listed integrations, does the whole system break?"* → Unit 7
-- *"Was the tool stack chosen for Indian founders specifically, or is it just generic?"* → Unit 8
-- *"Can I add integrations that aren't on the list, or is the scope fixed?"* → Unit 7, Unit 8
-- *"How does the memory side of this differ from just keeping a shared Google Doc?"* → Unit 3, Unit 4
-- *"Is WhatsApp just a notification channel or can I actually take actions from it?"* → Unit 1
+- *"Why does this use WhatsApp instead of building a proper app interface?"* → Unit 1
+- *"How does this system treat the founder differently from a regular end-user?"* → Unit 2
+- *"Will the knowledge this builds up actually get smarter over time or just pile up?"* → Unit 3, Unit 4
+- *"How is pricing decided for the Indian market — is it just a discount on Western plans?"* → Unit 5, Unit 6
+- *"What tools does this actually connect to out of the box?"* → Unit 7, Unit 8
+- *"Can I use WhatsApp to get alerts and approvals without switching to another app?"* → Unit 1
+- *"Does the system learn from how I personally run my business or is it one-size-fits-all?"* → Unit 2, Unit 3
+- *"How does this compare in cost to hiring a part-time executive assistant in India?"* → Unit 6
+- *"Which Indian founder tools like Zoho, Razorpay, or Notion are already supported?"* → Unit 8
+- *"Is the integration list fixed or will it keep expanding into unrelated territory?"* → Unit 7
+- *"How does the memory layer stay useful as the business changes — does it get stale?"* → Unit 3, Unit 4
+- *"Why is the pricing anchored to an EA salary rather than a software subscription?"* → Unit 5, Unit 6
+- *"If I'm the one running this, does the system fall apart when I'm not actively using it?"* → Unit 2
+- *"Can I review and approve decisions through WhatsApp without logging into a dashboard?"* → Unit 1, Unit 2
 
 ---
 
