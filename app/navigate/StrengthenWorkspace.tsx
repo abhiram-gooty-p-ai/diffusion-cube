@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import AdoptionWorkspace, { PICK_INTENT_LABEL } from '@/components/AdoptionWorkspace';
+import { useSearchParams } from 'next/navigation';
+import AdoptionWorkspace from '@/components/AdoptionWorkspace';
 import { AdoptionConversation } from '@/lib/adoption-conversation';
 import { fetchAdoption } from '@/lib/adoptions-cache';
 
@@ -17,10 +17,8 @@ import { fetchAdoption } from '@/lib/adoptions-cache';
 // which is exactly the menu state. Nothing is lost either way: the row is
 // already persisted and reopens from the sidebar or /adoptions.
 function StrengthenWorkspaceContent() {
-  const router = useRouter();
   const openId = useSearchParams().get('open');
 
-  const [sessionKey, setSessionKey] = useState(0);
   const [opened, setOpened] = useState<AdoptionConversation | null>(null);
   // Which id `opened` actually reflects, so "still loading" is derived rather
   // than tracked as its own state that has to be kept in sync.
@@ -50,13 +48,6 @@ function StrengthenWorkspaceContent() {
   const loading = Boolean(openId) && loadedFor !== openId;
   const initial = openId && loadedFor === openId ? opened : null;
 
-  function backToMenu() {
-    setSessionKey((k) => k + 1);
-    // Drop ?open= so a reload (or the effect above re-running) doesn't
-    // immediately reopen the conversation we just backed out of.
-    if (openId) router.replace('/strengthen');
-  }
-
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center bg-paper">
@@ -67,11 +58,9 @@ function StrengthenWorkspaceContent() {
 
   return (
     <AdoptionWorkspace
-      key={`strengthen-${sessionKey}-${initial?.id ?? 'new'}`}
+      key={`navigate-${initial?.id ?? 'new'}`}
       initial={initial}
       fixedFlow="explorer"
-      onBack={backToMenu}
-      backLabel={PICK_INTENT_LABEL}
     />
   );
 }

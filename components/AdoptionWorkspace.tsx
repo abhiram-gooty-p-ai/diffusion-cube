@@ -327,8 +327,10 @@ export default function AdoptionWorkspace({
               <button type="button" onClick={preChat.onBackToMenu} className={BACK_CONTROL_CLASS}>
                 {PICK_INTENT_LABEL}
               </button>
-            ) : (
+            ) : preChat.flow === 'contributor' ? (
               <BackControl onBack={onBack} />
+            ) : (
+              <span />
             )}
             <div className="flex flex-shrink-0 items-center gap-2">
               <button
@@ -348,9 +350,9 @@ export default function AdoptionWorkspace({
               )}
             </div>
           </div>
-          {preChat.intent && (
+          {preChat.flow === 'explorer' && (
             <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-              Strengthen · {getExplorerIntent(preChat.intent)?.chipLabel}
+              Navigate through your own adoption
             </p>
           )}
           {preChat.flow === 'contributor' && pathwayPreview?.title && (
@@ -709,7 +711,7 @@ export default function AdoptionWorkspace({
 
         {flow === 'explorer' && (
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-            {intentDef ? `Strengthen · ${intentDef.chipLabel}` : 'Strengthen'}
+            {'Navigate through your own adoption'}
           </p>
         )}
         {showDeploymentHeader && (

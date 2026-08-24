@@ -122,7 +122,7 @@ function AdoptionsPageContent() {
         <div className="flex flex-shrink-0 gap-2">
           {canStrengthen && (
             <Link
-              href="/strengthen"
+              href="/navigate"
               className="rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral"
             >
               + Strengthen

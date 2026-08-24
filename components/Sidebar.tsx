@@ -97,7 +97,7 @@ export default function Sidebar({ email, adoptions, isAdmin }: Props) {
   // unlinked here).
   const navItems = [
     { href: '/explore', label: 'Explore' },
-    { href: '/strengthen', label: 'Strengthen' },
+    { href: '/navigate', label: 'Navigate' },
     { href: '/contribute', label: 'Contribute' },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
@@ -112,10 +112,10 @@ export default function Sidebar({ email, adoptions, isAdmin }: Props) {
         id: a.id,
         kind: 'strengthen' as const,
         title: a.meta?.name || 'New exploration',
-        // Strengthen sessions reopen inside /strengthen, not the /adoptions
+        // Strengthen sessions reopen inside /navigate, not the /adoptions
         // grid — that keeps the way out of them the intent menu rather than
         // a list the user never visited.
-        href: `/strengthen?open=${a.id}`,
+        href: `/navigate?open=${a.id}`,
         updatedAt: a.updated_at,
       })),
     ...libraryConversations

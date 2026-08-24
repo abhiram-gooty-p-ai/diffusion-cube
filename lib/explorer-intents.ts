@@ -66,7 +66,7 @@ export const WHAT_THE_CUBE_DOES =
 // once they're through (AdoptionWorkspace's preChat for fixedFlow==='explorer')
 // — so logging in doesn't feel like a context switch to a different page.
 export const STRENGTHEN_INTRO =
-  "Strengthen does two things: it works through your own AI adoption end to end, turning it into a clear, grounded plan — or, if you already know exactly what you're stuck on, it answers that one specific question about your pathway directly. Either way, everything it tells you traces back to real deployments in the corpus.\n\nWhat's on your mind?";
+  "• New to AI adoption? Discover where it could create meaningful value and what it would take to move forward.\n• Already piloting or scaling a use case? Draw on comparable pathways to strengthen your design end to end.\n• Stuck on a specific question or challenge? See how other adopters approached it and find relevant insights.\n\nYou can describe your adoption or upload any files you have";
 
 export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
   {

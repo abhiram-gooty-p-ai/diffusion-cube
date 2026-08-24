@@ -8,10 +8,10 @@ import { hasAnyRole, hasRole, isAdmin } from '@/lib/roles';
 import { STRENGTHEN_INTRO } from '@/lib/explorer-intents';
 
 const STRENGTHEN_COPY = {
-  eyebrow: '100 Pathways · Strengthen',
+  eyebrow: '100 Pathways · Navigate',
   heading: (
     <>
-      Strengthen your <span className="font-serif italic text-coral">own</span> adoption
+      Navigate through your <span className="font-serif italic text-coral">own</span> adoption
     </>
   ),
   // Same text the chat opens with once signed in (see STRENGTHEN_INTRO's
@@ -71,7 +71,7 @@ export default async function StrengthenPage() {
           /contribute — otherwise React reconciles both routes' workspace as
           the same instance (same type, same tree position) and carries over
           the other flow's conversation state, ignoring fixedFlow. */}
-      <StrengthenWorkspace key="strengthen" />
+      <StrengthenWorkspace key="navigate" />
     </AppShell>
   );
 }

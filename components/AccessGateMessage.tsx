@@ -25,7 +25,7 @@ export default function AccessGateMessage({ eyebrow, heading, body, cta }: Props
         <h1 className="mt-4 font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl">
           {heading}
         </h1>
-        <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft">{body}</p>
+        <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft whitespace-pre-wrap">{body}</p>
         {cta && (
           <Link
             href={cta.href}
