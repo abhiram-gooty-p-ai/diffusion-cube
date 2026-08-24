@@ -1393,9 +1393,35 @@ export function pathwayDraftSystemPrompt(
   generationPromptContent: string,
   grid: GridState,
   meta: CompanionMeta,
-  generatedAt: string
+  generatedAt: string,
+  // The pathway's own currently-published document, when this pathway
+  // already has one from an earlier contributor. Publishing simply writes
+  // whatever this mode returns straight to the live file (see
+  // app/api/pathways/assemble/route.ts) — there is no separate app-level
+  // merge step — so a second contributor's very first generation has to
+  // extend this existing document itself, in the same LLM call, rather than
+  // starting a fresh one that would overwrite what's already live.
+  existingPublishedDoc?: string | null
 ): string {
   const title = meta.name || 'Untitled Adoption';
+
+  const mergeBlock = existingPublishedDoc
+    ? `\n## This pathway is already published — update it with this conversation's information
+
+Another contributor has already published a pathway document for this same pathway, shown in full below. Your job is to produce an updated version of THAT SAME document, incorporating what this conversation adds — not a second, separate document, and not a bare append.
+
+- Where this conversation adds genuinely new reusable content, add new micro-innovation units in the right dimension/stage slots, continuing the existing numbering rather than restarting at 1.
+- Where this conversation's information updates, corrects, or supersedes something already in the document — a more advanced stage reached, a Pathway Identity field the existing document left as "Not documented in the source" that this conversation now establishes, a decision or outcome that has since changed — actually update that content in place. Don't leave stale information sitting next to information that contradicts it.
+- Update the Reading Guide and Coverage/Gaps sections so they still accurately describe the document as a whole once your changes are in — not just the newly-added parts.
+- Keep everything from the existing document that this conversation doesn't touch or contradict.
+
+Return the full updated document (Sections 0-6 + Source Trace appendix).
+
+### The pathway's current published document
+
+${existingPublishedDoc}
+`
+    : '';
 
   return `You are drafting how this adoption would read as a new pathway document for the 100 Pathways corpus — the same structured format every pathway document in the corpus uses. The user asked to preview this so they can review, edit, and decide whether to submit it for curation. Generating this draft does NOT submit or publish anything — it is for the user's own review only.
 
@@ -1406,7 +1432,7 @@ ${frameworkContent}
 ## The exact generation rules and output structure to follow
 
 ${generationPromptContent}
-
+${mergeBlock}
 ${standingContext(grid, meta)}
 
 ## Current date and time
@@ -1415,9 +1441,9 @@ ${generatedAt}
 
 CORE RULES
 
-1. Your ONLY source of facts is the conversation you're given (including anything the user uploaded within it) — never invent a name, number, outcome, or condition not actually stated. Where a section or field wants something the conversation doesn't establish, write "Not documented in the source" exactly as the generation rules above specify.
+1. Your sources of fact are this conversation (including anything the user uploaded within it)${existingPublishedDoc ? ", and the pathway's existing published document above" : ''} — never invent a name, number, outcome, or condition beyond what one of those actually states. Where a section or field wants something neither establishes, write "Not documented in the source" exactly as the generation rules above specify.
 2. Follow the output structure exactly: Sections 0–6, then the Source Trace appendix (never called "Section 7"), per the generation rules above.
-3. For the Source Trace appendix, key it to "Adoption Companion conversation" as the source, noting it's a live user's own conversation as of ${generatedAt} — not curated raw material — so a human reviewer treats every fact as the user's own account, not independently verified.
+3. For the Source Trace appendix, key new rows to "Adoption Companion conversation" for this contributor's own material, as of ${generatedAt} — not curated raw material, so a human reviewer treats every new fact as this contributor's own account, not independently verified${existingPublishedDoc ? '. Keep the existing document\'s own Source Trace rows as they are for material that was already there.' : ''}.
 4. Never mention "the framework," this prompt, or your classification reasoning anywhere in Sections 0–6 — the same rule that applies to any adopter-facing content.
 5. If the conversation hasn't established enough yet for a meaningful draft, output only: "Not enough of this adoption has been discussed yet to draft a pathway page. Keep going, and try this again once more has been established."
 

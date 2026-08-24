@@ -403,6 +403,14 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       const latestDraft = pathwayDocRef.current.content;
       const priorDraft = latestDraft ? [{ role: 'assistant', content: latestDraft }] : [];
 
+      // Only relevant for this chat's very first generation: if another
+      // contributor already published something for this pathway, the model
+      // needs to see and extend it (see pathwayDraftSystemPrompt's merge
+      // rules) rather than draft a second, separate document that would
+      // silently overwrite the existing one on publish. Once this chat has
+      // its own draft, that draft already carries the merged content forward.
+      const existingPublishedDoc = latestDraft ? null : pathwayDocRef.current.pathwayPublishedContent;
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -411,6 +419,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
           mode: 'pathway-draft',
           grid: c.grid,
           meta: c.meta,
+          existingPublishedDoc,
         }),
       });
       if (!res.body) throw new Error('No response from the server.');
@@ -425,7 +434,8 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       }
 
       // Overwrite the single draft row — no versioning during iteration.
-      // The permanent record is created in contribution_units on Publish.
+      // This becomes the published document verbatim on Publish (see
+      // publishPathwayDocument / app/api/pathways/assemble/route.ts).
       await upsertDraftDocument(c.id, text);
 
       updatePathwayDoc((prev) => ({ ...prev, content: text, loading: false }));
@@ -441,8 +451,11 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     }
   }
 
-  // Triggers assembly of the full multi-contributor pathway via the assemble
-  // route. Requires the design to be linked to a pathway (meta.pathwayId).
+  // Publishes this chat's current draft as the pathway's live document,
+  // verbatim (see app/api/pathways/assemble/route.ts) — merging another
+  // contributor's earlier work already happened once, at generation time
+  // (pathwayDraftSystemPrompt's merge rules), not again here. Requires the
+  // design to be linked to a pathway (meta.pathwayId).
   async function publishPathwayDocument(commitMessage?: string): Promise<{ ok: boolean; slug?: string; error?: string }> {
     const c = conversationRef.current;
     const pathwayId = c?.meta.pathwayId;
@@ -461,12 +474,10 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       const data = await res.json();
       if (!res.ok) return { ok: false, error: data.error ?? 'Publish failed.' };
 
-      // Assembly re-templates the contributor's own draft into the
-      // canonical multi-contributor document (see lib/pathway-assembly.ts) —
-      // a different structure from the pre-publish draft this pane was
-      // showing a moment ago. Swap to the assembled content (and persist it
-      // as this chat's own "draft" row) so the publisher immediately sees
-      // exactly what's now live, the same thing any other contributor sees.
+      // The response echoes back exactly what got published — normally
+      // identical to what this pane already showed, but syncing explicitly
+      // keeps the pane and the persisted draft row correct even if that
+      // ever changes.
       if (typeof data.content === 'string') {
         await upsertDraftDocument(c.id, data.content);
       }
