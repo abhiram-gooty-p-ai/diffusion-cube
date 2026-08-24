@@ -460,7 +460,21 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       });
       const data = await res.json();
       if (!res.ok) return { ok: false, error: data.error ?? 'Publish failed.' };
-      updatePathwayDoc((prev) => ({ ...prev, publishedSlug: data.slug ?? prev.publishedSlug }));
+
+      // Assembly re-templates the contributor's own draft into the
+      // canonical multi-contributor document (see lib/pathway-assembly.ts) —
+      // a different structure from the pre-publish draft this pane was
+      // showing a moment ago. Swap to the assembled content (and persist it
+      // as this chat's own "draft" row) so the publisher immediately sees
+      // exactly what's now live, the same thing any other contributor sees.
+      if (typeof data.content === 'string') {
+        await upsertDraftDocument(c.id, data.content);
+      }
+      updatePathwayDoc((prev) => ({
+        ...prev,
+        content: typeof data.content === 'string' ? data.content : prev.content,
+        publishedSlug: data.slug ?? prev.publishedSlug,
+      }));
       return { ok: true, slug: data.slug };
     } catch {
       return { ok: false, error: 'Could not reach the server. Try again.' };
