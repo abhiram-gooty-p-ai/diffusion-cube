@@ -666,6 +666,12 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
           flow,
           grid,
           meta,
+          // Lets the Contributor flow recognize it's adding to an already-
+          // published pathway (see contributorSystemPrompt) rather than
+          // demanding a from-scratch write-up — same field pathway-draft
+          // generation already uses to merge into it (see
+          // generatePathwayDraft above).
+          existingPublishedDoc: flow === 'contributor' ? pathwayDocRef.current.pathwayPublishedContent : undefined,
         }),
       });
 

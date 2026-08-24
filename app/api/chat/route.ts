@@ -109,7 +109,13 @@ export async function POST(req: Request) {
   } else if (mode === 'pathway-exec-summary') {
     systemPrompt = pathwaySubmissionExecutiveSummarySystemPrompt(meta ?? {}, generatedAt);
   } else if (flow === 'contributor') {
-    systemPrompt = contributorSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {});
+    systemPrompt = contributorSystemPrompt(
+      wikiContent,
+      frameworkContent,
+      grid ?? EMPTY_GRID,
+      meta ?? {},
+      typeof existingPublishedDoc === 'string' ? existingPublishedDoc : null
+    );
   } else {
     systemPrompt = explorerSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {});
   }
