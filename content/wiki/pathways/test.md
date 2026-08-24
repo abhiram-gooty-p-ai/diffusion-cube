@@ -24,7 +24,7 @@ Navigate by what you need: if you're still asking whether AI is the right tool, 
 | **Summary** | Savyasachi is an AI personal assistant built for Indian founders and operators. It converts voice memos and calls into structured memory and automated actions across Notion, Calendar, Gmail, and WhatsApp. V1 is in build; 10 early users are being recruited. The core problem is context loss and execution gaps for founders managing multiple tools and relationships simultaneously. |
 | **Scale / impact achieved** | Not documented in the source (pre-launch, 10 early users targeted) |
 | **Cost anchor** | Positioned below ₹40,000/month (cost of a human EA in India). Exact pricing not documented in the source. As of August 2026. |
-| **Build effort** | Not documented in the source |
+| **Build effort** | 2 months total — 1 month for building, 1 month for testing. |
 | **Known downstream adopters** | None at this stage |
 | **Scope / does-not-transfer-when** | Designed specifically for Indian market conditions: WhatsApp-native workflows, Indian founder context-juggling patterns, and price sensitivity relative to Western SaaS. Architecture choices may not transfer directly to Western markets or enterprise contexts where compliance, data residency, and procurement are dominant concerns. |
 
@@ -212,4 +212,4 @@ The deployment is at Explore stage, so empty Define/Pilot/Scale cells are expect
 | Source file | Covers | Notes |
 |---|---|---|
 | `savyasachi_pitch.pptx` (as of August 24, 2026) | Section 1 — all fields except contributing organisation and build effort; Section 3 — Units 1–7 (all content); Section 4 — all entries; Section 2 — gap identification for Units 1, 2, 3, 4 | Primary source. All factual claims in Sections 1–4 derive from this file. No independent verification. Contributor's own account. |
-| Adoption Companion conversation (August 24, 2026) | Section 1 — stage confirmed as Explore; Section 2 — gap framing | Confirms Explore stage. No additional facts introduced beyond the pitch deck. |
+| Adoption Companion conversation (as of August 24, 2026, 2:52 AM) | Section 1 — build effort field ("2 months total — 1 month for building, 1 month for testing"); stage confirmed as Explore; Section 2 — gap framing | Contributor's own account. Build effort figure introduced in this conversation; not present in the pitch deck. |
