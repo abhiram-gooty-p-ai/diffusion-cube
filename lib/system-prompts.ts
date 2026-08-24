@@ -1424,10 +1424,11 @@ export function pathwayDraftSystemPrompt(
   const mergeBlock = existingPublishedDoc
     ? `\n## This pathway is already published — update it with this conversation's information
 
-Another contributor has already published a pathway document for this same pathway, shown in full below. Your job is to produce an updated version of THAT SAME document, incorporating what this conversation adds — not a second, separate document, and not a bare append.
+This is the pathway's CURRENT live document, fetched fresh just now — shown in full below. It may include work from other contributors published since you last drafted anything in this conversation, so treat it as more current than anything you generated earlier in this same chat if the two disagree. Your job is to produce an updated version of THAT SAME document, incorporating what this conversation adds — not a second, separate document, not a bare append, and never a regression to an older state of a field this document already has documented.
 
 - Where this conversation adds genuinely new reusable content, add new micro-innovation units in the right dimension/stage slots, continuing the existing numbering rather than restarting at 1.
 - Where this conversation's information updates, corrects, or supersedes something already in the document — a more advanced stage reached, a Pathway Identity field the existing document left as "Not documented in the source" that this conversation now establishes, a decision or outcome that has since changed — actually update that content in place. Don't leave stale information sitting next to information that contradicts it.
+- Where a field is already filled in with real information below and this conversation doesn't say anything that changes it, keep it exactly as it is — never revert a filled-in field back to "Not documented in the source."
 - Update the Reading Guide and Coverage/Gaps sections so they still accurately describe the document as a whole once your changes are in — not just the newly-added parts.
 - Keep everything from the existing document that this conversation doesn't touch or contradict.
 

@@ -418,13 +418,22 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       const latestDraft = pathwayDocRef.current.content;
       const priorDraft = latestDraft ? [{ role: 'assistant', content: latestDraft }] : [];
 
-      // Only relevant for this chat's very first generation: if another
-      // contributor already published something for this pathway, the model
-      // needs to see and extend it (see pathwayDraftSystemPrompt's merge
-      // rules) rather than draft a second, separate document that would
-      // silently overwrite the existing one on publish. Once this chat has
-      // its own draft, that draft already carries the merged content forward.
-      const existingPublishedDoc = latestDraft ? null : pathwayDocRef.current.pathwayPublishedContent;
+      // Fetched fresh on every generate/revise, not just the first — another
+      // contributor may have published something for this pathway since
+      // this chat's own last draft, and if this chat republishes without
+      // seeing that, it silently overwrites their work. pathwayDraftSystemPrompt's
+      // merge rules tell the model to treat this as the more current state
+      // whenever it disagrees with this chat's own prior draft.
+      const pathwayId = c.meta.pathwayId;
+      let existingPublishedDoc: string | null = null;
+      if (pathwayId) {
+        const supabase = createClient();
+        const { data } = await supabase.from('pathways').select('slug, content_cache').eq('id', pathwayId).maybeSingle();
+        if (data?.content_cache) {
+          existingPublishedDoc = data.content_cache;
+          updatePathwayDoc((prev) => ({ ...prev, pathwayPublishedContent: data.content_cache, pathwayPublishedSlug: data.slug }));
+        }
+      }
 
       const res = await fetch('/api/chat', {
         method: 'POST',
