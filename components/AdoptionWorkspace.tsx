@@ -245,9 +245,11 @@ export default function AdoptionWorkspace({
   const conversationOpeningMessage: Message | null = conversation
     ? conversation.meta.flow === 'contributor'
       ? CONTRIBUTOR_OPENING_MESSAGE
-      : conversation.meta.flow === 'explorer' && conversation.meta.intent
-        ? { role: 'assistant', content: resolveOpeningMessage(conversation.meta.intent) }
-        : null
+      : fixedFlow === 'explorer'
+        ? STRENGTHEN_OPENING_MESSAGE
+        : conversation.meta.flow === 'explorer' && conversation.meta.intent
+          ? { role: 'assistant', content: resolveOpeningMessage(conversation.meta.intent) }
+          : null
     : null;
 
   const displayMessages = conversation
