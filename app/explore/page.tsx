@@ -35,7 +35,7 @@ export default async function PublicExplorePage() {
 
   return (
     <AppShell email={email} adoptions={adoptions ?? []} isAdmin={adminAccess}>
-      <ExploreLibrary />
+      <ExploreLibrary signedIn />
     </AppShell>
   );
 }

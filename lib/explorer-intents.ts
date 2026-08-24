@@ -60,6 +60,14 @@ export interface ExplorerIntentDef {
 export const WHAT_THE_CUBE_DOES =
   "The Cube holds real AI adoption journeys — the decisions behind them, what worked, what didn't — so you can see what applies to your own situation.";
 
+// What Strengthen (the old Explore, /strengthen) does, in the same words in
+// both places someone might see it: the access-gate message a signed-out
+// visitor gets (app/strengthen/page.tsx), and the chat's own opening message
+// once they're through (AdoptionWorkspace's preChat for fixedFlow==='explorer')
+// — so logging in doesn't feel like a context switch to a different page.
+export const STRENGTHEN_INTRO =
+  "Strengthen does two things: it works through your own AI adoption end to end, turning it into a clear, grounded plan — or, if you already know exactly what you're stuck on, it answers that one specific question about your pathway directly. Either way, everything it tells you traces back to real deployments in the corpus.\n\nWhat's on your mind?";
+
 export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
   {
     id: 'browse',

@@ -15,6 +15,7 @@ import {
 import {
   EXPLORER_INTENTS,
   WHAT_THE_CUBE_DOES,
+  STRENGTHEN_INTRO,
   getExplorerIntent,
   getBrowseOpeningMessage,
   type ExplorerIntent,
@@ -30,6 +31,18 @@ import type { WikiStats } from '@/lib/wiki-content';
 const CONTRIBUTOR_OPENING_MESSAGE: Message = {
   role: 'assistant',
   content: "Please share your deployment related documents (pdf, docx). I'll read through them and put together a draft pathway for you to check.",
+};
+
+// Strengthen (fixedFlow==='explorer', i.e. /strengthen specifically — not
+// the picker-based /adoptions "start new" path) skips the 4-intent menu
+// entirely and opens straight into chat with this line, same text as the
+// access-gate page a signed-out visitor saw first (see STRENGTHEN_INTRO's
+// comment) so logging in doesn't feel like a context switch. Defaults to the
+// 'guidance' intent under the hood — the broadest of the four, since there's
+// no explicit picker here to ask.
+const STRENGTHEN_OPENING_MESSAGE: Message = {
+  role: 'assistant',
+  content: STRENGTHEN_INTRO,
 };
 
 const BACK_CONTROL_CLASS = 'text-xs font-medium text-ink-soft transition hover:text-coral';
@@ -282,14 +295,16 @@ export default function AdoptionWorkspace({
       ? null
       : fixedFlow === 'contributor'
         ? { opening: CONTRIBUTOR_OPENING_MESSAGE, flow: 'contributor', intent: '' }
-        : pendingIntent
-          ? {
-              opening: { role: 'assistant', content: resolveOpeningMessage(pendingIntent) },
-              flow: 'explorer',
-              intent: pendingIntent,
-              onBackToMenu: () => setPendingIntent(null),
-            }
-          : null;
+        : fixedFlow === 'explorer'
+          ? { opening: STRENGTHEN_OPENING_MESSAGE, flow: 'explorer', intent: 'guidance' }
+          : pendingIntent
+            ? {
+                opening: { role: 'assistant', content: resolveOpeningMessage(pendingIntent) },
+                flow: 'explorer',
+                intent: pendingIntent,
+                onBackToMenu: () => setPendingIntent(null),
+              }
+            : null;
 
   if (preChat) {
     return (

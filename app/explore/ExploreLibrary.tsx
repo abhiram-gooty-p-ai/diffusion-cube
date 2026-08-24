@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 type Stage = 'Explore' | 'Define' | 'Pilot' | 'Scale';
 type Accent = 'coral' | 'yellow' | 'blue' | 'navy';
@@ -21,6 +22,25 @@ interface LibraryPathway extends WikiPathwayIndexEntry {
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type View = 'library' | 'chat';
+
+// A signed-in visitor's saved chat (library_conversations) — an anonymous
+// visitor never has any of these, and their own chats stay purely in-memory.
+interface SavedConversation {
+  id: string;
+  pathway_slug: string | null;
+  pathway_title: string | null;
+  messages: ChatMessage[];
+  updated_at: string;
+}
+
+function formatRelativeTime(iso: string): string {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
 
 const ACCENT_ROTATION: Accent[] = ['coral', 'yellow', 'blue', 'navy'];
 
@@ -49,7 +69,7 @@ const accentBadge: Record<Accent, string> = {
 
 const STAGE_ORDER: Stage[] = ['Explore', 'Define', 'Pilot', 'Scale'];
 
-export default function ExploreLibrary() {
+export default function ExploreLibrary({ signedIn = false }: { signedIn?: boolean }) {
   const [pathways, setPathways] = useState<LibraryPathway[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [activeStage, setActiveStage] = useState<Stage | 'All'>('All');
@@ -59,6 +79,12 @@ export default function ExploreLibrary() {
   const [isThinking, setIsThinking] = useState(false);
   const [view, setView] = useState<View>('library');
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Signed-in only — see SavedConversation's comment. currentConversationId
+  // tracks which row (if any) this chat continues, so saves after the first
+  // one update in place instead of creating a new row per turn.
+  const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +104,55 @@ export default function ExploreLibrary() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!signedIn) return;
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from('library_conversations')
+      .select('id, pathway_slug, pathway_title, messages, updated_at')
+      .order('updated_at', { ascending: false })
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setSavedConversations(data as SavedConversation[]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn]);
+
+  // Upserts the current conversation for a signed-in visitor — fire-and-
+  // forget, called right after each assistant reply finishes so a refresh
+  // mid-conversation never loses anything. Silent on failure: this is a
+  // convenience cache, not the primary experience.
+  async function saveConversation(history: ChatMessage[], pathway: LibraryPathway | null | undefined) {
+    if (!signedIn) return;
+    const supabase = createClient();
+    if (currentConversationId) {
+      const { error } = await supabase
+        .from('library_conversations')
+        .update({ messages: history, updated_at: new Date().toISOString() })
+        .eq('id', currentConversationId);
+      if (!error) {
+        setSavedConversations((prev) =>
+          prev
+            .map((c) => (c.id === currentConversationId ? { ...c, messages: history, updated_at: new Date().toISOString() } : c))
+            .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+        );
+      }
+      return;
+    }
+    const { data, error } = await supabase
+      .from('library_conversations')
+      .insert({ pathway_slug: pathway?.slug ?? null, pathway_title: pathway?.title ?? null, messages: history })
+      .select('id, pathway_slug, pathway_title, messages, updated_at')
+      .single();
+    if (!error && data) {
+      setCurrentConversationId(data.id);
+      setSavedConversations((prev) => [data as SavedConversation, ...prev]);
+    }
+  }
+
   const availableStages = STAGE_ORDER.filter((s) => pathways.some((p) => p.stage === s));
   const filtered = activeStage === 'All' ? pathways : pathways.filter((p) => p.stage === activeStage);
 
@@ -85,11 +160,14 @@ export default function ExploreLibrary() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isThinking]);
 
-  // Ephemeral — nothing here is saved as an adoption. Streams from this
-  // app's own /api/chat (mode: 'library'), a lightweight Q&A prompt with no
-  // grid/flow tracking (see librarySystemPrompt in lib/system-prompts.ts),
-  // unlike the tracked, persisted Explorer/Contributor conversations.
-  async function streamReply(history: ChatMessage[], pathwayTitle?: string) {
+  // Streams from this app's own /api/chat (mode: 'library'), a lightweight
+  // Q&A prompt with no grid/flow tracking (see librarySystemPrompt in
+  // lib/system-prompts.ts), unlike the tracked, persisted Explorer/
+  // Contributor conversations. `pathway` (not just its title) is threaded
+  // through explicitly rather than read from `selected` state here, so
+  // saveConversation always gets the pathway this exact turn belongs to,
+  // never a stale value from a state update that hasn't landed yet.
+  async function streamReply(history: ChatMessage[], pathwayTitle: string | undefined, pathway: LibraryPathway | null) {
     setMessages([...history, { role: 'assistant', content: '' }]);
     setIsThinking(true);
     try {
@@ -114,6 +192,7 @@ export default function ExploreLibrary() {
         }
         setMessages([...history, { role: 'assistant', content: text }]);
       }
+      void saveConversation([...history, { role: 'assistant', content: text }], pathway);
     } catch {
       setMessages([
         ...history,
@@ -124,21 +203,26 @@ export default function ExploreLibrary() {
     }
   }
 
-  function sendMessage(text: string, options?: { pathwayTitle?: string; historyOverride?: ChatMessage[] }) {
+  function sendMessage(
+    text: string,
+    options?: { pathwayTitle?: string; pathway?: LibraryPathway | null; historyOverride?: ChatMessage[] }
+  ) {
     const trimmed = text.trim();
     if (!trimmed) return;
     const base = options?.historyOverride ?? messages;
     const next = [...base, { role: 'user' as const, content: trimmed }];
     setDraft('');
-    void streamReply(next, options?.pathwayTitle);
+    void streamReply(next, options?.pathwayTitle, options?.pathway ?? null);
   }
 
   function startPathwayChat(pathway: LibraryPathway) {
     setSelected(pathway);
     setView('chat');
     setMessages([]);
+    setCurrentConversationId(null);
     sendMessage(`Tell me about the ${pathway.title} pathway.`, {
       pathwayTitle: pathway.title,
+      pathway,
       historyOverride: [],
     });
   }
@@ -146,7 +230,18 @@ export default function ExploreLibrary() {
   function handleAskGeneral(text: string) {
     setSelected(null);
     setView('chat');
+    setCurrentConversationId(null);
     sendMessage(text, { historyOverride: [] });
+  }
+
+  // Reopens a signed-in visitor's saved chat — re-matches its pathway_slug
+  // against the loaded pathway list purely for the chat header's badge/icon;
+  // the conversation itself replays from its own stored messages either way.
+  function reopenConversation(conv: SavedConversation) {
+    setCurrentConversationId(conv.id);
+    setMessages(conv.messages);
+    setSelected(conv.pathway_slug ? (pathways.find((p) => p.slug === conv.pathway_slug) ?? null) : null);
+    setView('chat');
   }
 
   if (view === 'chat') {
@@ -158,7 +253,7 @@ export default function ExploreLibrary() {
         setDraft={setDraft}
         isThinking={isThinking}
         bottomRef={bottomRef}
-        onSend={(text) => sendMessage(text, { pathwayTitle: selected?.title })}
+        onSend={(text) => sendMessage(text, { pathwayTitle: selected?.title, pathway: selected })}
         onBack={() => setView('library')}
       />
     );
@@ -185,19 +280,33 @@ export default function ExploreLibrary() {
               e.preventDefault();
               handleAskGeneral(draft);
             }}
-            className="glow-input flex items-center gap-3 rounded-full border border-navy/15 bg-white p-3 transition focus-within:border-coral"
+            className="glow-input flex items-end gap-3 rounded-3xl border border-navy/15 bg-white p-3 transition focus-within:border-coral"
           >
-            <input
+            <ComposerTextarea
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
+              onSubmit={() => handleAskGeneral(draft)}
               placeholder="Ask Jude anything about the pathways…"
-              className="flex-1 bg-transparent px-4 py-3 text-lg outline-none placeholder:text-ink-soft"
+              className="flex-1 resize-none bg-transparent px-4 py-3 text-lg outline-none placeholder:text-ink-soft"
+              minHeight={32}
+              maxHeight={200}
             />
             <SendButton disabled={!draft.trim()} size="lg" />
           </form>
         </section>
       </div>
       <p className="mx-auto mb-14 max-w-2xl px-6 text-center text-sm text-ink-soft">or click a pathway below to start</p>
+
+      {signedIn && savedConversations.length > 0 && (
+        <section className="mx-auto max-w-6xl px-6 pb-10">
+          <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-coral">Your conversations</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {savedConversations.map((conv) => (
+              <SavedConversationCard key={conv.id} conversation={conv} onOpen={() => reopenConversation(conv)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-coral">Browse the pathways</p>
@@ -222,6 +331,21 @@ export default function ExploreLibrary() {
         )}
       </section>
     </div>
+  );
+}
+
+function SavedConversationCard({ conversation, onOpen }: { conversation: SavedConversation; onOpen: () => void }) {
+  const lastMessage = conversation.messages[conversation.messages.length - 1];
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex flex-col gap-1.5 rounded-2xl border border-navy/10 bg-white p-4 text-left shadow-sm transition hover:border-coral/50 hover:shadow-md"
+    >
+      <div className="font-display font-medium text-navy">{conversation.pathway_title || 'General question'}</div>
+      {lastMessage && <p className="line-clamp-2 text-sm text-ink-soft">{lastMessage.content}</p>}
+      <div className="mt-auto pt-1 text-[10px] text-ink-soft/70">Updated {formatRelativeTime(conversation.updated_at)}</div>
+    </button>
   );
 }
 
@@ -367,13 +491,16 @@ function ChatView({
             e.preventDefault();
             onSend(draft);
           }}
-          className="mx-auto flex max-w-3xl items-center gap-3 rounded-full border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral"
+          className="mx-auto flex max-w-3xl items-end gap-3 rounded-2xl border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral"
         >
-          <input
+          <ComposerTextarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={setDraft}
+            onSubmit={() => onSend(draft)}
             placeholder="Ask a follow-up…"
-            className="flex-1 bg-transparent px-4 py-2.5 text-[15px] outline-none placeholder:text-ink-soft"
+            className="flex-1 resize-none bg-transparent px-4 py-2.5 text-[15px] outline-none placeholder:text-ink-soft"
+            minHeight={24}
+            maxHeight={160}
           />
           <SendButton disabled={!draft.trim() || isThinking} />
         </form>
@@ -410,6 +537,55 @@ function MessageText({ content }: { content: string }) {
         </p>
       ))}
     </>
+  );
+}
+
+// Auto-growing textarea — Enter sends, Shift+Enter inserts a newline and
+// lets the box grow (same idiom as ChatPanel's own composer).
+function ComposerTextarea({
+  value,
+  onChange,
+  onSubmit,
+  placeholder,
+  className,
+  minHeight,
+  maxHeight,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  placeholder: string;
+  className: string;
+  minHeight: number;
+  maxHeight: number;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, minHeight), maxHeight)}px`;
+  }, [value, minHeight, maxHeight]);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit();
+    }
+  }
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={handleKeyDown}
+      placeholder={placeholder}
+      style={{ height: minHeight, maxHeight }}
+      className={className}
+    />
   );
 }
 

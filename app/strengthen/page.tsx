@@ -5,6 +5,7 @@ import AccessGateMessage from '@/components/AccessGateMessage';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/server';
 import { hasAnyRole, hasRole, isAdmin } from '@/lib/roles';
+import { STRENGTHEN_INTRO } from '@/lib/explorer-intents';
 
 const STRENGTHEN_COPY = {
   eyebrow: '100 Pathways · Strengthen',
@@ -13,7 +14,9 @@ const STRENGTHEN_COPY = {
       Strengthen your <span className="font-serif italic text-coral">own</span> adoption
     </>
   ),
-  body: "Strengthen does two things: it works through your own AI adoption end to end, turning it into a clear, grounded plan — or, if you already know exactly what you're stuck on, it answers that one specific question about your pathway directly. Either way, everything it tells you traces back to real deployments in the corpus.",
+  // Same text the chat opens with once signed in (see STRENGTHEN_INTRO's
+  // comment) — logging in shouldn't feel like a context switch.
+  body: STRENGTHEN_INTRO,
 };
 
 // Always visible in the sidebar, approved or not — this page (like /explore
