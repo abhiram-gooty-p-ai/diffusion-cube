@@ -2,7 +2,21 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-const PUBLIC_PATHS = ['/login'];
+// /explore (the Library) is deliberately open with no login or registration
+// required — its own API dependencies (/api/chat's 'library' mode,
+// /api/wiki-pathways) have to be reachable by an anonymous caller too.
+// /api/chat still enforces its own per-mode role checks internally for
+// every mode other than 'library' (see app/api/chat/route.ts) — making it
+// reachable here doesn't weaken that, it just moves the "logged in?" check
+// from this middleware into the route handler, which already treats itself
+// as the real enforcement boundary regardless of this middleware.
+//
+// /strengthen and /contribute are also public paths now, but for a different
+// reason: they're always visible in the sidebar, and each page handles its
+// own tiered gating (see their own page.tsx — an AccessGateMessage for an
+// anonymous or under-qualified visitor, the real workspace once approved).
+// Letting the middleware redirect them away first would defeat that entirely.
+const PUBLIC_PATHS = ['/login', '/explore', '/strengthen', '/contribute', '/api/chat', '/api/wiki-pathways'];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -38,6 +52,14 @@ export async function proxy(request: NextRequest) {
   if (!user && !isPublicPath) {
     if (pathname.startsWith('/api')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // The root path's own redirect logic ((app)/page.tsx) lives behind the
+    // (app) layout's approval gate, which would otherwise show "Awaiting
+    // approval" to a visitor who never even signed up. An anonymous "/" hit
+    // goes straight to the Library instead of a login wall — /explore is the
+    // one page that's supposed to need neither login nor registration.
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/explore', request.url));
     }
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', pathname);

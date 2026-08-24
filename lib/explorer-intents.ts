@@ -2,7 +2,7 @@
 //
 // An Explorer arrives at the Cube with one of four quite different jobs to be
 // done, and the flow that serves each is genuinely different — so the intent
-// is picked explicitly from a menu on /explore rather than inferred from free
+// is picked explicitly from a menu on /strengthen rather than inferred from free
 // text (see AdoptionWorkspace's welcome screen). Once picked it's stored as
 // AdoptionMeta.intent and re-injected into every companion turn, exactly the
 // way flowStep is.

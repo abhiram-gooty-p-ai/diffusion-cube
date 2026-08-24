@@ -34,7 +34,7 @@ export function setAdoptionsListCache(list: AdoptionConversation[]) {
 }
 
 // One adoption by id, read fresh — deliberately not served from the list
-// cache above. Deep links (/explore?open=<id>) can arrive for a row created
+// cache above. Deep links (/strengthen?open=<id>) can arrive for a row created
 // seconds ago, which a still-warm list cache wouldn't know about, and a
 // conversation continued in another tab would come back short of its latest
 // messages. A single-row read is cheap enough that correctness wins.

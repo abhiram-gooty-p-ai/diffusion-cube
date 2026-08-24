@@ -35,7 +35,7 @@ const CONTRIBUTOR_OPENING_MESSAGE: Message = {
 const BACK_CONTROL_CLASS = 'text-xs font-medium text-ink-soft transition hover:text-coral';
 
 // The Explorer flow's way back to the intent menu, used while no row exists
-// yet and passed in as `backLabel` by /explore for the rest of the
+// yet and passed in as `backLabel` by /strengthen for the rest of the
 // conversation. Callers where "back" means something else (the /adoptions
 // grid) keep the default '← Back'.
 export const PICK_INTENT_LABEL = '← Pick a different starting point';
@@ -76,14 +76,14 @@ const EXPLORER_DOC_LABELS: Record<DocType, { title: string; filenameSuffix: stri
 
 interface Props {
   initial: AdoptionConversation | null;
-  // Set from a dedicated entry point (/explore or /contribute) — the
+  // Set from a dedicated entry point (/strengthen or /contribute) — the
   // welcome screen shows a single Start button bound to this flow instead
-  // of a picker. Falls back to canExplore/canContribute below if omitted.
+  // of a picker. Falls back to canStrengthen/canContribute below if omitted.
   fixedFlow?: AdoptionFlow;
   // Contributor-only: the pathway this workspace is linked to, chosen via
   // PathwaySelector before the workspace opens.
   pathwayId?: string;
-  canExplore?: boolean;
+  canStrengthen?: boolean;
   canContribute?: boolean;
   onCreated?: (c: AdoptionConversation) => void;
   onChange?: (c: AdoptionConversation) => void;
@@ -94,7 +94,7 @@ interface Props {
   // is a no-op in the App Router — it never remounts local `selection` state.
   onBack?: () => void;
   // What that control says in the Explorer flow, since "back" means different
-  // things per caller: the intent menu on /explore, the grid on /adoptions.
+  // things per caller: the intent menu on /strengthen, the grid on /adoptions.
   backLabel?: string;
 }
 
@@ -111,7 +111,7 @@ export default function AdoptionWorkspace({
   initial,
   fixedFlow,
   pathwayId,
-  canExplore = false,
+  canStrengthen = false,
   canContribute = false,
   onCreated,
   onChange,
@@ -140,8 +140,8 @@ export default function AdoptionWorkspace({
   // handlers and its Start button use the exact same flow — a prior bug had
   // this computed only inside the JSX below, which the file-upload path
   // (drag-drop and the attach button) never saw, so uploads silently created
-  // the row with an empty flow regardless of /explore vs /contribute.
-  const defaultFlow: AdoptionFlow = fixedFlow ?? (canExplore ? 'explorer' : canContribute ? 'contributor' : '');
+  // the row with an empty flow regardless of /strengthen vs /contribute.
+  const defaultFlow: AdoptionFlow = fixedFlow ?? (canStrengthen ? 'explorer' : canContribute ? 'contributor' : '');
 
   const [welcomeInput, setWelcomeInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -335,7 +335,7 @@ export default function AdoptionWorkspace({
           </div>
           {preChat.intent && (
             <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-              Explorer · {getExplorerIntent(preChat.intent)?.chipLabel}
+              Strengthen · {getExplorerIntent(preChat.intent)?.chipLabel}
             </p>
           )}
           {preChat.flow === 'contributor' && pathwayPreview?.title && (
@@ -432,7 +432,7 @@ export default function AdoptionWorkspace({
     const canSend = !loading && !hasBlockingAttachment && (welcomeInput.trim().length > 0 || hasReadyAttachment);
     // The Explorer flow always starts from the intent menu, so it replaces
     // the generic "Start" button wherever the Explorer flow is startable.
-    const showExplorerMenu = fixedFlow === 'explorer' || (!fixedFlow && canExplore);
+    const showStrengthenMenu = fixedFlow === 'explorer' || (!fixedFlow && canStrengthen);
 
     function handleWelcomeSend(flow: AdoptionFlow, intent: ExplorerIntent = '') {
       if (!canSend) return;
@@ -458,7 +458,7 @@ export default function AdoptionWorkspace({
       if (e.key !== 'Enter' || e.shiftKey) return;
       // With the intent menu up there's no single "start" action to bind
       // Enter to — the choice of intent is the start. Let the newline happen.
-      if (showExplorerMenu || !defaultFlow) return;
+      if (showStrengthenMenu || !defaultFlow) return;
       e.preventDefault();
       handleWelcomeSend(defaultFlow);
     }
@@ -480,21 +480,21 @@ export default function AdoptionWorkspace({
         <div className="w-full max-w-2xl animate-fade-in-up">
           {/* The intent menu opens on its question directly — a kicker above
               it just delays the one thing the screen is actually asking. */}
-          {!showExplorerMenu && (
+          {!showStrengthenMenu && (
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">
               {fixedFlow === 'contributor' ? 'Contribute a Pathway' : 'Diffusion Cube'}
             </p>
           )}
           <h1
             className={`font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl ${
-              showExplorerMenu ? '' : 'mt-4'
+              showStrengthenMenu ? '' : 'mt-4'
             }`}
           >
             {fixedFlow === 'contributor' ? (
               <>
                 Turn your deployment into a <span className="font-serif italic text-coral">pathway</span>
               </>
-            ) : showExplorerMenu ? (
+            ) : showStrengthenMenu ? (
               <>
                 What brings you to the <span className="font-serif italic text-coral">Cube</span>?
               </>
@@ -507,7 +507,7 @@ export default function AdoptionWorkspace({
           <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft">
             {fixedFlow === 'contributor'
               ? "Share the write-up you have. I'll remap it into the four-dimension pathway format, flag the open gaps, and help you push it to the wiki once you're ready."
-              : showExplorerMenu
+              : showStrengthenMenu
                 ? WHAT_THE_CUBE_DOES
                 : 'Share the documents you have, or just start talking. Everything you hear back is grounded in what real deployments learned.'}
           </p>
@@ -515,7 +515,7 @@ export default function AdoptionWorkspace({
           {/* The intent menu. Explicit and up front — the Cube asks rather
               than inferring which of the four jobs someone is here for, so
               the flow it runs is never a guess about their free text. */}
-          {showExplorerMenu && (
+          {showStrengthenMenu && (
             <div className="mt-7 grid gap-2 sm:grid-cols-2">
               {EXPLORER_INTENTS.map((intent) => (
                 <button
@@ -533,7 +533,7 @@ export default function AdoptionWorkspace({
           )}
 
           <div className="mt-8">
-            {showExplorerMenu && (
+            {showStrengthenMenu && (
               <p className="mb-2 text-xs text-ink-soft">
                 Optional — add a document or a few lines of context first, then pick a starting point above.
               </p>
@@ -594,7 +594,7 @@ export default function AdoptionWorkspace({
               />
               {fixedFlow && (
                 <button
-                  onClick={() => handleWelcomeSend(showExplorerMenu ? 'explorer' : fixedFlow, showExplorerMenu ? 'open' : '')}
+                  onClick={() => handleWelcomeSend(showStrengthenMenu ? 'explorer' : fixedFlow, showStrengthenMenu ? 'open' : '')}
                   disabled={!canSend}
                   className="rounded-xl bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
                 >
@@ -604,7 +604,7 @@ export default function AdoptionWorkspace({
             </div>
 
             {!fixedFlow &&
-              (canExplore || canContribute ? (
+              (canStrengthen || canContribute ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {canContribute && (
                     <button
@@ -694,7 +694,7 @@ export default function AdoptionWorkspace({
 
         {flow === 'explorer' && (
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-            {intentDef ? `Explorer · ${intentDef.chipLabel}` : 'Explorer'}
+            {intentDef ? `Strengthen · ${intentDef.chipLabel}` : 'Strengthen'}
           </p>
         )}
         {showDeploymentHeader && (

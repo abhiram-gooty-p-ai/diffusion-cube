@@ -6,7 +6,7 @@ import AdoptionWorkspace, { PICK_INTENT_LABEL } from '@/components/AdoptionWorks
 import { AdoptionConversation } from '@/lib/adoption-conversation';
 import { fetchAdoption } from '@/lib/adoptions-cache';
 
-// /explore owns Explorer sessions end to end: starting a new one from the
+// /strengthen owns Explorer sessions end to end: starting a new one from the
 // intent menu, and reopening a past one via ?open=<id> (the sidebar's "Recent
 // Explorations" links here rather than to the /adoptions grid, so the way
 // back is always the intent menu rather than someone else's list view).
@@ -16,7 +16,7 @@ import { fetchAdoption } from '@/lib/adoptions-cache';
 // AdoptionWorkspace's own hook. Bumping the key gives it a null conversation,
 // which is exactly the menu state. Nothing is lost either way: the row is
 // already persisted and reopens from the sidebar or /adoptions.
-function ExploreWorkspaceContent() {
+function StrengthenWorkspaceContent() {
   const router = useRouter();
   const openId = useSearchParams().get('open');
 
@@ -54,7 +54,7 @@ function ExploreWorkspaceContent() {
     setSessionKey((k) => k + 1);
     // Drop ?open= so a reload (or the effect above re-running) doesn't
     // immediately reopen the conversation we just backed out of.
-    if (openId) router.replace('/explore');
+    if (openId) router.replace('/strengthen');
   }
 
   if (loading) {
@@ -67,7 +67,7 @@ function ExploreWorkspaceContent() {
 
   return (
     <AdoptionWorkspace
-      key={`explore-${sessionKey}-${initial?.id ?? 'new'}`}
+      key={`strengthen-${sessionKey}-${initial?.id ?? 'new'}`}
       initial={initial}
       fixedFlow="explorer"
       onBack={backToMenu}
@@ -76,12 +76,12 @@ function ExploreWorkspaceContent() {
   );
 }
 
-export default function ExploreWorkspace() {
+export default function StrengthenWorkspace() {
   // useSearchParams needs a Suspense boundary to keep the route from opting
   // the whole page into client-side rendering — same pattern /adoptions uses.
   return (
     <Suspense fallback={<div className="flex-1 bg-paper" />}>
-      <ExploreWorkspaceContent />
+      <StrengthenWorkspaceContent />
     </Suspense>
   );
 }

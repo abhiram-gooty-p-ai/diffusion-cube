@@ -16,11 +16,9 @@ interface Props {
   email: string | null;
   adoptions: AdoptionSummary[];
   isAdmin?: boolean;
-  canExplore?: boolean;
-  canContribute?: boolean;
 }
 
-export default function Sidebar({ email, adoptions, isAdmin, canExplore, canContribute }: Props) {
+export default function Sidebar({ email, adoptions, isAdmin }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(pathname);
@@ -49,21 +47,23 @@ export default function Sidebar({ email, adoptions, isAdmin, canExplore, canCont
     if (mobileOpen) setMobileOpen(false);
   }
 
-  // Explore/Contribute are separate entry points (each starts a new
-  // adoption in that flow) rather than a choice made inline on a shared
-  // welcome screen — mirrors the pre-revamp Explore/Design split. The wiki
-  // itself is corpus material for the companion's prompts now, not a
-  // user-facing nav destination (the pages still exist at /wiki, just
+  // Explore, Strengthen, and Contribute are all always shown, regardless of
+  // role or approval status — each page gates itself (see their own
+  // page.tsx) with an explanatory message and a login/signup button instead
+  // of just vanishing from the nav. Only Admin stays conditionally hidden.
+  // The wiki itself is corpus material for the companion's prompts now, not
+  // a user-facing nav destination (the pages still exist at /wiki, just
   // unlinked here).
   const navItems = [
-    ...(canExplore ? [{ href: '/explore', label: 'Explore' }] : []),
-    ...(canContribute ? [{ href: '/contribute', label: 'Contribute' }] : []),
+    { href: '/explore', label: 'Explore' },
+    { href: '/strengthen', label: 'Strengthen' },
+    { href: '/contribute', label: 'Contribute' },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 
   // Contributions now live in their own grid at /contribute — this list is
-  // Explorer-only, so it's a real "recent explorations" shortcut rather than
-  // a mixed-flow dump.
+  // Strengthen-only, so it's a real "recent explorations" shortcut rather
+  // than a mixed-flow dump.
   const recentExplorations = adoptions.filter((a) => a.meta?.flow === 'explorer' && !deletedIds.has(a.id));
 
   const body = (
@@ -100,10 +100,10 @@ export default function Sidebar({ email, adoptions, isAdmin, canExplore, canCont
               {recentExplorations.map((a) => (
                 <div key={a.id} className="group/item flex items-center rounded-lg hover:bg-paper-dim">
                   <Link
-                    // Explorer sessions reopen inside /explore, not the
+                    // Strengthen sessions reopen inside /strengthen, not the
                     // /adoptions grid — that keeps the way out of them the
                     // intent menu rather than a list the user never visited.
-                    href={`/explore?open=${a.id}`}
+                    href={`/strengthen?open=${a.id}`}
                     className="block flex-1 truncate px-3 py-1.5 text-xs text-ink-soft transition group-hover/item:text-navy"
                     title={a.meta?.name || 'New exploration'}
                   >
@@ -125,10 +125,20 @@ export default function Sidebar({ email, adoptions, isAdmin, canExplore, canCont
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-navy/10 p-3">
-        <span className="truncate text-xs text-ink-soft" title={email ?? undefined}>
-          {email ?? ''}
-        </span>
-        <SignOutButton />
+        {email ? (
+          <>
+            <span className="truncate text-xs text-ink-soft" title={email}>
+              {email}
+            </span>
+            <SignOutButton />
+          </>
+        ) : (
+          // An anonymous visitor to /explore (no login required there) has no
+          // session to sign out of — offer signing in instead.
+          <Link href="/login" className="text-xs font-medium text-navy transition hover:text-coral">
+            Sign in
+          </Link>
+        )}
       </div>
     </>
   );

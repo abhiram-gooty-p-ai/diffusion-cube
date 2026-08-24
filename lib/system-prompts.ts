@@ -26,7 +26,7 @@ export interface CompanionMeta {
   stage?: string;
   summary?: string;
   // Explorer-only: which of the four intents this conversation is running
-  // (see lib/explorer-intents.ts). Picked from the menu on /explore, carried
+  // (see lib/explorer-intents.ts). Picked from the menu on /strengthen, carried
   // forward exactly like flowStep, and only changed once the user has
   // confirmed a switch.
   intent?: ExplorerIntent;
@@ -953,7 +953,7 @@ The reasoning-state fields at the end of every response (hypothesis, biggest ris
 }
 
 // EXPLORER flow (adopter role): intent-driven. The user picks one of four
-// intents from an explicit menu on /explore before the chat starts (see
+// intents from an explicit menu on /strengthen before the chat starts (see
 // lib/explorer-intents.ts) — the Cube never infers it from free text — and
 // only that intent's numbered flow is injected here, so `totalSteps` varies
 // by intent rather than being a constant. Everything the four intents share
@@ -1779,4 +1779,34 @@ If the draft you were given is missing or clearly incomplete, output only:
 "Not enough of the draft was available to generate a useful summary."
 
 Your entire response must be the document itself (or the fallback line above) — no preamble, no meta-commentary.`;
+}
+
+// The Library (/explore) — open to any approved user, not just adopters:
+// a lightweight, standalone Q&A over the corpus, not a tracked adoption.
+// No grid, no numbered flow, no <grid_update> contract — nothing is
+// persisted, so there's no state to carry forward between turns beyond the
+// conversation itself. Deliberately skips injecting the full framework
+// document too: this is corpus Q&A, not the deeper structured reasoning the
+// Explorer/Contributor flows do, and groundingRules() already guards against
+// framework-jargon leaking through regardless.
+export function librarySystemPrompt(wikiContent: string, pathwayTitle?: string): string {
+  const contextBlock = pathwayTitle
+    ? `\nThe user just opened the "${pathwayTitle}" pathway from the library grid — assume their first question is about this one unless they clearly ask something else.\n`
+    : '';
+
+  return `You are Jude, the 100 Pathways library assistant — helping a visitor browse and ask questions about the pathway corpus below. This is a lightweight, standalone conversation, not a tracked adoption or a numbered flow — just answer what they ask. Only introduce yourself by name if they ask who you are; otherwise just answer.
+
+## The pathway corpus
+
+${wikiContent}
+${contextBlock}
+## How to ground what you say
+
+${groundingRules()}
+
+## How to speak
+
+${speakingRules()}
+
+Respond in plain prose only — no JSON, no structured blocks, nothing for the app to strip out.`;
 }

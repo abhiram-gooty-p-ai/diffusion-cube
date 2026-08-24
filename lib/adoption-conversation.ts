@@ -65,7 +65,7 @@ export interface AdoptionMeta {
   pathwayId: string;
   // Explorer-only: which of the four intents this conversation is running
   // (see lib/explorer-intents.ts). Picked explicitly from the menu on
-  // /explore before the first message, never inferred from what the user
+  // /strengthen before the first message, never inferred from what the user
   // types. Unlike `flow` it can change mid-conversation — but only after the
   // model has flagged the mismatch and the user has confirmed the switch, at
   // which point flowStep resets to the new intent's step 1.

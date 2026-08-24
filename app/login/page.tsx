@@ -122,7 +122,11 @@ function LoginForm() {
       });
     }
 
-    router.replace(next);
+    // A fresh signup always lands on /explore — it's open with no approval
+    // needed, so it's the one place a pending account has something to do
+    // while waiting, rather than landing back on whatever gated page sent
+    // them here (see `next`, which sign-IN below still honors).
+    router.replace('/explore');
     router.refresh();
   }
 

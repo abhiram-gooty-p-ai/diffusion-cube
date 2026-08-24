@@ -1,8 +1,8 @@
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import { hasAnyRole, hasRole, isAdmin } from '@/lib/roles';
+import { hasAnyRole, isAdmin } from '@/lib/roles';
 import SiteHeader from '@/components/SiteHeader';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/AppShell';
 import SignOutButton from '@/components/SignOutButton';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +16,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // A brand-new signup has zero rows in user_roles — that's "pending," no
   // separate status column needed. An admin approving is granting a role
-  // via /admin, which is exactly what flips this.
+  // via /admin, which is exactly what flips this. Explore/Strengthen/
+  // Contribute live outside this route group precisely so a pending or
+  // anonymous visitor can still reach them instead of hitting this screen —
+  // this gate now only covers /adoptions, /wiki, and /admin.
   const approved = await hasAnyRole(supabase);
   if (!approved) {
     return (
@@ -38,25 +41,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const [{ data: adoptions }, canExplore, adminAccess] = await Promise.all([
+  const [{ data: adoptions }, adminAccess] = await Promise.all([
     supabase.from('designs').select('id, meta, updated_at').order('updated_at', { ascending: false }),
-    hasRole(supabase, 'adopter'),
     isAdmin(supabase, email),
   ]);
-  // Any approved user can navigate to /contribute — the page handles its own
-  // state (registration gate → pending review → grid).
-  const canContribute = true;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-paper md:flex-row">
-      <Sidebar
-        email={email}
-        adoptions={adoptions ?? []}
-        isAdmin={adminAccess}
-        canExplore={canExplore}
-        canContribute={canContribute}
-      />
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-    </div>
+    <AppShell email={email} adoptions={adoptions ?? []} isAdmin={adminAccess}>
+      {children}
+    </AppShell>
   );
 }

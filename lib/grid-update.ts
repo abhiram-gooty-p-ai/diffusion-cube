@@ -38,7 +38,7 @@ export interface ParsedGridUpdate {
     stage?: string;
     summary?: string;
     // Explorer-only: which of the four intents this conversation is running
-    // (see lib/explorer-intents.ts). Chosen from the menu on /explore, and
+    // (see lib/explorer-intents.ts). Chosen from the menu on /strengthen, and
     // only ever changed by the model after the user has confirmed a switch.
     intent?: ExplorerIntent;
     // The model's own working reasoning state — carried forward every turn
