@@ -3,8 +3,8 @@ type: Pathway
 title: Savyasachi (product name: Savya)
 sector: Productivity / SMB Tools
 stage: Explore
-timestamp: 2026-08-21
-version: v2
+timestamp: 2026-08-24
+version: v3
 ---
 
 # 0. Overview
@@ -64,7 +64,7 @@ Community-contributed pathway: **Savyasachi (product name: Savya)**
 
 ---
 
-*— Abhiram · People + AI · Sponsoring Organization · 2026-08-21*
+*— Abhiram · People + AI · Sponsoring Organization · 2026-08-24*
 
 ## Solution
 
@@ -82,7 +82,7 @@ Community-contributed pathway: **Savyasachi (product name: Savya)**
 
 ---
 
-*— Abhiram · People + AI · Sponsoring Organization · 2026-08-21*
+*— Abhiram · People + AI · Sponsoring Organization · 2026-08-24*
 
 ## Institution
 
@@ -99,7 +99,7 @@ Community-contributed pathway: **Savyasachi (product name: Savya)**
 
 ---
 
-*— Abhiram · People + AI · Sponsoring Organization · 2026-08-21*
+*— Abhiram · People + AI · Sponsoring Organization · 2026-08-24*
 
 ## Ecosystem
 
@@ -117,7 +117,7 @@ Community-contributed pathway: **Savyasachi (product name: Savya)**
 
 ---
 
-*— Abhiram · People + AI · Sponsoring Organization · 2026-08-21*
+*— Abhiram · People + AI · Sponsoring Organization · 2026-08-24*
 
 
 # 4. Toolkits and Playbooks
@@ -126,21 +126,21 @@ None documented.
 
 # 6. Retrieval Guide
 
-- *"why are we using WhatsApp instead of building a proper app interface?"* → Unit 1
-- *"how do we stop losing institutional knowledge every time someone leaves the team?"* → Unit 2
-- *"can the system learn from past decisions and surface them later?"* → Unit 2
-- *"what tools and platforms does this actually connect with?"* → Unit 4
-- *"are there integrations we decided not to support and why?"* → Unit 4
-- *"how did you arrive at the pricing for the Indian market?"* → Unit 3
-- *"will this pricing hold if we try to sell to enterprise clients in India?"* → Unit 3
-- *"why does the product send notifications through WhatsApp rather than email or in-app alerts?"* → Unit 1
-- *"how do we keep the knowledge base from going stale over time?"* → Unit 2
-- *"what happens when a user wants an integration that isn't on the supported list?"* → Unit 4
-- *"is the WhatsApp layer meant for end users or just internal teams?"* → Unit 1
-- *"how does pricing compare to international competitors and is that intentional?"* → Unit 3
-- *"can org memory be searched or does it only surface things automatically?"* → Unit 2
-- *"does the integration stack limit what kinds of businesses can adopt this?"* → Unit 3, Unit 4
-- *"could we swap WhatsApp out for another messaging tool without breaking the product logic?"* → Unit 1, Unit 4
+- *"why are we using WhatsApp instead of building a proper app for our team?"* → Unit 1
+- *"how do we make sure knowledge doesn't get lost when someone leaves the company?"* → Unit 2
+- *"can this actually work within Indian market budgets or is it going to be too expensive?"* → Unit 3
+- *"what tools and platforms does this system actually connect with?"* → Unit 4
+- *"why WhatsApp and not email or Slack for sending updates to users?"* → Unit 1
+- *"how does the system get smarter over time as we add more data?"* → Unit 2
+- *"we're worried about pricing — how do we justify this to leadership given local market realities?"* → Unit 3
+- *"is there a fixed list of integrations or can we keep adding new ones later?"* → Unit 4
+- *"what happens to institutional knowledge when processes change or teams restructure?"* → Unit 2
+- *"are WhatsApp notifications just alerts or can users actually do things through them?"* → Unit 1
+- *"how do we avoid scope creep when everyone wants their favourite tool added to the stack?"* → Unit 4
+- *"should we price this like a global SaaS product or differently for the Indian market?"* → Unit 3
+- *"can the knowledge base answer questions automatically or does someone always need to update it?"* → Unit 2
+- *"what's the difference between using WhatsApp as a notification tool versus making it the main interface?"* → Unit 1
+- *"how do Indian pricing expectations shape what features we can afford to build or include?"* → Unit 3, Unit 4
 
 ---
 
@@ -150,3 +150,4 @@ None documented.
 |---|---|---|---|
 | Abhiram Gooty | People + AI | Program Execution Partner | 0 units |
 | Abhiram | People + AI | Sponsoring Organization | 4 units |
+| Kamesh | EkStep | Program Execution Partner | 0 units |
