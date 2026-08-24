@@ -508,10 +508,16 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       // The server publishes this design's latest draft version verbatim, so
       // the response's content should already match what the pane shows —
       // syncing explicitly keeps them correct even if that ever changes.
+      // Also updates pathwayPublishedContent/-Slug immediately so the
+      // Draft/Published label (compares the displayed content against
+      // these) reflects "published" right away, without waiting for the
+      // next generate/revise's fresh fetch.
       updatePathwayDoc((prev) => ({
         ...prev,
         content: typeof data.content === 'string' ? data.content : prev.content,
         publishedSlug: data.slug ?? prev.publishedSlug,
+        pathwayPublishedContent: typeof data.content === 'string' ? data.content : prev.pathwayPublishedContent,
+        pathwayPublishedSlug: data.slug ?? prev.pathwayPublishedSlug,
       }));
       return { ok: true, slug: data.slug };
     } catch {
@@ -853,7 +859,22 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     const promise = (async () => {
       try {
         const supabase = createClient();
-        const initialMeta: AdoptionMeta = { ...EMPTY_META, flow, intent, pathwayId: pathwayId ?? '' };
+
+        // A second (or later) contributor joining a pathway another
+        // contributor already named and described shouldn't see "New
+        // adoption" until the model gets around to re-stating it — the
+        // pathway itself already has that information.
+        let name = '';
+        let summary = '';
+        if (pathwayId) {
+          const { data: pw } = await supabase.from('pathways').select('title, description').eq('id', pathwayId).maybeSingle();
+          if (pw) {
+            name = pw.title ?? '';
+            summary = pw.description ?? '';
+          }
+        }
+
+        const initialMeta: AdoptionMeta = { ...EMPTY_META, flow, intent, pathwayId: pathwayId ?? '', name, summary };
         const insertPayload: Record<string, unknown> = {
           meta: initialMeta,
           grid_state: EMPTY_GRID,

@@ -207,6 +207,17 @@ export default function AdoptionWorkspace({
       : undefined;
   const pathwayDocMarkdown = selectedPathwayDocVersion?.content ?? pathwayDoc.content ?? pathwayDoc.pathwayPublishedContent ?? '';
   const pathwayDocPublishedSlug = pathwayDoc.publishedSlug ?? pathwayDoc.pathwayPublishedSlug;
+  // "Published" means the content CURRENTLY SHOWN is exactly what's live —
+  // not just "this pathway has been published at some point." Any
+  // unpublished edit (a new generate/revise, or browsing an older version
+  // via the dropdown) shows as "Draft" again, even after a prior publish.
+  const pathwayDocIsPublished =
+    !!pathwayDoc.pathwayPublishedContent && pathwayDocMarkdown === pathwayDoc.pathwayPublishedContent;
+  // Deep-links back to this specific chat (not just the Contribute grid) —
+  // conversation.id may not exist yet if nothing has been sent in this chat.
+  const pathwayDocLiveHref = pathwayDocPublishedSlug
+    ? `/wiki/${pathwayDocPublishedSlug}?from=contribute${conversation ? `&designId=${conversation.id}` : ''}`
+    : null;
 
   const explorerDocMarkdown =
     (explorerDoc.open === 'analysis' ? explorerDoc.analysis?.content : explorerDoc.summary?.content) ?? '';
@@ -349,7 +360,8 @@ export default function AdoptionWorkspace({
                 loading={pathwayDoc.loading}
                 error={pathwayDoc.error}
                 onPublish={publishPathwayDocument}
-                publishedSlug={pathwayDocPublishedSlug}
+                liveHref={pathwayDocLiveHref}
+                isPublished={pathwayDocIsPublished}
                 versions={pathwayDoc.versions}
                 selectedVersionNumber={pathwayDoc.selectedVersionNumber}
                 latestVersionNumber={pathwayDoc.versionNumber}
@@ -734,7 +746,8 @@ export default function AdoptionWorkspace({
               loading={pathwayDoc.loading}
               error={pathwayDoc.error}
               onPublish={publishPathwayDocument}
-              publishedSlug={pathwayDocPublishedSlug}
+              liveHref={pathwayDocLiveHref}
+              isPublished={pathwayDocIsPublished}
               versions={pathwayDoc.versions}
               selectedVersionNumber={pathwayDoc.selectedVersionNumber}
               latestVersionNumber={pathwayDoc.versionNumber}

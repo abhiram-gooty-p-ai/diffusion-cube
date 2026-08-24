@@ -8,19 +8,20 @@ export default async function WikiPathwayPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; designId?: string }>;
 }) {
   const { slug } = await params;
-  const { from } = await searchParams;
+  const { from, designId } = await searchParams;
   const pathway = await getWikiPathway(slug);
   if (!pathway) notFound();
 
   // "View it live" from the Contributor's pathway pane links here with
-  // ?from=contribute so the back link returns there instead of the wiki
-  // index — this page is reached from either place, so the back
-  // destination has to depend on how the visitor arrived, not just default
-  // to the wiki.
-  const backHref = from === 'contribute' ? '/contribute' : '/wiki';
+  // ?from=contribute (and, when the chat already exists, &designId=<id>) so
+  // the back link returns to that specific chat rather than the wiki index
+  // or the generic Contribute grid — this page is reached from either
+  // place, so the back destination has to depend on how the visitor
+  // arrived.
+  const backHref = from === 'contribute' ? (designId ? `/contribute?open=${designId}` : '/contribute') : '/wiki';
   const backLabel = from === 'contribute' ? '← Back to Contributions' : '← The Wiki';
 
   return (

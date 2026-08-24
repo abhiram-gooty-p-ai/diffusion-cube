@@ -11,8 +11,16 @@ interface Props {
   error: string | null;
   onClose: () => void;
   onPublish: (commitMessage: string) => Promise<{ ok: boolean; slug?: string; error?: string }>;
-  // Set once this adoption's contribution has ever been pushed live.
-  publishedSlug: string | null;
+  // Where the pathway's live document can be viewed, if it's been published
+  // at least once — null if nothing has ever gone live for this pathway.
+  liveHref: string | null;
+  // Whether the markdown CURRENTLY SHOWN matches what's actually live —
+  // false whenever there are edits (a new generate/revise, or an older
+  // version picked from the dropdown) that haven't been published, even if
+  // this pathway has been published before. Drives the Draft/Published label
+  // — "published" means this exact content is live, not just "has this ever
+  // been published."
+  isPublished: boolean;
   // Full version history, newest first — hidden when there's one or none.
   versions: VersionOption[];
   // null means "the latest" — see PathwayDocState.selectedVersionNumber.
@@ -33,7 +41,8 @@ export default function PathwayDocumentPane({
   error,
   onClose,
   onPublish,
-  publishedSlug,
+  liveHref,
+  isPublished,
   versions,
   selectedVersionNumber,
   latestVersionNumber,
@@ -58,14 +67,18 @@ export default function PathwayDocumentPane({
       <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-b border-navy/10 p-3">
         <div>
           <h2 className="font-display text-sm font-medium text-navy">Pathway Document</h2>
-          {publishedSlug && (
-            <p className="text-xs text-ink-soft">
-              Published ·{' '}
-              <Link href={`/wiki/${publishedSlug}?from=contribute`} className="text-coral hover:underline">
-                View it live →
-              </Link>
-            </p>
-          )}
+          <p className="text-xs text-ink-soft">
+            {isPublished ? 'Published' : 'Draft'}
+            {liveHref && (
+              <>
+                {' '}
+                ·{' '}
+                <Link href={liveHref} className="text-coral hover:underline">
+                  View it live →
+                </Link>
+              </>
+            )}
+          </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           {versions.length > 1 && (
