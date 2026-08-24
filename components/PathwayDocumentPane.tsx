@@ -40,7 +40,7 @@ export default function PathwayDocumentPane({ markdown, loading, error, onClose,
           {publishedSlug && (
             <p className="text-xs text-ink-soft">
               Published ·{' '}
-              <Link href={`/wiki/${publishedSlug}`} className="text-coral hover:underline">
+              <Link href={`/wiki/${publishedSlug}?from=contribute`} className="text-coral hover:underline">
                 View it live →
               </Link>
             </p>
