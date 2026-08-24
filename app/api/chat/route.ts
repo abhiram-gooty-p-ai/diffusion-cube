@@ -10,6 +10,7 @@ import {
   pathwayDraftSystemPrompt,
   executiveSummarySystemPrompt,
   pathwaySubmissionExecutiveSummarySystemPrompt,
+  librarySystemPrompt,
 } from '@/lib/system-prompts';
 import { logConversation } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
@@ -27,6 +28,7 @@ const MODES = [
   'extract-insights',
   'pathway-draft',
   'pathway-exec-summary',
+  'library',
 ] as const;
 
 function lastUserMessageText(messages: { role: string; content: unknown }[]): string {
@@ -41,19 +43,23 @@ function lastUserMessageText(messages: { role: string; content: unknown }[]): st
 }
 
 export async function POST(req: Request) {
-  const { messages, mode, grid, meta, versionNumber, designId, flow } = await req.json();
+  const { messages, mode, grid, meta, versionNumber, designId, flow, existingPublishedDoc, pathwayTitle } = await req.json();
 
   if (!MODES.includes(mode)) {
     return Response.json({ error: 'Unknown mode.' }, { status: 400 });
   }
 
   // The whole app is the companion now — access requires an approved account
-  // (any role at all; "pending" is zero roles). proxy.ts already guarantees a
-  // session; this is the real enforcement for the model-calling surface.
+  // (any role at all; "pending" is zero roles) — except 'library' (/explore),
+  // which is deliberately open with no login or registration at all. proxy.ts
+  // already guarantees a session for every other mode; this is the real
+  // enforcement for the model-calling surface.
   const supabase = await createClient();
-  const approved = await hasAnyRole(supabase);
-  if (!approved) {
-    return Response.json({ error: 'Your account is awaiting approval.' }, { status: 403 });
+  if (mode !== 'library') {
+    const approved = await hasAnyRole(supabase);
+    if (!approved) {
+      return Response.json({ error: 'Your account is awaiting approval.' }, { status: 403 });
+    }
   }
 
   // A companion turn's flow is fixed by the adoption's own meta.flow, chosen
@@ -103,12 +109,21 @@ export async function POST(req: Request) {
       generationPromptContent,
       grid ?? EMPTY_GRID,
       meta ?? {},
-      generatedAt
+      generatedAt,
+      typeof existingPublishedDoc === 'string' ? existingPublishedDoc : null
     );
   } else if (mode === 'pathway-exec-summary') {
     systemPrompt = pathwaySubmissionExecutiveSummarySystemPrompt(meta ?? {}, generatedAt);
+  } else if (mode === 'library') {
+    systemPrompt = librarySystemPrompt(wikiContent, typeof pathwayTitle === 'string' ? pathwayTitle : undefined);
   } else if (flow === 'contributor') {
-    systemPrompt = contributorSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {});
+    systemPrompt = contributorSystemPrompt(
+      wikiContent,
+      frameworkContent,
+      grid ?? EMPTY_GRID,
+      meta ?? {},
+      typeof existingPublishedDoc === 'string' ? existingPublishedDoc : null
+    );
   } else {
     systemPrompt = explorerSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {});
   }

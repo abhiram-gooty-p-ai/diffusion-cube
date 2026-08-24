@@ -1,9 +1,8 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { submitContributorRegistration } from '@/lib/contributor-registration';
-
-const ORG_TYPES = ['Government', 'Nonprofit', 'Startup', 'Academic', 'Informal collective'] as const;
+import { PATHWAY_ROLES, submitContributorRegistration, type SharingLevel } from '@/lib/contributor-registration';
+import OrganisationInput from '@/components/OrganisationInput';
 
 const DECLARATION_TEXT =
   "100 Pathways compiles this information to help other organisations learn from real deployments. Inclusion in the program does not constitute an endorsement of the contributor's product, service, or claims by 100 Pathways initiative. Information is presented as reported by the contributor.";
@@ -28,29 +27,16 @@ const MOU_CLAUSES = [
   },
 ];
 
+const SHARING_OPTIONS: { value: SharingLevel; label: string; description: string }[] = [
+  { value: 'none', label: "Don't share my contact details", description: 'Nothing about you personally is shown to Explorers.' },
+  { value: 'name', label: 'Share my name only', description: 'Your name is shown alongside citations of your pathway.' },
+  { value: 'name_and_email', label: 'Share my name and email', description: 'Explorers can also see your email to follow up directly.' },
+];
+
 const inputClass =
   'border border-navy/15 rounded-lg px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/50 transition-colors focus:outline-none focus:border-coral focus:ring-1 focus:ring-coral/30';
-const inputErrorClass =
-  'border border-coral rounded-lg px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/50 transition-colors focus:outline-none focus:border-coral focus:ring-1 focus:ring-coral/30';
 const labelClass = 'font-mono text-[10px] uppercase tracking-[0.12em] text-ink-soft';
 const checkboxClass = 'mt-0.5 h-4 w-4 flex-shrink-0 accent-coral';
-
-// Deliberately permissive (this is a "does this look like a real address/
-// number" check, not a delivery guarantee) — rejects the obvious cases
-// (missing @, no digits at all) without fighting real-world international
-// formats.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^\+?[\d\s()-]{7,20}$/;
-
-function isValidEmail(value: string): boolean {
-  return EMAIL_PATTERN.test(value.trim());
-}
-
-function isValidPhone(value: string): boolean {
-  const trimmed = value.trim();
-  const digitCount = trimmed.replace(/\D/g, '').length;
-  return PHONE_PATTERN.test(trimmed) && digitCount >= 7;
-}
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">{children}</p>;
@@ -69,66 +55,60 @@ function SectionHeading({ step, title }: { step: number; title: string }) {
 
 interface Props {
   userId: string;
+  userName: string;
+  userEmail: string;
+  userOrganisation: string;
   onRegistered: () => void;
 }
 
-export default function ContributorRegistrationGate({ userId, onRegistered }: Props) {
+export default function ContributorRegistrationGate({
+  userId,
+  userName,
+  userEmail,
+  userOrganisation,
+  onRegistered,
+}: Props) {
   const [started, setStarted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [organisationName, setOrganisationName] = useState('');
-  const [organisationType, setOrganisationType] = useState<string>(ORG_TYPES[0]);
-  const [pocName, setPocName] = useState('');
-  const [pocRole, setPocRole] = useState('');
-  const [pocEmail, setPocEmail] = useState('');
-  const [pocPhone, setPocPhone] = useState('');
-  const [pathwayName, setPathwayName] = useState('');
-  const [publicLinks, setPublicLinks] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
+  const [organisationName, setOrganisationName] = useState(userOrganisation);
+  const [organisationUrl, setOrganisationUrl] = useState('');
+  const [pathwayRole, setPathwayRole] = useState<string>(PATHWAY_ROLES[0]);
+  const [pathwayDescription, setPathwayDescription] = useState('');
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
   const [mouAccepted, setMouAccepted] = useState(false);
   const [consentName, setConsentName] = useState(false);
   const [consentLogo, setConsentLogo] = useState(false);
   const [consentQuote, setConsentQuote] = useState(false);
   const [consentBlog, setConsentBlog] = useState(false);
+  const [sharingLevel, setSharingLevel] = useState<SharingLevel>('none');
 
-  const [emailTouched, setEmailTouched] = useState(false);
-  const [phoneTouched, setPhoneTouched] = useState(false);
-  const emailValid = isValidEmail(pocEmail);
-  const phoneValid = isValidPhone(pocPhone);
-  const emailError = emailTouched && !emailValid;
-  const phoneError = phoneTouched && !phoneValid;
+  function handleOrgChange(name: string, canonicalRole?: string, url?: string) {
+    setOrganisationName(name);
+    if (canonicalRole) setPathwayRole(canonicalRole);
+    if (url) setOrganisationUrl(url);
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setEmailTouched(true);
-    setPhoneTouched(true);
-
-    if (!emailValid || !phoneValid) {
-      setError('Check the point of contact email and phone number — they need to look like a real address and number.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     const result = await submitContributorRegistration(userId, {
       organisationName,
-      organisationType,
-      pocName,
-      pocRole,
-      pocEmail,
-      pocPhone,
-      pathwayName,
-      publicLinks,
-      logoUrl,
+      organisationUrl,
+      pathwayRole,
+      pocName: userName,
+      pocEmail: userEmail,
+      pathwayDescription,
       declarationAccepted,
       mouAccepted,
       consentName,
       consentLogo,
       consentQuote,
       consentBlog,
+      sharingLevel,
     });
 
     if (!result.ok) {
@@ -148,8 +128,8 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
           Register to <span className="font-serif italic text-coral">contribute</span>
         </h1>
         <p className="max-w-md text-sm leading-relaxed text-ink-soft">
-          Before you can turn a deployment into a pathway page, we need a few details about you and your
-          organisation, and your agreement to how the information you share gets used. This is one-time — you
+          Before you can turn a deployment into a pathway page, we need a few details about your deployment
+          and your agreement to how the information you share gets used. This is one-time — you
           won&apos;t see this again after today.
         </p>
         <button
@@ -172,124 +152,60 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
         <p className="mt-1 mb-6 text-sm text-ink-soft">A one-time step before your first contribution.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-7 rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-8">
+
+          {/* Step 1: Organisation + pathway details */}
           <div className="flex flex-col gap-4">
-            <SectionHeading step={1} title="Your profile" />
+            <SectionHeading step={1} title="Your organisation and pathway" />
+
+            <OrganisationInput value={organisationName} onChange={handleOrgChange} label="Organisation" />
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="organisationName" className={labelClass}>
-                Contributor / organisation name
+              <label htmlFor="organisationUrl" className={labelClass}>
+                Organisation website — optional
               </label>
               <input
-                id="organisationName"
-                required
-                value={organisationName}
-                onChange={(e) => setOrganisationName(e.target.value)}
+                id="organisationUrl"
+                type="url"
+                value={organisationUrl}
+                onChange={(e) => setOrganisationUrl(e.target.value)}
+                placeholder="https://…"
                 className={inputClass}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="organisationType" className={labelClass}>
-                Organisation type
+              <label htmlFor="pathwayRole" className={labelClass}>
+                Organisation&apos;s role in this pathway
               </label>
               <select
-                id="organisationType"
-                value={organisationType}
-                onChange={(e) => setOrganisationType(e.target.value)}
+                id="pathwayRole"
+                value={pathwayRole}
+                onChange={(e) => setPathwayRole(e.target.value)}
                 className={inputClass}
               >
-                {ORG_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+                {PATHWAY_ROLES.map((r) => (
+                  <option key={r} value={r}>{r}</option>
                 ))}
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="pocName" className={labelClass}>
-                  Point of contact — name
-                </label>
-                <input id="pocName" required value={pocName} onChange={(e) => setPocName(e.target.value)} className={inputClass} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="pocRole" className={labelClass}>
-                  Point of contact — role
-                </label>
-                <input id="pocRole" required value={pocRole} onChange={(e) => setPocRole(e.target.value)} className={inputClass} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="pocEmail" className={labelClass}>
-                  Point of contact — email
-                </label>
-                <input
-                  id="pocEmail"
-                  type="email"
-                  required
-                  value={pocEmail}
-                  onChange={(e) => setPocEmail(e.target.value)}
-                  onBlur={() => setEmailTouched(true)}
-                  aria-invalid={emailError}
-                  className={emailError ? inputErrorClass : inputClass}
-                />
-                {emailError && <p className="text-xs text-coral">Enter a valid email address.</p>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="pocPhone" className={labelClass}>
-                  Point of contact — phone
-                </label>
-                <input
-                  id="pocPhone"
-                  type="tel"
-                  required
-                  value={pocPhone}
-                  onChange={(e) => setPocPhone(e.target.value)}
-                  onBlur={() => setPhoneTouched(true)}
-                  placeholder="+91 98765 43210"
-                  aria-invalid={phoneError}
-                  className={phoneError ? inputErrorClass : inputClass}
-                />
-                {phoneError && <p className="text-xs text-coral">Enter a valid phone number (at least 7 digits).</p>}
-              </div>
-            </div>
-
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="pathwayName" className={labelClass}>
-                Pathway name
+              <label htmlFor="pathwayDescription" className={labelClass}>
+                Pathway description
               </label>
-              <input
-                id="pathwayName"
+              <textarea
+                id="pathwayDescription"
                 required
-                value={pathwayName}
-                onChange={(e) => setPathwayName(e.target.value)}
-                placeholder="A working title for what you'll be contributing"
-                className={inputClass}
+                rows={4}
+                value={pathwayDescription}
+                onChange={(e) => setPathwayDescription(e.target.value)}
+                placeholder="Brief description of the AI deployment you want to contribute as a pathway"
+                className={inputClass + ' resize-none'}
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="publicLinks" className={labelClass}>
-                  Public links — optional
-                </label>
-                <input
-                  id="publicLinks"
-                  value={publicLinks}
-                  onChange={(e) => setPublicLinks(e.target.value)}
-                  placeholder="Website, LinkedIn, coverage"
-                  className={inputClass}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="logoUrl" className={labelClass}>
-                  Logo URL — optional
-                </label>
-                <input id="logoUrl" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className={inputClass} />
-              </div>
             </div>
           </div>
 
+          {/* Step 2: Declaration */}
           <div className="flex flex-col gap-3 border-t border-navy/10 pt-6">
             <SectionHeading step={2} title="Declaration" />
             <p className="rounded-lg bg-paper-dim p-3 font-serif text-[13px] italic leading-relaxed text-ink-soft">
@@ -304,13 +220,13 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
                 className={checkboxClass}
               />
               <span>
-                I confirm the information I provide is true and current, that I&apos;m authorised to represent the
-                organisation named above, and that it may be used to advise future adopters considering a similar
-                deployment.
+                I confirm the information I provide is true and current, that I&apos;m authorised to represent my
+                organisation, and that it may be used to advise future adopters considering a similar deployment.
               </span>
             </label>
           </div>
 
+          {/* Step 3: Terms */}
           <div className="flex flex-col gap-3 border-t border-navy/10 pt-6">
             <SectionHeading step={3} title="Terms" />
             <ul className="flex flex-col gap-2.5 rounded-lg bg-paper-dim p-3.5 text-[13px] leading-relaxed text-ink-soft">
@@ -332,6 +248,7 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
             </label>
           </div>
 
+          {/* Step 4: Attribution consent */}
           <div className="flex flex-col gap-3 border-t border-navy/10 pt-6">
             <SectionHeading step={4} title="Attribution consent" />
             <p className="text-[13px] leading-relaxed text-ink-soft">
@@ -340,7 +257,7 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
             <div className="flex flex-col gap-2.5">
               <label className="flex items-center gap-2.5 rounded-lg border border-navy/10 px-3 py-2.5 text-sm text-ink transition-colors hover:border-coral/30">
                 <input type="checkbox" checked={consentName} onChange={(e) => setConsentName(e.target.checked)} className="h-4 w-4 accent-coral" />
-                Name our organisation and point of contact in the published pathway document
+                Name our organisation in the published pathway document
               </label>
               <label className="flex items-center gap-2.5 rounded-lg border border-navy/10 px-3 py-2.5 text-sm text-ink transition-colors hover:border-coral/30">
                 <input type="checkbox" checked={consentLogo} onChange={(e) => setConsentLogo(e.target.checked)} className="h-4 w-4 accent-coral" />
@@ -357,6 +274,35 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
             </div>
           </div>
 
+          {/* Step 5: Personal sharing preference */}
+          <div className="flex flex-col gap-3 border-t border-navy/10 pt-6">
+            <SectionHeading step={5} title="Sharing your own contact details" />
+            <p className="text-[13px] leading-relaxed text-ink-soft">
+              Separate from your organisation&apos;s attribution above — this is about whether Explorers using the
+              Cube can see who to reach out to, personally, when your pathway is cited in a conversation.
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {SHARING_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex items-start gap-2.5 rounded-lg border border-navy/10 px-3 py-2.5 text-sm text-ink transition-colors hover:border-coral/30"
+                >
+                  <input
+                    type="radio"
+                    name="sharingLevel"
+                    checked={sharingLevel === opt.value}
+                    onChange={() => setSharingLevel(opt.value)}
+                    className="mt-0.5 h-4 w-4 flex-shrink-0 accent-coral"
+                  />
+                  <span>
+                    <span className="block font-medium">{opt.label}</span>
+                    <span className="block text-xs text-ink-soft">{opt.description}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           {error && <p className="text-xs text-coral">{error}</p>}
 
           <button
@@ -364,7 +310,7 @@ export default function ContributorRegistrationGate({ userId, onRegistered }: Pr
             disabled={loading}
             className="rounded-xl bg-navy py-3 text-sm font-medium text-white transition-colors hover:bg-coral disabled:opacity-60"
           >
-            {loading ? 'Submitting…' : 'Submit and continue'}
+            {loading ? 'Submitting…' : 'Register'}
           </button>
         </form>
       </div>

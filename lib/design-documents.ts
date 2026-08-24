@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/client';
 import { GridState } from '@/lib/dimensions';
 import { Message } from '@/components/ChatPanel';
 
-export type DocType = 'analysis' | 'plan';
+export type DocType = 'analysis' | 'plan' | 'draft';
 
 export interface DesignDocumentRow {
   id: string;
@@ -95,6 +95,18 @@ export async function insertDesignDocumentVersion(
     return null;
   }
   return data as DesignDocumentRow;
+}
+
+// Contributor draft — every generate/revise appends a new version rather
+// than overwriting, so the pane's version dropdown has real history to show.
+// `previousVersionNumber` should be the caller's own latest-known version (0
+// if there's none yet), matching insertDesignDocumentVersion's convention.
+export async function insertDraftVersion(
+  designId: string,
+  content: string,
+  previousVersionNumber: number
+): Promise<DesignDocumentRow | null> {
+  return insertDesignDocumentVersion(designId, 'draft', String(Date.now()), content, previousVersionNumber);
 }
 
 // "v0.1", "v0.2", ... — matches the versioning scheme requested (v0.N per

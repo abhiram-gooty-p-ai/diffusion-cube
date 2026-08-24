@@ -29,7 +29,7 @@ function AdoptionsPageContent() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [appliedOpenId, setAppliedOpenId] = useState<string | null>(null);
-  const [canExplore, setCanExplore] = useState(false);
+  const [canStrengthen, setCanStrengthen] = useState(false);
   const [canContribute, setCanContribute] = useState(false);
 
   useEffect(() => {
@@ -53,8 +53,8 @@ function AdoptionsPageContent() {
   useEffect(() => {
     const supabase = createClient();
     Promise.all([hasRole(supabase, 'adopter'), hasRole(supabase, 'pathway_contributor')]).then(
-      ([explorer, contributor]) => {
-        setCanExplore(explorer);
+      ([adopter, contributor]) => {
+        setCanStrengthen(adopter);
         setCanContribute(contributor);
       }
     );
@@ -120,12 +120,12 @@ function AdoptionsPageContent() {
           </p>
         </div>
         <div className="flex flex-shrink-0 gap-2">
-          {canExplore && (
+          {canStrengthen && (
             <Link
-              href="/explore"
+              href="/navigate"
               className="rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral"
             >
-              + Explore
+              + Strengthen
             </Link>
           )}
           {canContribute && (

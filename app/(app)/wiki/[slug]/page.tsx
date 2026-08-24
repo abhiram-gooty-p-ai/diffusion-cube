@@ -3,16 +3,32 @@ import { notFound } from 'next/navigation';
 import { getWikiPathway } from '@/lib/wiki-content';
 import WikiMarkdown from '@/components/WikiMarkdown';
 
-export default async function WikiPathwayPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function WikiPathwayPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ from?: string; designId?: string }>;
+}) {
   const { slug } = await params;
+  const { from, designId } = await searchParams;
   const pathway = await getWikiPathway(slug);
   if (!pathway) notFound();
+
+  // "View it live" from the Contributor's pathway pane links here with
+  // ?from=contribute (and, when the chat already exists, &designId=<id>) so
+  // the back link returns to that specific chat rather than the wiki index
+  // or the generic Contribute grid — this page is reached from either
+  // place, so the back destination has to depend on how the visitor
+  // arrived.
+  const backHref = from === 'contribute' ? (designId ? `/contribute?open=${designId}` : '/contribute') : '/wiki';
+  const backLabel = from === 'contribute' ? '← Back to Contributions' : '← The Wiki';
 
   return (
     <div className="flex-1 overflow-y-auto bg-paper p-4 sm:p-8">
       <div className="mx-auto max-w-3xl">
-        <Link href="/wiki" className="text-xs font-medium text-ink-soft transition hover:text-coral">
-          ← The Wiki
+        <Link href={backHref} className="text-xs font-medium text-ink-soft transition hover:text-coral">
+          {backLabel}
         </Link>
         <div className="mt-4 rounded-2xl border border-navy/10 bg-white p-6 sm:p-8">
           <WikiMarkdown markdown={pathway.content} />

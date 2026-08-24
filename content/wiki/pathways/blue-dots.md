@@ -6,6 +6,7 @@ tags: [Livelihoods, Discovery, District Economy]
 sector: Livelihoods
 stage: Scale
 timestamp: 2026-07-31
+contributor: EkStep Foundation
 ---
 
 # 0. Overview

@@ -71,15 +71,20 @@ export async function loadWikiContext(): Promise<string> {
   const pages = await Promise.all(
     slugs.map(async (slug) => {
       const page = await readSource(path.join(WIKI_PATH, 'pathways', slug));
-      return page ? `# Pathway: ${slug.replace(/\.md$/, '')}\n\n${page}` : '';
+      if (!page) return '';
+      const contributorMatch = page.match(/^contributor:\s*(.+)$/m);
+      const contributor = contributorMatch?.[1]?.trim() ?? '';
+      const contributorLine = contributor ? `Contributed by: ${contributor}\n\n` : '';
+      return `# Pathway: ${slug.replace(/\.md$/, '')}\n\n${contributorLine}${page}`;
     })
   );
   parts.push(...pages.filter(Boolean));
 
   const supabase = await createClient();
-  const { data: published } = await supabase.from('published_pathways').select('slug, content');
+  const { data: published } = await supabase.from('published_pathways').select('slug, content, contributor_org');
   for (const p of published ?? []) {
-    parts.push(`# Pathway: ${p.slug}\n\n${p.content}`);
+    const contributorLine = p.contributor_org ? `Contributed by: ${p.contributor_org}\n\n` : '';
+    parts.push(`# Pathway: ${p.slug}\n\n${contributorLine}${p.content}`);
   }
 
   return parts.join('\n\n---\n\n');

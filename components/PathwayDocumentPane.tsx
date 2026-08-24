@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import WikiMarkdown from '@/components/WikiMarkdown';
-import type { PathwaySubmissionVersionRow } from '@/lib/pathway-submission-versions';
+import type { VersionOption } from '@/components/AdoptionPlanModal';
 
 interface Props {
   markdown: string;
@@ -11,44 +11,45 @@ interface Props {
   error: string | null;
   onClose: () => void;
   onPublish: (commitMessage: string) => Promise<{ ok: boolean; slug?: string; error?: string }>;
-  versions: PathwaySubmissionVersionRow[];
-  selectedVersionNumber?: number;
+  // Where the pathway's live document can be viewed, if it's been published
+  // at least once — null if nothing has ever gone live for this pathway.
+  liveHref: string | null;
+  // Whether the markdown CURRENTLY SHOWN matches what's actually live —
+  // false whenever there are edits (a new generate/revise, or an older
+  // version picked from the dropdown) that haven't been published, even if
+  // this pathway has been published before. Drives the Draft/Published label
+  // — "published" means this exact content is live, not just "has this ever
+  // been published."
+  isPublished: boolean;
+  // Full version history, newest first — hidden when there's one or none.
+  versions: VersionOption[];
+  // null means "the latest" — see PathwayDocState.selectedVersionNumber.
+  selectedVersionNumber: number | null;
+  latestVersionNumber: number;
   onSelectVersion: (versionNumber: number) => void;
-  // Set once this submission has ever been pushed live — drives the "View
-  // it live" link, which is always valid once something is live, regardless
-  // of which version is currently selected.
-  publishedSlug: string | null;
-  // What's actually live right now, compared against `markdown` (the
-  // currently selected version) to decide "Published" vs "Draft" — a newer,
-  // unpublished revision on an already-published submission must read
-  // "Draft," not "Published," even though publishedSlug is set.
-  publishedContent: string | null;
 }
 
-// A persistent side panel next to the chat (ChatGPT-canvas style) rather
-// than a blocking modal — the conversation stays visible and usable while
-// this is open. Revisions happen entirely through chat now (see
-// contributorSystemPrompt's pathwayAction contract) — this pane is
-// read-only plus a Publish button, not an editing surface.
+// A persistent side panel next to the chat — read-only preview, a version
+// dropdown, and a Publish button. Revisions happen entirely through chat
+// (see contributorSystemPrompt's pathwayAction contract), not in this pane —
+// the dropdown is for browsing history, not editing. Publish always acts on
+// the latest version regardless of which one is being viewed (see the
+// disabled-Publish branch below).
 export default function PathwayDocumentPane({
   markdown,
   loading,
   error,
   onClose,
   onPublish,
+  liveHref,
+  isPublished,
   versions,
   selectedVersionNumber,
+  latestVersionNumber,
   onSelectVersion,
-  publishedSlug,
-  publishedContent,
 }: Props) {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
-
-  const isLatestVersionSelected = versions.length === 0 || selectedVersionNumber === versions[0]?.version_number;
-  // Compared by content, not just "has this submission ever been
-  // published" — the label reflects the version actually being shown.
-  const isSelectedVersionLive = publishedContent !== null && markdown === publishedContent;
 
   async function handlePublish() {
     setPublishing(true);
@@ -67,29 +68,31 @@ export default function PathwayDocumentPane({
         <div>
           <h2 className="font-display text-sm font-medium text-navy">Pathway Document</h2>
           <p className="text-xs text-ink-soft">
-            {selectedVersionNumber ? `v${selectedVersionNumber}` : ''}
-            {selectedVersionNumber && (isSelectedVersionLive ? ' · Published' : ' · Draft')}
-            {isSelectedVersionLive && publishedSlug && (
+            {isPublished ? 'Published' : 'Draft'}
+            {liveHref && (
               <>
-                {' · '}
-                <Link href={`/wiki/${publishedSlug}`} className="text-coral hover:underline">
+                {' '}
+                ·{' '}
+                <Link href={liveHref} className="text-coral hover:underline">
                   View it live →
                 </Link>
               </>
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-shrink-0 items-center gap-2">
           {versions.length > 1 && (
             <select
-              value={selectedVersionNumber}
+              value={selectedVersionNumber ?? latestVersionNumber}
               onChange={(e) => onSelectVersion(Number(e.target.value))}
-              className="rounded-lg border border-navy/15 bg-white px-2 py-1 text-xs text-ink"
+              className="rounded-lg border border-navy/15 bg-white px-2 py-1.5 text-xs text-ink"
               aria-label="Select version"
             >
               {versions.map((v) => (
                 <option key={v.version_number} value={v.version_number}>
-                  v{v.version_number} — {new Date(v.created_at).toLocaleDateString()}
+                  v0.{v.version_number}
+                  {v.version_number === latestVersionNumber ? ' (latest)' : ''} —{' '}
+                  {new Date(v.created_at).toLocaleString()}
                 </option>
               ))}
             </select>
@@ -102,19 +105,18 @@ export default function PathwayDocumentPane({
 
       <div className="flex-1 overflow-y-auto p-6">
         {error && <p className="text-sm text-coral">{error}</p>}
-
         {!error && !markdown && loading && <p className="animate-pulse text-sm text-ink-soft">Drafting your pathway page…</p>}
-
         {!error && markdown && <WikiMarkdown markdown={markdown} />}
       </div>
 
       {!error && markdown && (
-        <div className="flex flex-shrink-0 flex-col gap-2 border-t border-navy/10 p-3">
-          {!isLatestVersionSelected && (
-            <p className="text-xs text-ink-soft">Viewing an older version — publishing always pushes the latest version.</p>
-          )}
-          <div className="flex items-center justify-end gap-2">
-            {publishError && <p className="mr-auto text-xs text-coral">{publishError}</p>}
+        <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-navy/10 p-3">
+          {publishError && <p className="mr-auto text-xs text-coral">{publishError}</p>}
+          {selectedVersionNumber !== null && selectedVersionNumber !== latestVersionNumber ? (
+            <p className="mr-auto text-xs text-ink-soft">
+              Viewing v0.{selectedVersionNumber} — publishing always uses the latest version.
+            </p>
+          ) : (
             <button
               onClick={handlePublish}
               disabled={publishing || loading}
@@ -122,7 +124,7 @@ export default function PathwayDocumentPane({
             >
               {publishing ? 'Publishing…' : 'Publish'}
             </button>
-          </div>
+          )}
         </div>
       )}
     </div>

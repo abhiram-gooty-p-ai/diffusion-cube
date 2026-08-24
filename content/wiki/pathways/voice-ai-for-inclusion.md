@@ -6,6 +6,7 @@ tags: [Voice AI, Inclusion, Cross-deployment]
 sector: Cross-Sector
 stage: Scale
 timestamp: 2026-07-31
+contributor: EkStep Foundation
 ---
 
 # 0. Overview

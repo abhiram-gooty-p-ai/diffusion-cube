@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import SignOutButton from '@/components/SignOutButton';
@@ -12,33 +12,72 @@ interface AdoptionSummary {
   updated_at: string;
 }
 
+interface LibraryConversationSummary {
+  id: string;
+  pathway_title: string | null;
+  updated_at: string;
+}
+
 interface Props {
   email: string | null;
   adoptions: AdoptionSummary[];
   isAdmin?: boolean;
-  canExplore?: boolean;
-  canContribute?: boolean;
 }
 
-export default function Sidebar({ email, adoptions, isAdmin, canExplore, canContribute }: Props) {
+// One shared "Recent Explorations" shape covering both Strengthen sessions
+// (designs, flow==='explorer') and Explore/Library chats (library_conversations)
+// — the boss wanted Explore's history to live here rather than as its own
+// block section on the page itself, same list treatment as Strengthen's.
+interface RecentItem {
+  id: string;
+  kind: 'strengthen' | 'library';
+  title: string;
+  href: string;
+  updatedAt: string;
+}
+
+export default function Sidebar({ email, adoptions, isAdmin }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(pathname);
   // Optimistic client-side removal — `adoptions` itself is a server-fetched
   // prop (re-populated on navigation), so a deleted row is masked out here
   // rather than mutated in place; it's simply absent again on the next
-  // real fetch anyway.
+  // real fetch anyway. Shared across both kinds since ids never collide.
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
-  async function handleDeleteExploration(e: React.MouseEvent, id: string) {
+  const [libraryConversations, setLibraryConversations] = useState<LibraryConversationSummary[]>([]);
+
+  useEffect(() => {
+    // No user to fetch for — leave state as-is rather than a synchronous
+    // setState-in-effect; a sign-out remounts the sidebar on the next
+    // navigation anyway, so stale data here never actually surfaces.
+    if (!email) return;
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from('library_conversations')
+      .select('id, pathway_title, updated_at')
+      .order('updated_at', { ascending: false })
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setLibraryConversations(data);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [email]);
+
+  async function handleDeleteRecent(e: React.MouseEvent, item: RecentItem) {
     e.preventDefault();
     e.stopPropagation();
     if (!window.confirm('Delete this exploration? This cannot be undone.')) return;
 
     const supabase = createClient();
-    const { error } = await supabase.from('designs').delete().eq('id', id);
+    const table = item.kind === 'library' ? 'library_conversations' : 'designs';
+    const { error } = await supabase.from(table).delete().eq('id', item.id);
     if (error) return;
-    setDeletedIds((prev) => new Set(prev).add(id));
+    setDeletedIds((prev) => new Set(prev).add(item.id));
   }
 
   // Auto-close the mobile drawer whenever the route changes (link clicked).
@@ -49,22 +88,46 @@ export default function Sidebar({ email, adoptions, isAdmin, canExplore, canCont
     if (mobileOpen) setMobileOpen(false);
   }
 
-  // Explore/Contribute are separate entry points (each starts a new
-  // adoption in that flow) rather than a choice made inline on a shared
-  // welcome screen — mirrors the pre-revamp Explore/Design split. The wiki
-  // itself is corpus material for the companion's prompts now, not a
-  // user-facing nav destination (the pages still exist at /wiki, just
+  // Explore, Strengthen, and Contribute are all always shown, regardless of
+  // role or approval status — each page gates itself (see their own
+  // page.tsx) with an explanatory message and a login/signup button instead
+  // of just vanishing from the nav. Only Admin stays conditionally hidden.
+  // The wiki itself is corpus material for the companion's prompts now, not
+  // a user-facing nav destination (the pages still exist at /wiki, just
   // unlinked here).
   const navItems = [
-    ...(canExplore ? [{ href: '/explore', label: 'Explore' }] : []),
-    ...(canContribute ? [{ href: '/contribute', label: 'Contribute' }] : []),
+    { href: '/explore', label: 'Explore' },
+    { href: '/navigate', label: 'Navigate' },
+    { href: '/contribute', label: 'Contribute' },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
   ];
 
-  // Contributions now live in their own grid at /contribute — this list is
-  // Explorer-only, so it's a real "recent explorations" shortcut rather than
-  // a mixed-flow dump.
-  const recentExplorations = adoptions.filter((a) => a.meta?.flow === 'explorer' && !deletedIds.has(a.id));
+  // Contributions now live in their own grid at /contribute — this list
+  // combines Strengthen sessions and Explore/Library chats, the two flows
+  // that don't have their own dedicated grid page.
+  const recentExplorations: RecentItem[] = [
+    ...adoptions
+      .filter((a) => a.meta?.flow === 'explorer' && !deletedIds.has(a.id))
+      .map((a) => ({
+        id: a.id,
+        kind: 'strengthen' as const,
+        title: a.meta?.name || 'New exploration',
+        // Strengthen sessions reopen inside /navigate, not the /adoptions
+        // grid — that keeps the way out of them the intent menu rather than
+        // a list the user never visited.
+        href: `/navigate?open=${a.id}`,
+        updatedAt: a.updated_at,
+      })),
+    ...libraryConversations
+      .filter((c) => !deletedIds.has(c.id))
+      .map((c) => ({
+        id: c.id,
+        kind: 'library' as const,
+        title: c.pathway_title || 'General question',
+        href: `/explore?open=${c.id}`,
+        updatedAt: c.updated_at,
+      })),
+  ].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
 
   const body = (
     <>
@@ -97,21 +160,18 @@ export default function Sidebar({ email, adoptions, isAdmin, canExplore, canCont
               Recent Explorations
             </p>
             <div className="space-y-0.5">
-              {recentExplorations.map((a) => (
-                <div key={a.id} className="group/item flex items-center rounded-lg hover:bg-paper-dim">
+              {recentExplorations.map((item) => (
+                <div key={`${item.kind}-${item.id}`} className="group/item flex items-center rounded-lg hover:bg-paper-dim">
                   <Link
-                    // Explorer sessions reopen inside /explore, not the
-                    // /adoptions grid — that keeps the way out of them the
-                    // intent menu rather than a list the user never visited.
-                    href={`/explore?open=${a.id}`}
+                    href={item.href}
                     className="block flex-1 truncate px-3 py-1.5 text-xs text-ink-soft transition group-hover/item:text-navy"
-                    title={a.meta?.name || 'New exploration'}
+                    title={item.title}
                   >
-                    {a.meta?.name || 'New exploration'}
+                    {item.title}
                   </Link>
                   <button
                     type="button"
-                    onClick={(e) => handleDeleteExploration(e, a.id)}
+                    onClick={(e) => handleDeleteRecent(e, item)}
                     aria-label="Delete exploration"
                     className="flex-shrink-0 px-2 text-ink-soft/50 opacity-0 transition hover:text-coral group-hover/item:opacity-100"
                   >
@@ -125,10 +185,20 @@ export default function Sidebar({ email, adoptions, isAdmin, canExplore, canCont
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-navy/10 p-3">
-        <span className="truncate text-xs text-ink-soft" title={email ?? undefined}>
-          {email ?? ''}
-        </span>
-        <SignOutButton />
+        {email ? (
+          <>
+            <span className="truncate text-xs text-ink-soft" title={email}>
+              {email}
+            </span>
+            <SignOutButton />
+          </>
+        ) : (
+          // An anonymous visitor to /explore (no login required there) has no
+          // session to sign out of — offer signing in instead.
+          <Link href="/login" className="text-xs font-medium text-navy transition hover:text-coral">
+            Sign in
+          </Link>
+        )}
       </div>
     </>
   );

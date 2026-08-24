@@ -2,7 +2,7 @@
 //
 // An Explorer arrives at the Cube with one of four quite different jobs to be
 // done, and the flow that serves each is genuinely different — so the intent
-// is picked explicitly from a menu on /explore rather than inferred from free
+// is picked explicitly from a menu on /strengthen rather than inferred from free
 // text (see AdoptionWorkspace's welcome screen). Once picked it's stored as
 // AdoptionMeta.intent and re-injected into every companion turn, exactly the
 // way flowStep is.
@@ -59,6 +59,14 @@ export interface ExplorerIntentDef {
 // choosing has enough context to choose well.
 export const WHAT_THE_CUBE_DOES =
   "The Cube holds real AI adoption journeys — the decisions behind them, what worked, what didn't — so you can see what applies to your own situation.";
+
+// What Strengthen (the old Explore, /strengthen) does, in the same words in
+// both places someone might see it: the access-gate message a signed-out
+// visitor gets (app/strengthen/page.tsx), and the chat's own opening message
+// once they're through (AdoptionWorkspace's preChat for fixedFlow==='explorer')
+// — so logging in doesn't feel like a context switch to a different page.
+export const STRENGTHEN_INTRO =
+  "• New to AI adoption? Discover where it could create meaningful value and what it would take to move forward.\n• Already piloting or scaling a use case? Draw on comparable pathways to strengthen your design end to end.\n• Stuck on a specific question or challenge? See how other adopters approached it and find relevant insights.\n\nYou can describe your adoption or upload any files you have";
 
 export const EXPLORER_INTENTS: ExplorerIntentDef[] = [
   {

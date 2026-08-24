@@ -6,6 +6,7 @@ tags: [Voice AI, Organizational Readiness]
 sector: Cross-Sector
 stage: Explore
 timestamp: 2026-07-31
+contributor: EkStep Foundation
 ---
 
 # Section 0 — Overview

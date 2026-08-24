@@ -20,16 +20,11 @@ import {
   getLatestDesignDocument,
   hashConversationState,
   insertDesignDocumentVersion,
+  insertDraftVersion,
+  listDesignDocumentVersions,
 } from '@/lib/design-documents';
-import {
-  PathwaySubmissionVersionRow,
-  getPathwaySubmissionByDesign,
-  getPublishedInfoBySubmission,
-  insertPathwaySubmissionVersion,
-  listPathwaySubmissionVersions,
-  upsertPathwaySubmission,
-  upsertPathwaySubmissionExecSummary,
-} from '@/lib/pathway-submission-versions';
+// pathway-submission-versions removed — retired in migration 0018.
+// Contributor drafts now stored in design_documents (doc_type='draft').
 
 export type AdoptionFlow = 'explorer' | 'contributor' | '';
 
@@ -65,9 +60,12 @@ export interface AdoptionMeta {
   // Chosen once on the welcome screen, gated by role — fixes which system
   // prompt (explorer vs contributor) this adoption's companion turns use.
   flow: AdoptionFlow;
+  // Contributor-only: the pathway this workspace is linked to. Set at row
+  // creation time; never changed afterward.
+  pathwayId: string;
   // Explorer-only: which of the four intents this conversation is running
   // (see lib/explorer-intents.ts). Picked explicitly from the menu on
-  // /explore before the first message, never inferred from what the user
+  // /strengthen before the first message, never inferred from what the user
   // types. Unlike `flow` it can change mid-conversation — but only after the
   // model has flagged the mismatch and the user has confirmed the switch, at
   // which point flowStep resets to the new intent's step 1.
@@ -100,6 +98,7 @@ export const EMPTY_META: AdoptionMeta = {
   stage: '',
   summary: '',
   flow: '',
+  pathwayId: '',
   intent: '',
   flowStep: 0,
   hypothesis: '',
@@ -159,24 +158,29 @@ interface AdoptionRow {
   updated_at: string;
 }
 
-// Contributor-only: the current state of this adoption's pathway document —
-// driven automatically by pathwayAction (see contributorSystemPrompt's JSON
-// contract) as well as the manual "View Pathway Document" / "Publish"
-// actions. `versions` is ordered newest-first (see
-// listPathwaySubmissionVersions); the latest generated content is always
-// versions[0], regardless of which version the pane currently has selected
-// for viewing.
+// Contributor-only: the current state of this adoption's pathway document.
+// The draft is stored in design_documents (doc_type='draft') and assembled
+// into the canonical pathway via /api/pathways/assemble on publish.
 export interface PathwayDocState {
-  submissionId: string | null;
-  versions: PathwaySubmissionVersionRow[];
-  selectedVersionNumber?: number;
-  publishedSlug: string | null;
-  // What's actually live right now, if anything — compared against
-  // whichever version is currently selected (not just "has this submission
-  // ever been published") so the pane's status line reflects the version
-  // it's showing, not the submission's history. Null whenever publishedSlug
-  // is null.
-  publishedContent: string | null;
+  content: string | null;       // latest generated draft text — always the basis for revisions/publish, regardless of what's being viewed
+  versionNumber: number;         // latest version_number from design_documents
+  // Full version history for this chat's draft, newest first — backs the
+  // pane's version dropdown. Empty until the first generation.
+  versions: DesignDocumentRow[];
+  // Which version the pane is currently displaying. null means "the latest"
+  // (content, above) — set to a specific number when the user picks an
+  // older version from the dropdown, purely for viewing; it never changes
+  // what a revision or publish acts on.
+  selectedVersionNumber: number | null;
+  publishedSlug: string | null;  // set after a successful publish in this chat
+  // The pathway's own already-published document (pathways.content_cache),
+  // fetched once on mount so a contributor who hasn't generated a draft in
+  // THIS chat yet — e.g. a second contributor joining a pathway another
+  // contributor already published — can still view what's live via "View
+  // Pathway Document" instead of seeing nothing. Only ever a fallback: an
+  // own in-progress draft (content, above) always takes precedence.
+  pathwayPublishedContent: string | null;
+  pathwayPublishedSlug: string | null;
   paneOpen: boolean;
   loading: boolean;
   error: string | null;
@@ -210,11 +214,13 @@ export const EMPTY_EXPLORER_DOC: ExplorerDocState = {
 };
 
 export const EMPTY_PATHWAY_DOC: PathwayDocState = {
-  submissionId: null,
+  content: null,
+  versionNumber: 0,
   versions: [],
-  selectedVersionNumber: undefined,
+  selectedVersionNumber: null,
   publishedSlug: null,
-  publishedContent: null,
+  pathwayPublishedContent: null,
+  pathwayPublishedSlug: null,
   paneOpen: false,
   loading: false,
   error: null,
@@ -253,11 +259,14 @@ interface UseAdoptionConversationOptions {
   // Pass an already-loaded row, or null to create the row lazily on the
   // first message/attachment the user actually sends.
   initial: AdoptionConversation | null;
+  // Contributor-only: the pathway this workspace is linked to. Set once at
+  // creation time and stored in meta.pathwayId for all subsequent turns.
+  pathwayId?: string;
   onCreated?: (conversation: AdoptionConversation) => void;
   onChange?: (conversation: AdoptionConversation) => void;
 }
 
-export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdoptionConversationOptions) {
+export function useAdoptionConversation({ initial, pathwayId, onCreated, onChange }: UseAdoptionConversationOptions) {
   const [conversation, setConversation] = useState<AdoptionConversation | null>(initial);
   const conversationRef = useRef<AdoptionConversation | null>(initial);
   const [loading, setLoading] = useState(false);
@@ -280,6 +289,14 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
       return next;
     });
   }, []);
+
+  // Contributor-only: the pathway's own title/sector/description, fetched as
+  // soon as pathwayId is known — lets the pre-chat screen (before any
+  // message is sent, so no design row and no conversation.meta yet) show a
+  // second contributor what's already named/described instead of nothing.
+  // Once a row exists, conversation.meta.name/summary (seeded from this same
+  // data in ensureCreated) takes over.
+  const [pathwayPreview, setPathwayPreview] = useState<{ title: string; sector: string; description: string } | null>(null);
 
   // Explorer-only document state — see ExplorerDocState. Same ref-mirroring
   // idiom as pathwayDoc above, for the same reason.
@@ -309,27 +326,51 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Loads an existing contribution's pathway document state once, on mount —
-  // AdoptionWorkspace remounts with a fresh `key` per selected adoption (see
-  // ContributeGrid.tsx), so this never needs to re-run for a conversation
-  // switch, only for the initial load of an existing one.
+  // Loads the latest stored draft for an existing contributor workspace once,
+  // on mount, loading its full version history so the pane's version
+  // dropdown works immediately on a reopened chat. design_documents
+  // doc_type='draft' is the storage for contributor-generated pathway
+  // drafts (pathway_submissions was retired).
   useEffect(() => {
-    if (!initial) return;
+    if (!initial || initial.meta?.flow !== 'contributor') return;
     (async () => {
-      const submission = await getPathwaySubmissionByDesign(initial.id);
-      if (!submission) return;
-      const [versions, publishedInfo] = await Promise.all([
-        listPathwaySubmissionVersions(submission.id),
-        getPublishedInfoBySubmission(submission.id),
-      ]);
+      const versions = await listDesignDocumentVersions(initial.id, 'draft');
+      if (versions.length === 0) return;
+      const latest = versions[0];
       updatePathwayDoc((prev) => ({
         ...prev,
-        submissionId: submission.id,
+        content: latest.content,
+        versionNumber: latest.version_number,
         versions,
-        selectedVersionNumber: versions[0]?.version_number,
-        publishedSlug: publishedInfo?.slug ?? null,
-        publishedContent: publishedInfo?.content ?? null,
       }));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetches the pathway's own already-published document once, as a
+  // fallback for "View Pathway Document" when this chat has no draft of its
+  // own yet (see pathwayPublishedContent's comment above) — covers both a
+  // brand-new chat (pathwayId passed as a prop) and a reopened existing one
+  // (pathwayId only known from the loaded row's meta).
+  useEffect(() => {
+    const pid = pathwayId || initial?.meta.pathwayId;
+    if (!pid) return;
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('pathways')
+        .select('slug, content_cache, title, sector, description')
+        .eq('id', pid)
+        .maybeSingle();
+      if (!data) return;
+      if (data.content_cache) {
+        updatePathwayDoc((prev) => ({
+          ...prev,
+          pathwayPublishedContent: data.content_cache,
+          pathwayPublishedSlug: data.slug,
+        }));
+      }
+      setPathwayPreview({ title: data.title ?? '', sector: data.sector ?? '', description: data.description ?? '' });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -372,49 +413,11 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     update((cur) => ({ ...cur, updatedAt }));
   }
 
-  // Backend-only executive summary of a pathway submission — never shown to
-  // the contributor, only to admins (see PathwaySubmissionsPanel.tsx). Runs
-  // via its own `pathway-exec-summary` mode, given just the freshly
-  // generated draft as the message to summarize (it needs no conversation
-  // history or corpus — see pathwaySubmissionExecutiveSummarySystemPrompt).
-  // Called fire-and-forget from generatePathwayDraft below; failures are
-  // swallowed since this is an internal artifact, not worth surfacing to or
-  // blocking the contributor's own flow over.
-  async function generateSubmissionExecutiveSummary(submissionId: string, draftMarkdown: string): Promise<void> {
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: draftMarkdown }],
-          mode: 'pathway-exec-summary',
-          meta: conversationRef.current?.meta ?? {},
-        }),
-      });
-      if (!res.body) return;
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let text = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        text += decoder.decode(value, { stream: true });
-      }
-
-      await upsertPathwaySubmissionExecSummary(submissionId, text);
-    } catch {
-      // Silent — see function comment above.
-    }
-  }
-
-  // Generates (revisionInstruction omitted) or regenerates (given) the
-  // pathway document via the `pathway-draft` mode — same request shape the
-  // old manual "Generate Pathway Wiki" button used — then stores the result
-  // as a new version. Returns the generated markdown, or null on failure.
-  // Called automatically from sendMessage below when the Contributor
-  // companion sets pathwayAction to "generate"/"revise"; never called
-  // directly by UI code anymore.
+  // Generates (revisionInstruction omitted) or revises (given) the pathway
+  // draft via the `pathway-draft` API mode, then stores the result in
+  // design_documents (doc_type='draft') so it survives a reload.
+  // Triggered automatically from sendMessage when the companion signals
+  // pathwayAction "generate" or "revise" — never called directly by UI code.
   async function generatePathwayDraft(revisionInstruction?: string): Promise<string | null> {
     const c = conversationRef.current;
     if (!c) return null;
@@ -426,8 +429,25 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
       : 'Draft my adoption as a pathway page now.';
 
     try {
-      const latestDraft = pathwayDocRef.current.versions[0]?.content;
+      const latestDraft = pathwayDocRef.current.content;
       const priorDraft = latestDraft ? [{ role: 'assistant', content: latestDraft }] : [];
+
+      // Fetched fresh on every generate/revise, not just the first — another
+      // contributor may have published something for this pathway since
+      // this chat's own last draft, and if this chat republishes without
+      // seeing that, it silently overwrites their work. pathwayDraftSystemPrompt's
+      // merge rules tell the model to treat this as the more current state
+      // whenever it disagrees with this chat's own prior draft.
+      const pathwayId = c.meta.pathwayId;
+      let existingPublishedDoc: string | null = null;
+      if (pathwayId) {
+        const supabase = createClient();
+        const { data } = await supabase.from('pathways').select('slug, content_cache').eq('id', pathwayId).maybeSingle();
+        if (data?.content_cache) {
+          existingPublishedDoc = data.content_cache;
+          updatePathwayDoc((prev) => ({ ...prev, pathwayPublishedContent: data.content_cache, pathwayPublishedSlug: data.slug }));
+        }
+      }
 
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -437,6 +457,7 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
           mode: 'pathway-draft',
           grid: c.grid,
           meta: c.meta,
+          existingPublishedDoc,
         }),
       });
       if (!res.body) throw new Error('No response from the server.');
@@ -450,59 +471,68 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
         text += decoder.decode(value, { stream: true });
       }
 
-      const submission = await upsertPathwaySubmission(c.id, text);
-      if (!submission) throw new Error('Could not save the draft.');
-
-      // Fire-and-forget — the backend-only executive summary must never add
-      // latency to what the contributor sees (see generatePathwayDraft's own
-      // return below, which appendPathwayDocMessage acts on immediately).
-      void generateSubmissionExecutiveSummary(submission.id, text);
-
-      const versions = await listPathwaySubmissionVersions(submission.id);
-      const previousVersionNumber = versions[0]?.version_number ?? 0;
-      const newVersion = await insertPathwaySubmissionVersion(
-        submission.id,
-        text,
-        revisionInstruction ?? 'Initial draft',
-        previousVersionNumber
-      );
-      const updatedVersions = newVersion ? [newVersion, ...versions] : versions;
+      // Every generate/revise is its own version — this is what backs the
+      // pane's version dropdown. Becomes the published document verbatim on
+      // Publish (see publishPathwayDocument / app/api/pathways/assemble/route.ts).
+      const saved = await insertDraftVersion(c.id, text, pathwayDocRef.current.versionNumber);
 
       updatePathwayDoc((prev) => ({
         ...prev,
-        submissionId: submission.id,
-        versions: updatedVersions,
-        selectedVersionNumber: newVersion?.version_number ?? previousVersionNumber,
+        content: text,
+        versionNumber: saved?.version_number ?? prev.versionNumber,
+        versions: saved ? [saved, ...prev.versions] : prev.versions,
+        selectedVersionNumber: null, // jump back to viewing the latest
         loading: false,
       }));
 
       return text;
     } catch {
-      updatePathwayDoc((prev) => ({ ...prev, loading: false, error: 'Could not draft this pathway page. Try again.' }));
+      updatePathwayDoc((prev) => ({
+        ...prev,
+        loading: false,
+        error: 'Could not draft this pathway page. Try again.',
+      }));
       return null;
     }
   }
 
-  // Pushes the current submission straight to the public wiki (see
-  // app/api/pathway-submissions/push/route.ts) — used by both the pane's
-  // manual "Publish" button and a chat-driven publish request (pathwayAction
-  // "publish"), so a push behaves identically either way.
+  // Publishes this chat's current draft as the pathway's live document,
+  // verbatim (see app/api/pathways/assemble/route.ts) — merging another
+  // contributor's earlier work already happened once, at generation time
+  // (pathwayDraftSystemPrompt's merge rules), not again here. Requires the
+  // design to be linked to a pathway (meta.pathwayId).
   async function publishPathwayDocument(commitMessage?: string): Promise<{ ok: boolean; slug?: string; error?: string }> {
-    const submissionId = pathwayDocRef.current.submissionId;
-    if (!submissionId) return { ok: false, error: 'Nothing to publish yet.' };
+    const c = conversationRef.current;
+    const pathwayId = c?.meta.pathwayId;
+    if (!pathwayId) {
+      return { ok: false, error: 'No pathway linked to this workspace. Open a new contribution from the Contribute page.' };
+    }
+    if (!c?.id) {
+      return { ok: false, error: 'No workspace found. Try again.' };
+    }
     try {
-      const res = await fetch('/api/pathway-submissions/push', {
+      const res = await fetch('/api/pathways/assemble', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ submission_id: submissionId, commit_message: commitMessage || 'Update pathway page' }),
+        body: JSON.stringify({ pathwayId, designId: c.id, commitMessage }),
       });
       const data = await res.json();
-      if (!res.ok) return { ok: false, error: data.error };
-      // A push always sends the latest version (versions[0] — see
-      // generatePathwayDraft/upsertPathwaySubmission above), so that's what's
-      // now live, regardless of which version the pane currently has selected.
-      const publishedContent = pathwayDocRef.current.versions[0]?.content ?? null;
-      updatePathwayDoc((prev) => ({ ...prev, publishedSlug: data.slug ?? prev.publishedSlug, publishedContent }));
+      if (!res.ok) return { ok: false, error: data.error ?? 'Publish failed.' };
+
+      // The server publishes this design's latest draft version verbatim, so
+      // the response's content should already match what the pane shows —
+      // syncing explicitly keeps them correct even if that ever changes.
+      // Also updates pathwayPublishedContent/-Slug immediately so the
+      // Draft/Published label (compares the displayed content against
+      // these) reflects "published" right away, without waiting for the
+      // next generate/revise's fresh fetch.
+      updatePathwayDoc((prev) => ({
+        ...prev,
+        content: typeof data.content === 'string' ? data.content : prev.content,
+        publishedSlug: data.slug ?? prev.publishedSlug,
+        pathwayPublishedContent: typeof data.content === 'string' ? data.content : prev.pathwayPublishedContent,
+        pathwayPublishedSlug: data.slug ?? prev.pathwayPublishedSlug,
+      }));
       return { ok: true, slug: data.slug };
     } catch {
       return { ok: false, error: 'Could not reach the server. Try again.' };
@@ -517,10 +547,15 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     updatePathwayDoc((prev) => ({ ...prev, paneOpen: false }));
   }
 
-  function selectPathwayVersion(versionNumber: number) {
-    updatePathwayDoc((prev) =>
-      prev.versions.some((v) => v.version_number === versionNumber) ? { ...prev, selectedVersionNumber: versionNumber } : prev
-    );
+  // Switches which version the pane displays — purely a viewing choice, see
+  // selectedVersionNumber's comment on PathwayDocState. versionNumber ===
+  // the latest version collapses back to null so the pane tracks new
+  // generations again instead of staying pinned to a now-stale "latest".
+  function selectPathwayDocVersion(versionNumber: number) {
+    updatePathwayDoc((prev) => ({
+      ...prev,
+      selectedVersionNumber: versionNumber === prev.versionNumber ? null : versionNumber,
+    }));
   }
 
   // Appends one client-constructed (never model-authored) assistant message
@@ -689,6 +724,12 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
           flow,
           grid,
           meta,
+          // Lets the Contributor flow recognize it's adding to an already-
+          // published pathway (see contributorSystemPrompt) rather than
+          // demanding a from-scratch write-up — same field pathway-draft
+          // generation already uses to merge into it (see
+          // generatePathwayDraft above).
+          existingPublishedDoc: flow === 'contributor' ? pathwayDocRef.current.pathwayPublishedContent : undefined,
         }),
       });
 
@@ -774,14 +815,30 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
       // Final reveal — for a deliverable message this is the first time the
       // real content (including the finished document) replaces the loading
       // state; for a normal message it's a no-op past what's already shown.
+      // pathwaysReferenced is stored on the message so source attribution
+      // survives reload without re-parsing the stripped grid_update.
+      const finalContent = stripGridUpdate(assistantText);
+      const finalRefs = lastParsed?.pathwaysReferenced;
+      const finalMsg = {
+        role: 'assistant' as const,
+        content: finalContent,
+        ...(finalRefs?.length ? { pathwaysReferenced: finalRefs } : {}),
+      };
       update((c) => {
         const msgs = [...c.messages];
-        msgs[msgs.length - 1] = { role: 'assistant', content: stripGridUpdate(assistantText) };
+        msgs[msgs.length - 1] = finalMsg;
         return { ...c, messages: msgs };
       });
 
+      // Persist with pathwaysReferenced explicitly included — React 18+
+      // batches async setState so conversationRef may not yet reflect the
+      // update above when persist() is called on the next line. Build the
+      // correct final state directly instead of relying on the ref.
       if (conversationRef.current && conversationRef.current.id === id) {
-        void persist(conversationRef.current);
+        const cur = conversationRef.current;
+        const msgs = [...cur.messages];
+        msgs[msgs.length - 1] = finalMsg;
+        void persist({ ...cur, messages: msgs });
       }
 
       // Contributor-only: react to the companion's pathwayAction, if any —
@@ -816,13 +873,31 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     const promise = (async () => {
       try {
         const supabase = createClient();
+
+        // A second (or later) contributor joining a pathway another
+        // contributor already named and described shouldn't see "New
+        // adoption" until the model gets around to re-stating it — the
+        // pathway itself already has that information.
+        let name = '';
+        let summary = '';
+        if (pathwayId) {
+          const { data: pw } = await supabase.from('pathways').select('title, description').eq('id', pathwayId).maybeSingle();
+          if (pw) {
+            name = pw.title ?? '';
+            summary = pw.description ?? '';
+          }
+        }
+
+        const initialMeta: AdoptionMeta = { ...EMPTY_META, flow, intent, pathwayId: pathwayId ?? '', name, summary };
+        const insertPayload: Record<string, unknown> = {
+          meta: initialMeta,
+          grid_state: EMPTY_GRID,
+          messages: [],
+        };
+        if (pathwayId) insertPayload.pathway_id = pathwayId;
         const { data, error } = await supabase
           .from('designs')
-          .insert({
-            meta: { ...EMPTY_META, flow, intent },
-            grid_state: EMPTY_GRID,
-            messages: [],
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
@@ -1010,9 +1085,10 @@ export function useAdoptionConversation({ initial, onCreated, onChange }: UseAdo
     handleAttachFiles,
     removeAttachment,
     pathwayDoc,
+    pathwayPreview,
     openPathwayDocument,
     closePathwayDocument,
-    selectPathwayVersion,
+    selectPathwayDocVersion,
     publishPathwayDocument,
     explorerDoc,
     openExplorerDocument,

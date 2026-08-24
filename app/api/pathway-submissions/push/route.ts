@@ -85,6 +85,9 @@ export async function POST(req: Request) {
   const sector = meta?.sector || null;
   const commitMessage = typeof commit_message === 'string' ? commit_message : '';
 
+  const { data: submitterData } = await admin.auth.admin.getUserById(submission.user_id);
+  const contributor_org = submitterData?.user?.user_metadata?.organization ?? null;
+
   // Re-pushing an already-published submission updates the same row (and
   // keeps the same slug/URL) rather than creating a duplicate entry.
   const { data: existingPublished } = await admin
@@ -98,7 +101,7 @@ export async function POST(req: Request) {
   if (slug) {
     const { error: updateError } = await admin
       .from('published_pathways')
-      .update({ title, description, content: submission.content, commit_message: commitMessage, sector })
+      .update({ title, description, content: submission.content, commit_message: commitMessage, sector, contributor_org })
       .eq('slug', slug);
     if (updateError) return Response.json({ error: updateError.message }, { status: 500 });
   } else {
@@ -112,6 +115,7 @@ export async function POST(req: Request) {
       content: submission.content,
       commit_message: commitMessage,
       sector,
+      contributor_org,
       source_submission_id: submission.id,
       published_by: user.id,
     });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import HeatmapGrid from '@/components/HeatmapGrid';
 import { downloadPlanAsPdf } from '@/lib/adoption-plan-pdf';
 import {
@@ -28,6 +28,10 @@ export interface Message {
   // which freezes the visible content and sets this instead of live-typing
   // the document out. Shows a "Generating your document…" placeholder.
   generatingDoc?: boolean;
+  // Pathway slugs this assistant message drew on — parsed from <grid_update>
+  // and stored alongside the message so source attribution chips can be
+  // rendered below the bubble on reload as well as first display.
+  pathwaysReferenced?: string[];
 }
 
 // The Explorer prompt's Step 3 emits this literal marker, once, at the point
@@ -212,6 +216,22 @@ interface Props {
   // Lets the composer's own attachment chips (above) be dismissed inline —
   // omit to render the chips without a remove control.
   onRemoveAttachment?: (id: string) => void;
+  // Slug → pathway info lookup for rendering source attribution below
+  // assistant messages that cite pathway content. Fetched once by the parent
+  // (AdoptionWorkspace) and passed down so ChatPanel stays stateless.
+  pathwayLookup?: Record<string, {
+    title: string;
+    description?: string;
+    sector?: string;
+    stage?: string;
+    timestamp?: string;
+    contributor?: string;
+  }>;
+  // Hides the "pathway information isn't independently verified" note under
+  // the first assistant message — relevant for an Explorer reading someone
+  // else's documented pathway, but not for the Contributor who's the one
+  // supplying that information about their own deployment.
+  hideAccuracyDisclaimer?: boolean;
 }
 
 // Default height (px) matching the old rows={2} textarea, and the cap before it scrolls.
@@ -229,11 +249,15 @@ export default function ChatPanel({
   onOpenExplorerDocument,
   onAttachFiles,
   onRemoveAttachment,
+  pathwayLookup,
+  hideAccuracyDisclaimer,
 }: Props) {
   const [input, setInput] = useState('');
+  const [sourcePopup, setSourcePopup] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const closePopup = useCallback(() => setSourcePopup(null), []);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -270,6 +294,8 @@ export default function ChatPanel({
     }
   }
 
+  const popupInfo = sourcePopup ? pathwayLookup?.[sourcePopup] : null;
+
   return (
     <div className="flex flex-col h-full bg-paper">
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5 sm:px-6">
@@ -282,13 +308,52 @@ export default function ChatPanel({
               (onOpenPathwayDocument && text.includes(PATHWAY_DOC_MARKER)) ||
               (onOpenExplorerDocument &&
                 (text.includes(ANALYSIS_DOC_MARKER) || text.includes(EXEC_SUMMARY_MARKER))));
+          const isFirstAssistant = m.role === 'assistant' && messages.slice(0, i).every(msg => msg.role !== 'assistant');
+          const sources = m.role === 'assistant' && m.pathwaysReferenced?.length
+            ? m.pathwaysReferenced
+            : null;
+
+          const disclaimerBlock = isFirstAssistant && !hideAccuracyDisclaimer ? (
+            <div className="mt-3 border-t border-navy/10 pt-3 text-sm text-ink-soft">
+              <span className="mr-1 font-medium text-navy">Note:</span>
+              All pathway information shared here comes from the respective contributing organizations. The Cube does not validate or guarantee its accuracy — the contributor owns that.
+            </div>
+          ) : null;
+
+          const sourcesBlock = sources ? (
+            <div className="mt-3 border-t border-navy/10 pt-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-soft">Sources</p>
+              <div className="space-y-1">
+                {sources.map((slug) => {
+                  const info = pathwayLookup?.[slug];
+                  return (
+                    <button
+                      key={slug}
+                      type="button"
+                      onClick={() => setSourcePopup(slug)}
+                      className="group flex w-full items-center gap-1.5 text-left text-sm"
+                    >
+                      <span className="text-coral transition-transform duration-150 group-hover:translate-x-0.5">↗</span>
+                      <span className="text-coral underline underline-offset-2 decoration-coral/40 group-hover:decoration-coral transition-colors duration-150">
+                        {info?.title ?? slug}
+                      </span>
+                      {info?.contributor && (
+                        <span className="text-ink-soft/70 text-xs">· {info.contributor}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null;
+
           return (
             <div
               key={i}
               className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`${isRich || m.generatingDoc ? 'max-w-full' : 'max-w-[75%]'} rounded-xl px-4 py-2.5 text-base leading-relaxed whitespace-pre-wrap ${
+                className={`${isRich || m.generatingDoc ? 'w-full' : 'max-w-[75%]'} rounded-xl px-4 py-2.5 text-base leading-relaxed whitespace-pre-wrap ${
                   m.role === 'user'
                     ? 'bg-navy text-white'
                     : 'bg-white text-ink border border-navy/10'
@@ -305,9 +370,15 @@ export default function ChatPanel({
                 ) : isRich ? (
                   <div className="space-y-3">
                     {renderMessageContent(text, grid, onOpenPathwayDocument, onOpenExplorerDocument)}
+                    {disclaimerBlock}
+                    {sourcesBlock}
                   </div>
                 ) : (
-                  renderInlineMarkdown(text)
+                  <>
+                    {renderInlineMarkdown(text)}
+                    {disclaimerBlock}
+                    {sourcesBlock}
+                  </>
                 )}
               </div>
             </div>
@@ -350,50 +421,123 @@ export default function ChatPanel({
             ))}
           </div>
         )}
-        <div className="flex gap-3">
-        {onAttachFiles && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={loading}
-              aria-label="Attach files"
-              className="flex-shrink-0 self-end rounded-xl border border-navy/15 bg-white px-3 py-2.5 text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40"
-            >
-              📎
-            </button>
-          </>
-        )}
-        <textarea
-          ref={textareaRef}
-          className="flex-1 bg-white text-ink border border-navy/15 rounded-xl px-3.5 py-2.5 text-base resize-none focus:outline-none focus:border-coral placeholder-ink-soft overflow-y-auto"
-          style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder={placeholder ?? 'Type a message…'}
-          disabled={loading}
-        />
-        <button
-          onClick={handleSend}
-          disabled={!canSend}
-          className="px-4 py-2 bg-navy hover:bg-coral disabled:opacity-40 text-white rounded-xl text-sm font-medium transition-colors"
-        >
-          Send
-        </button>
+        <div className="flex items-end gap-3 rounded-2xl border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral">
+          {onAttachFiles && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                aria-label="Attach files"
+                className="flex-shrink-0 self-end rounded-full p-2.5 text-ink-soft transition hover:bg-paper-dim hover:text-coral disabled:opacity-40"
+              >
+                📎
+              </button>
+            </>
+          )}
+          <textarea
+            ref={textareaRef}
+            className="flex-1 resize-none bg-transparent px-2 py-2.5 text-base text-ink outline-none placeholder-ink-soft overflow-y-auto"
+            style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder={placeholder ?? 'Type a message…'}
+            disabled={loading}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!canSend}
+            aria-label="Send"
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-navy text-paper transition hover:scale-105 hover:bg-coral active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M8 13V3M8 3L3.5 7.5M8 3L12.5 7.5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
         <p className="mt-2 text-center text-xs text-ink-soft">
           Cube can make mistakes. Verify important information.
         </p>
       </div>
+
+      {sourcePopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4 backdrop-blur-sm"
+          onClick={closePopup}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-navy/10 bg-paper p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-coral">Pathway</p>
+                <h2 className="mt-0.5 font-display text-lg font-medium leading-snug text-navy">
+                  {popupInfo?.title ?? sourcePopup}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closePopup}
+                className="mt-0.5 shrink-0 text-ink-soft transition hover:text-coral"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {popupInfo?.description && (
+              <p className="mb-4 text-sm leading-relaxed text-ink">{popupInfo.description}</p>
+            )}
+
+            <dl className="space-y-2 border-t border-navy/10 pt-4 text-sm">
+              {popupInfo?.sector && (
+                <div className="flex gap-2">
+                  <dt className="w-28 shrink-0 text-ink-soft">Sector</dt>
+                  <dd className="text-ink">{popupInfo.sector}</dd>
+                </div>
+              )}
+              {popupInfo?.stage && (
+                <div className="flex gap-2">
+                  <dt className="w-28 shrink-0 text-ink-soft">Stage</dt>
+                  <dd className="text-ink">{popupInfo.stage}</dd>
+                </div>
+              )}
+              {popupInfo?.contributor && (
+                <div className="flex gap-2">
+                  <dt className="w-28 shrink-0 text-ink-soft">Contributed by</dt>
+                  <dd className="font-medium text-navy">{popupInfo.contributor}</dd>
+                </div>
+              )}
+              {popupInfo?.timestamp && (
+                <div className="flex gap-2">
+                  <dt className="w-28 shrink-0 text-ink-soft">Last updated</dt>
+                  <dd className="text-ink">{popupInfo.timestamp}</dd>
+                </div>
+              )}
+            </dl>
+
+            <p className="mt-4 border-t border-navy/10 pt-4 text-[11px] leading-snug text-ink-soft/60">
+              This information reflects the contributor&apos;s documented experience. The Cube does not validate or guarantee its accuracy.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
