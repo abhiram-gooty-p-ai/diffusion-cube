@@ -126,6 +126,7 @@ export default function AdoptionWorkspace({
     handleAttachFiles,
     removeAttachment,
     pathwayDoc,
+    pathwayPreview,
     openPathwayDocument,
     closePathwayDocument,
     selectPathwayDocVersion,
@@ -337,6 +338,17 @@ export default function AdoptionWorkspace({
               Explorer · {getExplorerIntent(preChat.intent)?.chipLabel}
             </p>
           )}
+          {preChat.flow === 'contributor' && pathwayPreview?.title && (
+            <>
+              <h2 className="mt-2 font-display text-lg font-medium tracking-tight text-navy">{pathwayPreview.title}</h2>
+              {pathwayPreview.sector && (
+                <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">{pathwayPreview.sector}</p>
+              )}
+              {pathwayPreview.description && (
+                <p className="mt-2 text-sm leading-relaxed text-ink">{pathwayPreview.description}</p>
+              )}
+            </>
+          )}
         </div>
 
         <div className="relative flex flex-1 overflow-hidden">
@@ -350,6 +362,7 @@ export default function AdoptionWorkspace({
               loading={loading}
               placeholder="Ask, share, or think out loud…"
               pathwayLookup={pathwayLookup}
+              hideAccuracyDisclaimer={preChat.flow === 'contributor'}
             />
           </div>
 
@@ -736,6 +749,7 @@ export default function AdoptionWorkspace({
             onOpenPathwayDocument={flow === 'contributor' ? openPathwayDocument : undefined}
             onOpenExplorerDocument={flow === 'explorer' ? openExplorerDocument : undefined}
             pathwayLookup={pathwayLookup}
+            hideAccuracyDisclaimer={flow === 'contributor'}
           />
         </div>
 

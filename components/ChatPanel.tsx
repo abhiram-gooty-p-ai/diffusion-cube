@@ -227,6 +227,11 @@ interface Props {
     timestamp?: string;
     contributor?: string;
   }>;
+  // Hides the "pathway information isn't independently verified" note under
+  // the first assistant message — relevant for an Explorer reading someone
+  // else's documented pathway, but not for the Contributor who's the one
+  // supplying that information about their own deployment.
+  hideAccuracyDisclaimer?: boolean;
 }
 
 // Default height (px) matching the old rows={2} textarea, and the cap before it scrolls.
@@ -245,6 +250,7 @@ export default function ChatPanel({
   onAttachFiles,
   onRemoveAttachment,
   pathwayLookup,
+  hideAccuracyDisclaimer,
 }: Props) {
   const [input, setInput] = useState('');
   const [sourcePopup, setSourcePopup] = useState<string | null>(null);
@@ -307,7 +313,7 @@ export default function ChatPanel({
             ? m.pathwaysReferenced
             : null;
 
-          const disclaimerBlock = isFirstAssistant ? (
+          const disclaimerBlock = isFirstAssistant && !hideAccuracyDisclaimer ? (
             <div className="mt-3 border-t border-navy/10 pt-3 text-sm text-ink-soft">
               <span className="mr-1 font-medium text-navy">Note:</span>
               All pathway information shared here comes from the respective contributing organizations. The Cube does not validate or guarantee its accuracy — the contributor owns that.

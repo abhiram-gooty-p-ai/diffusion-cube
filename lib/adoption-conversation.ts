@@ -290,6 +290,14 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     });
   }, []);
 
+  // Contributor-only: the pathway's own title/sector/description, fetched as
+  // soon as pathwayId is known — lets the pre-chat screen (before any
+  // message is sent, so no design row and no conversation.meta yet) show a
+  // second contributor what's already named/described instead of nothing.
+  // Once a row exists, conversation.meta.name/summary (seeded from this same
+  // data in ensureCreated) takes over.
+  const [pathwayPreview, setPathwayPreview] = useState<{ title: string; sector: string; description: string } | null>(null);
+
   // Explorer-only document state — see ExplorerDocState. Same ref-mirroring
   // idiom as pathwayDoc above, for the same reason.
   const [explorerDoc, setExplorerDoc] = useState<ExplorerDocState>(EMPTY_EXPLORER_DOC);
@@ -349,14 +357,20 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     if (!pid) return;
     (async () => {
       const supabase = createClient();
-      const { data } = await supabase.from('pathways').select('slug, content_cache').eq('id', pid).maybeSingle();
-      if (data?.content_cache) {
+      const { data } = await supabase
+        .from('pathways')
+        .select('slug, content_cache, title, sector, description')
+        .eq('id', pid)
+        .maybeSingle();
+      if (!data) return;
+      if (data.content_cache) {
         updatePathwayDoc((prev) => ({
           ...prev,
           pathwayPublishedContent: data.content_cache,
           pathwayPublishedSlug: data.slug,
         }));
       }
+      setPathwayPreview({ title: data.title ?? '', sector: data.sector ?? '', description: data.description ?? '' });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1071,6 +1085,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     handleAttachFiles,
     removeAttachment,
     pathwayDoc,
+    pathwayPreview,
     openPathwayDocument,
     closePathwayDocument,
     selectPathwayDocVersion,
