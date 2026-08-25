@@ -44,15 +44,30 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Also fetch which pathways this user contributes to so the selector can
-  // mark them as "already joined" without a second client-side query.
-  const { data: myContribs } = await supabase
-    .from('pathway_contributors')
-    .select('pathway_id')
-    .eq('user_id', user.id)
+  // Also fetch which pathways this user contributes to so the grid can mark
+  // them as "already joined" without a second client-side query, and every
+  // contributing org per pathway so the grid can offer an org filter.
+  const [{ data: myContribs }, { data: orgContribs }] = await Promise.all([
+    supabase.from('pathway_contributors').select('pathway_id').eq('user_id', user.id),
+    supabase.from('pathway_contributors').select('pathway_id, organisations(name)'),
+  ])
 
   const mySet = new Set((myContribs ?? []).map((r) => r.pathway_id as string))
-  const result = (pathways ?? []).map((p) => ({ ...p, isContributor: mySet.has(p.id) }))
+  const orgsByPathway = new Map<string, Set<string>>()
+  for (const row of orgContribs ?? []) {
+    const org = row.organisations as unknown as { name: string } | { name: string }[] | null
+    const orgName = Array.isArray(org) ? org[0]?.name : org?.name
+    if (!orgName) continue
+    const pathwayId = row.pathway_id as string
+    if (!orgsByPathway.has(pathwayId)) orgsByPathway.set(pathwayId, new Set())
+    orgsByPathway.get(pathwayId)!.add(orgName)
+  }
+
+  const result = (pathways ?? []).map((p) => ({
+    ...p,
+    isContributor: mySet.has(p.id),
+    orgs: Array.from(orgsByPathway.get(p.id) ?? []),
+  }))
 
   return NextResponse.json(result)
 }
