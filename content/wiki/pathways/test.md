@@ -4,29 +4,31 @@
 
 ## Section 0 — Reading guide
 
-This document is written for the next person building an AI personal assistant for founders or operators — not as a record of what Savyasachi did, but as a marked trail of what was decided, why, and under what conditions those decisions hold. The knowledge here is thin at the edges: Savyasachi is at Explore stage, so coverage concentrates in problem definition, persona framing, and early architecture choices. Define, Pilot, and Scale cells are empty — those gaps are flagged explicitly in Section 2.
+This document is written for the next person building or evaluating an AI personal assistant for Indian founders and operators — not as a record of what was built, but as a marked trail for what they would need to decide, the alternatives they would consider, and the conditions under which different choices are correct.
 
-Navigate by what you need: if you're still asking whether AI is the right tool, start with the Persona and Solution units. If you're looking for what integrations were chosen and why, go to Units 3 and 4. The retrieval guide in Section 6 maps common adopter questions to specific units.
+Knowledge here is organised across four dimensions (Persona, Solution, Institution, Ecosystem) and four stages (Explore, Define, Pilot, Scale). At this point, Savyasachi has generated knowledge primarily at the Explore stage. Define, Pilot, and Scale cells are sparse or empty — those gaps are named explicitly in Section 2.
+
+Reusable value concentrates in Section 3 (micro-innovations) and the retrieval guide in Section 6. Navigate by the question you're trying to answer, not by reading front to back.
 
 ---
 
 ## Section 1 — Pathway identity
 
-| Field | Value |
+| Field | Detail |
 |---|---|
-| **Deployment name** | Savyasachi (Savya) |
-| **Sector** | Productivity / AI tools |
+| **Deployment name** | Savyasachi (product name: Savya) |
+| **Sector** | Productivity / AI Tools |
 | **Geography** | India |
-| **Population served** | Early-stage Indian founders; freelancers and consultants; small agency owners (expansion) |
-| **Stage reached** | Explore |
+| **Population served** | Early-stage Indian founders and operators; secondary: freelancers and consultants; expansion: small agency owners |
+| **Stage reached** | Explore — pre-launch, recruiting 10 early users |
 | **Contributing organisation** | Not documented in the source |
-| **Key dates** | As of August 24, 2026 |
-| **Summary** | Savyasachi is an AI personal assistant built for Indian founders and operators. It converts voice memos and calls into structured memory and automated actions across Notion, Calendar, Gmail, and WhatsApp. V1 is in build; 10 early users are being recruited. The core problem is context loss and execution gaps for founders managing multiple tools and relationships simultaneously. |
-| **Scale / impact achieved** | Not documented in the source (pre-launch, 10 early users targeted) |
-| **Cost anchor** | Positioned below ₹40,000/month (cost of a human EA in India). Exact pricing not documented in the source. As of August 2026. |
-| **Build effort** | 2 months total — 1 month for building, 1 month for testing. |
-| **Known downstream adopters** | None at this stage |
-| **Scope / does-not-transfer-when** | Designed specifically for Indian market conditions: WhatsApp-native workflows, Indian founder context-juggling patterns, and price sensitivity relative to Western SaaS. Architecture choices may not transfer directly to Western markets or enterprise contexts where compliance, data residency, and procurement are dominant concerns. |
+| **Key dates** | As of August 2026 |
+| **Summary** | Savyasachi is an AI personal assistant built for Indian founders and operators. It captures voice memos and calls, extracts entities, links context to organisational memory, and executes tasks across Notion, Google Calendar, Gmail, and WhatsApp via MCP agents. The product is pre-launch, recruiting 10 founding users. |
+| **Scale / impact achieved** | Not documented in the source — pre-launch |
+| **Cost anchor** | Positioned as a fraction of ₹40,000/month (cost of a human EA in India); exact pricing not documented in the source. As of August 2026. |
+| **Build effort** | Not documented in the source |
+| **Known downstream adopters** | None yet — seeking first 10 users |
+| **Scope / does-not-transfer-when** | Designed specifically for WhatsApp-native Indian workflows and Indian market pricing expectations. Core positioning depends on WhatsApp as the primary notification and review channel. Likely does not transfer as-is to markets where WhatsApp is not the dominant professional communication layer. |
 
 ---
 
@@ -34,28 +36,28 @@ Navigate by what you need: if you're still asking whether AI is the right tool, 
 
 ### Coverage map
 
-| | Explore | Define | Pilot | Scale |
+| Dimension | Explore | Define | Pilot | Scale |
 |---|---|---|---|---|
 | **Persona** | ●● | ○ | ○ | ○ |
 | **Solution** | ●● | ○ | ○ | ○ |
 | **Institution** | ● | ○ | ○ | ○ |
 | **Ecosystem** | ● | ○ | ○ | ○ |
 
-●●● = dense · ●● = moderate · ● = thin · ○ = empty
+●●● = dense coverage · ●● = partial · ● = thin · ○ = not yet covered
 
 ### Gaps
 
-The deployment is at Explore stage, so empty Define/Pilot/Scale cells are expected. The gaps below are those that matter most before moving to Define.
+The following gaps are genuine open questions for this deployment at its current stage, not padding for empty cells.
 
-1. **Who specifically is the one person this must work for first?** Three personas are named (founders, freelancers, agency owners), but the source does not identify which one Savyasachi is optimising for in V1. Without a single primary persona committed to, the data model, prompt design, and safety boundaries remain underdetermined. *Related to Unit 1.*
+**Gap 1 — Persona × Define (relates to Unit 1):** The primary user is named, but the single critical use case that defines pilot success is not yet specified. What is the one question a Savya user must be able to answer, or the pilot fails? "Nothing slips" is a benefit, not a binary success definition. This needs resolving before data models and safety boundaries are designed.
 
-2. **What does the current workaround actually look like?** The problem framing describes context loss and execution gaps, but the specific workaround — what founders do today instead of Savya — is not documented. The workaround is the real replacement baseline and shapes what the system needs to outperform. *Related to Unit 1.*
+**Gap 2 — Solution × Define (relates to Unit 3):** The V1 architecture lists six MCP integrations and two data layers (Supabase vector store + live tool APIs). Which of these, if architected wrongly, would take six months to undo? The irreversibility hierarchy across the stack is not documented.
 
-3. **Which data sources are named and owned?** The V1 stack names Whisper, Supabase, Notion MCP, Google Calendar MCP, and Gmail MCP as components, but no named owner or accountability is documented for each integration point. Before Define, each dependency needs an owner and a known failure mode. *Related to Units 3 and 4.*
+**Gap 3 — Institution × Explore (relates to Unit 4):** The product is solo founder-built with no institutional structure documented. Who inside this organisation has to personally want this to work — and what is their specific professional stake? At a solo-founder stage, this question is about the founder's own commitment horizon and what would cause them to stop.
 
-4. **What is the content authority for what Savya says and does?** When Savya drafts an email or schedules a calendar event incorrectly, who is responsible — the founder, the tool, or the builder? The approval loop (WhatsApp review) is described architecturally, but the accountability question is not resolved. This is the institutional boundary that Define stage must answer.
+**Gap 4 — Ecosystem × Define (relates to Units 3 and 5):** WhatsApp, Notion, Google Calendar, Gmail, and Supabase are named as platform dependencies. No named accountability owner, SLA, or contingency exists for any of them. Which dependency, if it broke, would most damage user trust — and is there a fallback?
 
-5. **What is the one question or task V1 must handle correctly, or the pilot fails?** V1 scope is defined as a feature list, not a binary success condition. A single critical use case with a pass/fail definition would sharpen data model decisions and constrain scope before build progresses further. *Related to Unit 2.*
+**Gap 5 — Persona × Pilot:** Three user segments are named (founders, freelancers, agency owners), but no failure taxonomy exists yet. When Savya answers badly for a founder, is that a scope problem (outside what Savya should handle) or a quality problem (within scope, answered wrongly)? This distinction will determine whether the fix is prompt design or boundary redesign.
 
 ---
 
@@ -63,143 +65,146 @@ The deployment is at Explore stage, so empty Define/Pilot/Scale cells are expect
 
 ### Persona
 
-**1. Founder-as-glue as the problem definition**
+**1. Define the primary user by what they are forced to do, not what they want**
 
 - `Dimension: Persona`
 - `Stage: Explore`
+- `Also relevant at: Define`
 - `Type: Strategic Decision`
 
-- **Decision:** Frame the core problem not as "too many tools" but as the founder becoming the connective tissue between tools — the human integration layer. This reframes the solution target from tool consolidation to human cognitive offload.
+- **Decision:** Frame the target user by the compensatory behaviour the product eliminates — not by job title or company stage. The Indian early-stage founder is defined here not as "Series A or earlier" but as "the person who has become the connective tissue between every conversation and action in their company."
 - **Alternative considered:** Not documented in the source.
-- **Why:** When the founder is the system, the cost is not inefficiency — it is the opportunity cost of the founder's attention. This framing justifies an AI that acts, not just organises, and sets the bar for what "better" means: fewer decisions the founder has to make, not fewer apps.
-- **What this looked like here:** The pitch names three symptoms — context loss on calls, execution falling through WhatsApp and notes apps, and the founder as manual connector — and treats all three as expressions of the same root problem.
-- **Condition — applies when:** The user's job involves coordinating across multiple async channels and the cost of coordination is measured in the user's own time, not a team's time.
+- **Why:** A behaviour-based definition forces the product to solve for the actual pain (founder as glue) rather than a demographic proxy. It also makes the problem legible to the user immediately — they recognise themselves without needing explanation.
+- **What this looked like here:** The pitch centres on the phrase "you end up being the glue between every conversation and every action." This doubles as the acquisition message and the product brief — the same framing drives both who is recruited and what gets built.
+- **Condition — applies when:** The pain is a systemic behaviour the user is trapped in, not a single discrete task. Works when the user already feels the problem acutely but has no language for it yet.
 
 ---
 
-**2. Three-persona sequencing with a named expansion path**
+**2. Sequence user segments by expansion logic, not by market size**
 
 - `Dimension: Persona`
 - `Stage: Explore`
+- `Also relevant at: Define`
 - `Type: Strategic Decision`
 
-- **Decision:** Name three personas in sequence — primary (early-stage founders), secondary (freelancers/consultants), expansion (small agency owners) — rather than building for one or collapsing all three into a single undifferentiated "busy professional."
+- **Decision:** Order user segments as primary → secondary → expansion based on which segment's pain is sharpest and whose adoption validates the next. Freelancers confirm the core memory-and-execution loop works for a single person managing multiple client contexts. Agency owners are the natural next segment once multi-context memory is proven — not a separate product, the same core with team features layered on.
 - **Alternative considered:** Not documented in the source.
-- **Why:** The three personas share the context-loss problem but differ in who they are coordinating with (self, clients, or a team). Sequencing them preserves a single V1 scope while making the growth path explicit. Agency owners introduce multi-user complexity that V1 deliberately defers.
-- **What this looked like here:** V1 feature list targets solo-user workflows only. Multi-user team features are explicitly deferred to V2, consistent with the persona sequencing decision.
-- **Condition — applies when:** The expansion personas share the core problem but add a meaningful layer of complexity (multi-user, compliance, team coordination) that would bloat V1 if included. Sequencing only works if the V1 persona is genuinely self-contained.
-- **Condition — fails when:** The secondary and expansion personas have fundamentally different data needs or trust requirements from the primary — in that case, sequencing produces a V1 that cannot extend without a rebuild.
+- **Why:** Building for the expansion segment (agency owners) first would require multi-user features before the core loop is validated. Sequencing by pain sharpness means the V1 scope is defensible — team features are explicitly parked to V2.
+- **What this looked like here:** V1 ships zero multi-user features. Agency owners are named as an expansion segment, not a launch target. Multi-user team features appear explicitly in the V2 roadmap.
+- **Condition — applies when:** Each subsequent segment's core job-to-be-done is a superset of the previous segment's. Fails when segments have fundamentally different workflows requiring parallel product tracks.
 
 ---
 
 ### Solution
 
-**3. Voice-first input with WhatsApp-native review loop**
+**3. Separate the capture layer from the execution layer at the architecture level**
+
+- `Dimension: Solution`
+- `Stage: Explore`
+- `Also relevant at: Define`
+- `Type: Strategic Decision`
+
+- **Decision:** Design the system as two distinct layers — a capture-and-structure layer (voice → transcription → entity extraction → vector memory) and an execution layer (MCP agents acting across tools). The user interacts primarily at the capture end and review end; the middle runs autonomously.
+- **Alternative considered:** Not documented in the source.
+- **Why:** Keeping capture and execution as separate layers means failures in one do not cascade into the other. A transcription error is a capture problem; a misfired calendar event is an execution problem. Each has a different fix path and a different accountability owner.
+- **What this looked like here:** The V1 architecture names Whisper for transcription, Supabase for vector storage, and separate MCP connectors for each tool (Notion, Google Calendar, Gmail, WhatsApp). These are named as distinct components, not a monolithic pipeline.
+- **Condition — applies when:** The input modality (voice, text, call) is variable and the output tools are multiple. Fails when there is a single, fixed input-output pair — in that case, the layered architecture adds complexity with no benefit.
+
+---
+
+**4. Use WhatsApp as the review and approval channel, not an additional integration**
+
+- `Dimension: Solution`
+- `Stage: Explore`
+- `Also relevant at: Define`
+- `Type: Strategic Decision`
+
+- **Decision:** Route all Savya outputs requiring user review back through WhatsApp — the channel the target user already lives in — rather than requiring them to return to a dashboard or a new interface.
+- **Alternative considered:** Not documented in the source.
+- **Why:** For Indian founders, WhatsApp is the ambient professional layer. A review step that requires opening a new app adds friction that compounds across every interaction. WhatsApp-native review makes "you approve or redirect" feel like existing behaviour, not a new workflow.
+- **What this looked like here:** WhatsApp notification is the final step in the V1 flow — after Notion, Calendar, and Gmail actions are drafted, the user is notified on WhatsApp for review. It is not a supplementary channel; it is the primary human-in-the-loop interface.
+- **Condition — applies when:** Target users are in a geography where WhatsApp is the dominant professional communication layer and already use it for time-sensitive decisions. Does not transfer to markets where email or Slack is the primary ambient layer.
+
+---
+
+**5. Treat market-specific pricing as a product decision, not a go-to-market decision**
 
 - `Dimension: Solution`
 - `Stage: Explore`
 - `Type: Strategic Decision`
 
-- **Decision:** Design input as voice (memo or call) and review as WhatsApp notification, rather than a dedicated app or dashboard interface. The AI layer operates between these two touchpoints.
-- **Alternative considered:** Not documented in the source.
-- **Why:** Indian founders already live in WhatsApp. Meeting them at an existing behavioural touchpoint — rather than requiring adoption of a new interface — lowers the activation barrier. Voice input removes the friction of structured data entry at the moment of highest context (during or immediately after a call).
-- **What this looked like here:** The review step is explicitly framed as "you approve or redirect" via WhatsApp — not a login, not a dashboard. This positions Savya as ambient infrastructure rather than another app to open.
-- **Condition — applies when:** The target user already uses WhatsApp as a primary async communication tool and the primary capture moment is voice-first (calls, voice memos). Breaks down for users whose primary work surface is desktop-first or whose organisation restricts WhatsApp for work communications.
-
----
-
-**4. MCP agent layer for cross-tool execution**
-
-- `Dimension: Solution`
-- `Stage: Explore`
-- `Type: Tactical Decision`
-
-- **Decision:** Use MCP (Model Context Protocol) agents for execution across Notion, Google Calendar, and Gmail, rather than custom API integrations or RPA-style automation.
-- **Alternative considered:** Not documented in the source.
-- **Why:** Not documented in the source beyond the V1 feature list naming MCP as the execution layer.
-- **What this looked like here:** Three MCP integrations named for V1 — Notion (page creation), Google Calendar (follow-up scheduling), Gmail (draft emails). A Supabase vector store provides org memory that agents draw on.
-- **Condition — applies when:** Target tools have stable MCP connectors. If a required tool lacks an MCP connector, the architecture requires a fallback integration strategy not documented here.
-- **Before → After:** Not documented in the source (pre-launch).
-
----
-
-**5. Market-sizing the EA cost as the price anchor**
-
-- `Dimension: Solution`
-- `Stage: Explore`
-- `Type: Strategic Decision`
-
-- **Decision:** Set pricing reference against the cost of a human executive assistant in India (₹40,000/month) rather than against competing SaaS tools or Western AI productivity pricing ($49/month Western SaaS cited as the contrast).
-- **Alternative considered:** Western SaaS pricing benchmarks (explicitly named and rejected as the comparison point).
-- **Why:** Indian founders are price-sensitive relative to Western SaaS benchmarks, but the real alternative they are replacing is human admin support — which carries a concrete, known cost. Anchoring against the EA cost makes the value proposition legible and positions Savya as infrastructure, not a luxury add-on.
-- **What this looked like here:** The pitch cites ₹40,000/month as the EA cost benchmark. Savya's actual price is not documented in the source.
-- **Condition — applies when:** The user population has genuine familiarity with the cost of human admin support and is making a real build-vs-hire decision. Fails when users have never considered hiring an EA — in that case, the anchor has no purchase.
+- **Decision:** Price Savya as a fraction of the Indian EA market rate (₹40,000/month), not as a discount to Western SaaS benchmarks. The comparison point is a local human alternative, not a global software category.
+- **Alternative considered:** Western SaaS pricing (cited in the source as ~$49/month) was explicitly rejected.
+- **Why:** For Indian founders, ₹40,000/month for a human EA is a real and familiar cost. Pricing against that benchmark makes the value case immediate and concrete. Pricing against $49/month Western SaaS frames Savya as a cheaper version of something foreign, not a replacement for something local.
+- **What this looked like here:** The pitch explicitly names "₹40k cost of a human EA/month" and positions Savya as "a fraction" of that — not as a cheaper Notion AI or similar.
+- **Condition — applies when:** A human-role alternative exists in the target market at a known, familiar cost, and that alternative is the real competitive baseline. Fails when no local human-role benchmark exists or when the product is genuinely in a software category with established local pricing norms.
 
 ---
 
 ### Institution
 
-**6. Founder-built, founder-tested as the early validation model**
+**6. Recruit founding users as co-builders, not beta testers**
 
 - `Dimension: Institution`
 - `Stage: Explore`
+- `Also relevant at: Define`
 - `Type: Strategic Decision`
 
-- **Decision:** Recruit 10 Indian founders and operators as co-builders for early access rather than building in stealth and launching to a cold audience.
+- **Decision:** The first 10 users are recruited explicitly as co-builders with direct input on features and founding pricing locked forever — not as recipients of a finished product being tested.
 - **Alternative considered:** Not documented in the source.
-- **Why:** The target persona is founders — people who understand iteration and have high tolerance for rough edges if they have input on direction. Early co-builders provide signal on whether the persona framing holds (does a real founder actually experience the problem as described?) and lock in founding-user pricing as an acquisition mechanic.
-- **What this looked like here:** The call-to-action in the pitch is direct co-builder recruitment: "We're looking for 10 Indian founders and operators to build Savya with us from day one. Free early access — no credit card."
-- **Condition — applies when:** The product is genuinely unfinished and the builder has capacity to incorporate user input. Fails when early users expect a polished product or when the builder cannot act on feedback without a major rebuild.
+- **Why:** At pre-launch stage with no usage data, co-builder framing accomplishes two things simultaneously: it recruits people motivated to give structured feedback (not just use or churn), and it creates a social contract that makes those users invested in the product's success rather than passive evaluators.
+- **What this looked like here:** The pitch's call to action is "build Savya with us from day one" — free early access, direct feature input, founding pricing. The framing is explicit: these users are named as people who will shape what gets built.
+- **Condition — applies when:** The product is genuinely incomplete and the founding users' domain expertise (in this case, Indian founder workflows) would materially change product decisions. Fails when the product is already defined and "co-builder" framing would create false expectations about influence.
 
 ---
 
 ### Ecosystem
 
-**7. WhatsApp as distribution and trust layer, not just notification**
+**7. Name WhatsApp as infrastructure, not a feature**
 
 - `Dimension: Ecosystem`
 - `Stage: Explore`
+- `Also relevant at: Define`
 - `Type: Strategic Decision`
 
-- **Decision:** Treat WhatsApp as a trust and distribution layer — the channel through which Savya earns ongoing permission from the founder — rather than as a simple push notification rail.
+- **Decision:** WhatsApp is positioned as a foundational infrastructure dependency — the primary delivery rail — not as one integration among many. This means platform risk (API policy changes, rate limits, business account restrictions) is a first-order concern, not a secondary one.
 - **Alternative considered:** Not documented in the source.
-- **Why:** In Indian founder contexts, WhatsApp is where real decisions happen. A tool that lives in WhatsApp is treated as part of the workflow; a tool that sends notifications to WhatsApp from outside is treated as an interruption. Positioning review as a WhatsApp-native action (approve or redirect) gives Savya ongoing permission to act rather than requiring the founder to re-engage a separate interface.
-- **What this looked like here:** Every Savya action cycle ends with a WhatsApp notification for review — the founder's approval is given in WhatsApp, not in a dashboard. This is the only described touchpoint for the human-in-the-loop step.
-- **Condition — applies when:** The target market uses WhatsApp as a professional-grade async channel where decisions are made, not just as a consumer messaging app. Does not transfer to markets where WhatsApp is a personal-only channel or where enterprise communication happens on Slack, Teams, or email exclusively.
+- **Why:** When a platform dependency is treated as a feature, its risks are managed as product risks (edge cases, bugs). When it is treated as infrastructure, its risks are managed as existential risks requiring contingency planning. The distinction matters because WhatsApp's Business API has historically changed access rules in ways that affected third-party products significantly.
+- **What this looked like here:** WhatsApp is named in both the product architecture (notification and review channel) and the market positioning ("WhatsApp-native notifications — where Indian founders already live"). Its centrality is not incidental.
+- **Condition — applies when:** A single third-party platform is both the primary delivery channel and the primary trust signal for the target user. The risk is proportional to how irreplaceable that platform is for reaching the user.
 
 ---
 
 ## Section 4 — Toolkits and playbooks
 
-| Unit | Title | Type | Reuse condition |
+| # | Title | Type | Reuse condition |
 |---|---|---|---|
-| 3 | Voice-first input with WhatsApp-native review loop | Strategic Decision | Applies when target users are WhatsApp-native professionals and the primary capture moment is voice. Does not transfer to desktop-first or enterprise-restricted environments. |
-| 4 | MCP agent layer for cross-tool execution | Tactical Decision | Applies when target tools have stable MCP connectors. Requires fallback strategy if a required tool lacks MCP support. |
-| 7 | WhatsApp as distribution and trust layer | Strategic Decision | Applies when WhatsApp functions as a professional decision channel for the target market, not just a consumer app. |
+| 2 | Sequence user segments by expansion logic | Strategic Decision | Applies when each subsequent user segment's job-to-be-done is a superset of the previous segment's |
+| 3 | Separate the capture layer from the execution layer | Strategic Decision | Applies when input modality is variable and output tools are multiple |
+| 4 | Use WhatsApp as the review and approval channel | Strategic Decision | Applies when target users are in a WhatsApp-dominant professional context |
+| 6 | Recruit founding users as co-builders | Strategic Decision | Applies when the product is genuinely incomplete and founding users have domain expertise that would materially change product decisions |
 
 ---
 
 ## Section 6 — Retrieval guide
 
-*"How do I frame the problem for a persona who's drowning in tools?"* → Unit 1
+*"Who is the right first user to recruit for an AI productivity tool in India?"* → Unit 1, Unit 2
 
-*"Should I build for one persona first or address all of them?"* → Unit 2
+*"How do I frame the value proposition against a human assistant rather than a software competitor?"* → Unit 5
 
-*"How do I justify the price point for an Indian market?"* → Unit 5
+*"Should I build a dashboard for user review, or use the channel they already use?"* → Unit 4
 
-*"Why voice input rather than a structured form or dashboard?"* → Unit 3
+*"How do I structure V1 scope when I want to serve founders, freelancers, and agencies?"* → Unit 2
 
-*"Why WhatsApp for review rather than a dedicated app?"* → Units 3, 7
+*"How should I architect a system that captures input and then acts across multiple tools?"* → Unit 3
 
-*"Which integrations should I build first for a founder-facing PA?"* → Unit 4
+*"WhatsApp is central to my product — what risks does that create?"* → Unit 7
 
-*"How do I recruit early users without a finished product?"* → Unit 6
+*"How do I recruit early users in a way that generates useful feedback, not just usage data?"* → Unit 6
 
-*"What makes WhatsApp work as more than a notification channel?"* → Unit 7
+*"How do I price an AI assistant in the Indian market?"* → Unit 5
 
-*"How do I sequence personas without losing focus on V1?"* → Unit 2
-
-*"What is the right comparison point for pricing an AI productivity tool in India?"* → Unit 5
+*"What should I resolve before moving from Explore to Define?"* → Unit 1 (Gap 1), Unit 3 (Gap 2), Unit 7 (Gap 4)
 
 ---
 
@@ -211,5 +216,5 @@ The deployment is at Explore stage, so empty Define/Pilot/Scale cells are expect
 
 | Source file | Covers | Notes |
 |---|---|---|
-| `savyasachi_pitch.pptx` (as of August 24, 2026) | Section 1 — all fields except contributing organisation and build effort; Section 3 — Units 1–7 (all content); Section 4 — all entries; Section 2 — gap identification for Units 1, 2, 3, 4 | Primary source. All factual claims in Sections 1–4 derive from this file. No independent verification. Contributor's own account. |
-| Adoption Companion conversation (as of August 24, 2026, 2:52 AM) | Section 1 — build effort field ("2 months total — 1 month for building, 1 month for testing"); stage confirmed as Explore; Section 2 — gap framing | Contributor's own account. Build effort figure introduced in this conversation; not present in the pitch deck. |
+| savyasachi_pitch.pptx, as of August 26, 2026 | Section 1 — all fields except Contributing Organisation and Build Effort; Section 3 — Units 1–7; Section 4 — all entries; Section 6 — all retrieval entries; Section 2 — coverage grid and Gaps 1–5 | Primary source. Solo founder pitch deck, pre-launch. All facts are this contributor's own account; not independently verified. |
+| Adoption Companion conversation, as of August 26, 2026 | Section 1 — Stage, Geography, Sector, Summary; Section 2 — coverage grid density labels | Confirms pitch deck content; confirms Explore stage. Adds no new facts beyond what the pitch deck establishes. |
