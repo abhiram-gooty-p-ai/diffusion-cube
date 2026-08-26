@@ -21,7 +21,7 @@ Reusable value concentrates in Section 3 (micro-innovations) and the retrieval g
 | **Geography** | India |
 | **Population served** | Early-stage Indian founders and operators; secondary: freelancers and consultants; expansion: small agency owners |
 | **Stage reached** | Explore — pre-launch, recruiting 10 early users |
-| **Contributing organisation** | Not documented in the source |
+| **Contributing organisation** | EkStep Foundation |
 | **Key dates** | As of August 2026 |
 | **Summary** | Savyasachi is an AI personal assistant built for Indian founders and operators. It captures voice memos and calls, extracts entities, links context to organisational memory, and executes tasks across Notion, Google Calendar, Gmail, and WhatsApp via MCP agents. The product is pre-launch, recruiting 10 founding users. |
 | **Scale / impact achieved** | Not documented in the source — pre-launch |
@@ -216,5 +216,5 @@ The following gaps are genuine open questions for this deployment at its current
 
 | Source file | Covers | Notes |
 |---|---|---|
-| savyasachi_pitch.pptx, as of August 26, 2026 | Section 1 — all fields except Contributing Organisation and Build Effort; Section 3 — Units 1–7; Section 4 — all entries; Section 6 — all retrieval entries; Section 2 — coverage grid and Gaps 1–5 | Primary source. Solo founder pitch deck, pre-launch. All facts are this contributor's own account; not independently verified. |
-| Adoption Companion conversation, as of August 26, 2026 | Section 1 — Stage, Geography, Sector, Summary; Section 2 — coverage grid density labels | Confirms pitch deck content; confirms Explore stage. Adds no new facts beyond what the pitch deck establishes. |
+| savyasachi_pitch.pptx, as of August 26, 2026 | Section 1 — all fields except Build Effort; Section 3 — Units 1–7; Section 4 — all entries; Section 6 — all retrieval entries; Section 2 — coverage grid and Gaps 1–5 | Primary source. Solo founder pitch deck, pre-launch. All facts are this contributor's own account; not independently verified. |
+| Adoption Companion conversation, as of August 26, 2026 | Section 1 — Stage, Geography, Sector, Summary, Contributing Organisation (EkStep Foundation); Section 2 — coverage grid density labels | Confirms pitch deck content; confirms Explore stage. Contributing Organisation field updated per contributor instruction in this conversation. |
