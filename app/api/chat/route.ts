@@ -1,10 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { loadWikiContext, loadFrameworkContent, loadPathwayGenerationPrompt } from '@/lib/wiki-loader';
+import { loadWikiContext, loadFrameworkContent, loadPathwayGenerationPrompt, loadResourcesContent } from '@/lib/wiki-loader';
 import {
   explorerSystemPrompt,
   contributorSystemPrompt,
   analysisDocSystemPrompt,
-  validateAnalysisDocSystemPrompt,
   planDocumentSystemPrompt,
   documentInsightSystemPrompt,
   pathwayDraftSystemPrompt,
@@ -75,14 +74,16 @@ export async function POST(req: Request) {
     }
   }
 
-  const [wikiContent, frameworkContent] = await Promise.all([loadWikiContext(), loadFrameworkContent()]);
+  const [wikiContent, frameworkContent, resourcesContent] = await Promise.all([
+    loadWikiContext(),
+    loadFrameworkContent(),
+    loadResourcesContent(),
+  ]);
 
   let systemPrompt: string;
   const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
   if (mode === 'analysis-doc') {
-    systemPrompt = meta?.intent === 'strengthen'
-      ? validateAnalysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt)
-      : analysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt);
+    systemPrompt = analysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt);
   } else if (mode === 'executive-summary') {
     systemPrompt = executiveSummarySystemPrompt(
       wikiContent,
@@ -125,7 +126,7 @@ export async function POST(req: Request) {
       typeof existingPublishedDoc === 'string' ? existingPublishedDoc : null
     );
   } else {
-    systemPrompt = explorerSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {});
+    systemPrompt = explorerSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, resourcesContent);
   }
 
   const stream = await anthropic.messages.stream({

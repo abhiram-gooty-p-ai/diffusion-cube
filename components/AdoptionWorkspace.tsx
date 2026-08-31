@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import ChatPanel, { Message } from '@/components/ChatPanel';
+import HeatmapGrid from '@/components/HeatmapGrid';
 import AttachmentsPanel from '@/components/AttachmentsPanel';
 import PathwayDocumentPane from '@/components/PathwayDocumentPane';
 import AdoptionPlanModal from '@/components/AdoptionPlanModal';
@@ -650,6 +651,18 @@ export default function AdoptionWorkspace({
             )}
           </>
         )}
+        {/* One persistent grid, bound directly to live conversation.grid state
+            (already updated every turn via the <grid_update> contract, see
+            useAdoptionConversation) — replaces the old per-message <cube_grid/>
+            marker so the table renders once and simply reflects current state,
+            instead of a fresh copy mounting in every qualifying chat bubble.
+            Rendering here costs nothing extra on the response path: the data
+            was already live-updating regardless of whether anything showed it. */}
+        {flow === 'explorer' && headerExpanded && (
+          <div className="mt-3">
+            <HeatmapGrid grid={conversation.grid} />
+          </div>
+        )}
       </div>
 
       {/* Chat + files (+ the pathway document pane, alongside chat rather than over it) */}
@@ -663,7 +676,6 @@ export default function AdoptionWorkspace({
             pendingAttachments={pendingAttachments}
             loading={loading}
             placeholder="Ask, share, or think out loud…"
-            grid={conversation.grid}
             onOpenPathwayDocument={flow === 'contributor' ? openPathwayDocument : undefined}
             onOpenExplorerDocument={flow === 'explorer' ? openExplorerDocument : undefined}
             pathwayLookup={pathwayLookup}

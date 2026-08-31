@@ -89,6 +89,11 @@ export interface AdoptionMeta {
   conversationMode: string;
   // Explorer-only — see CubeAssessment above.
   cubeAssessment: CubeAssessment;
+  // Explorer-only: the model's own working read of who the user is — role/
+  // position and what they most likely care about, inferred silently and
+  // sharpened over turns, never asked for directly. See CompanionMeta.persona
+  // in lib/system-prompts.ts.
+  persona: string;
 }
 
 export const EMPTY_META: AdoptionMeta = {
@@ -107,6 +112,7 @@ export const EMPTY_META: AdoptionMeta = {
   decision: '',
   conversationMode: '',
   cubeAssessment: EMPTY_CUBE_ASSESSMENT,
+  persona: '',
 };
 
 export { EMPTY_GRID };
@@ -779,6 +785,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
               confidence: m?.confidence || c.meta.confidence,
               decision: m?.decision || c.meta.decision,
               conversationMode: m?.conversationMode || c.meta.conversationMode,
+              persona: m?.persona || c.meta.persona,
               cubeAssessment: m?.cubeAssessment
                 ? {
                     currentStage: m.cubeAssessment.currentStage ?? c.meta.cubeAssessment.currentStage,

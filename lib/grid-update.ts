@@ -58,6 +58,9 @@ export interface ParsedGridUpdate {
       missingDimensions?: string[];
       assessmentConfirmed?: boolean;
     };
+    // Explorer-only: the model's own working read of who the user is —
+    // see CompanionMeta.persona in lib/system-prompts.ts.
+    persona?: string;
   };
   // Pathway slugs the companion actually drew on this turn (see
   // companionSystemPrompt's grid_update contract) — used server-side to tag

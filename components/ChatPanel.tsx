@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import HeatmapGrid from '@/components/HeatmapGrid';
 import { downloadPlanAsPdf } from '@/lib/adoption-plan-pdf';
 import {
   ANALYSIS_DOC_MARKER,
@@ -11,7 +10,6 @@ import {
   PATHWAY_DOC_MARKER,
 } from '@/lib/grid-update';
 import type { DocType } from '@/lib/design-documents';
-import type { GridState } from '@/lib/dimensions';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -34,12 +32,12 @@ export interface Message {
   pathwaysReferenced?: string[];
 }
 
-// The Explorer prompt's Step 3 emits this literal marker, once, at the point
-// in its response where the Initial Cube Assessment's grid belongs — the
-// model never renders a grid itself, it just marks where one goes; this is
-// what turns that marker into an actual colored HeatmapGrid inline in the
-// message. Kept in the stored message content (unlike <grid_update>, which
-// is stripped) so the grid still renders on reload/scrollback.
+// Legacy marker from an earlier design where the model signalled a grid
+// snapshot inline in chat, once per qualifying turn. The grid now renders as
+// a single persistent element in AdoptionWorkspace's header, always current
+// from live grid state, so nothing needs to trigger it from chat anymore —
+// this is kept only to strip the literal string out of any older stored
+// messages that still contain it, so it never shows as raw text.
 const CUBE_GRID_MARKER = '<cube_grid/>';
 
 // A file the user has attached but not sent yet — staged (see AttachmentsPanel)
@@ -61,19 +59,61 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
   );
 }
 
-// Inline parser supporting **bold** and *italic*.
+// Inline parser supporting **bold** and *italic*, including one nested
+// inside the other (e.g. the model's own italic "closing line" wrapping a
+// **bolded pathway name**). A single combined regex can't do this correctly:
+// its italic branch's [^*]+ can't span a nested ** run, so it closes the
+// italic at the nested bold's first star and shreds both spans. This scans
+// character-by-character instead, always preferring ** at a given position,
+// and — when opening an italic span — skips over any nested **...** run
+// while hunting for the italic's own closing single star, then recurses on
+// each span's inner text so further nesting still resolves correctly.
 function parseChatInline(text: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
-  let last = 0;
-  const re = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) nodes.push(text.slice(last, m.index));
-    if (m[1] !== undefined) nodes.push(<strong key={m.index}>{m[1]}</strong>);
-    else nodes.push(<em key={m.index}>{m[2]}</em>);
-    last = m.index + m[0].length;
+  let buf = '';
+  const flush = () => {
+    if (buf) nodes.push(buf);
+    buf = '';
+  };
+
+  function findItalicClose(from: number): number {
+    let j = from;
+    while (j < text.length) {
+      if (text[j] === '*' && text[j + 1] === '*') {
+        const boldEnd = text.indexOf('**', j + 2);
+        if (boldEnd === -1) return -1; // unterminated nested bold — bail, treat '*' as literal
+        j = boldEnd + 2;
+        continue;
+      }
+      if (text[j] === '*') return j;
+      j++;
+    }
+    return -1;
   }
-  if (last < text.length) nodes.push(text.slice(last));
+
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '*' && text[i + 1] === '*') {
+      const end = text.indexOf('**', i + 2);
+      if (end !== -1 && end > i + 2) {
+        flush();
+        nodes.push(<strong key={i}>{parseChatInline(text.slice(i + 2, end))}</strong>);
+        i = end + 2;
+        continue;
+      }
+    } else if (text[i] === '*') {
+      const end = findItalicClose(i + 1);
+      if (end !== -1 && end > i + 1) {
+        flush();
+        nodes.push(<em key={i}>{parseChatInline(text.slice(i + 1, end))}</em>);
+        i = end + 1;
+        continue;
+      }
+    }
+    buf += text[i];
+    i++;
+  }
+  flush();
   return nodes;
 }
 
@@ -210,16 +250,15 @@ function DocCard({ title, cta, onOpen }: { title: string; cta: string; onOpen: (
 // through renderInlineMarkdown. A message only ever carries one of these.
 function renderMessageContent(
   text: string,
-  grid: GridState | undefined,
   onOpenPathwayDocument: (() => void) | undefined,
   onOpenExplorerDocument: ((docType: DocType) => void) | undefined
 ): React.ReactNode[] {
   const deliverable = extractDeliverable(text);
   if (deliverable) {
     const nodes: React.ReactNode[] = [];
-    if (deliverable.before) nodes.push(<span key="before">{renderInlineMarkdown(deliverable.before)}</span>);
+    if (deliverable.before) nodes.push(<div key="before">{renderChatMarkdown(deliverable.before)}</div>);
     nodes.push(<DeliverableCard key="card" markdown={deliverable.markdown} />);
-    if (deliverable.after) nodes.push(<span key="after">{renderInlineMarkdown(deliverable.after)}</span>);
+    if (deliverable.after) nodes.push(<div key="after">{renderChatMarkdown(deliverable.after)}</div>);
     return nodes;
   }
 
@@ -246,24 +285,14 @@ function renderMessageContent(
     const nodes: React.ReactNode[] = [];
     segments.forEach((segment, i) => {
       const trimmed = segment.trim();
-      if (trimmed) nodes.push(<span key={`t${i}`}>{renderInlineMarkdown(trimmed)}</span>);
+      if (trimmed) nodes.push(<div key={`t${i}`}>{renderChatMarkdown(trimmed)}</div>);
       if (i < segments.length - 1)
         nodes.push(<DocCard key={`d${i}`} title={docMarker.title} cta={docMarker.cta} onOpen={docMarker.open} />);
     });
     return nodes;
   }
 
-  if (grid && text.includes(CUBE_GRID_MARKER)) {
-    const segments = text.split(CUBE_GRID_MARKER);
-    const nodes: React.ReactNode[] = [];
-    segments.forEach((segment, i) => {
-      if (segment) nodes.push(<span key={`t${i}`}>{renderInlineMarkdown(segment)}</span>);
-      if (i < segments.length - 1) nodes.push(<HeatmapGrid key={`g${i}`} grid={grid} />);
-    });
-    return nodes;
-  }
-
-  return renderInlineMarkdown(text);
+  return [<div key="t0">{renderChatMarkdown(text)}</div>];
 }
 
 interface Props {
@@ -275,9 +304,6 @@ interface Props {
   pendingAttachments?: PendingAttachment[];
   loading: boolean;
   placeholder?: string;
-  // Only needed to render an inline HeatmapGrid wherever a message contains
-  // CUBE_GRID_MARKER — Contributor-flow callers can omit this.
-  grid?: GridState;
   // Only needed by Contributor-flow callers, to render a PathwayDocCard
   // wherever a message contains PATHWAY_DOC_MARKER — Explorer callers omit
   // this, so those messages never contain the marker in the first place.
@@ -320,7 +346,6 @@ export default function ChatPanel({
   pendingAttachments = [],
   loading,
   placeholder,
-  grid,
   onOpenPathwayDocument,
   onOpenExplorerDocument,
   onAttachFiles,
@@ -376,11 +401,13 @@ export default function ChatPanel({
     <div className="flex flex-col h-full bg-paper">
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5 sm:px-6">
         {messages.map((m, i) => {
-          const text = m.displayContent ?? m.content;
+          // Strip the legacy per-message grid marker here, once, so it never
+          // surfaces as literal text down either render path below — the
+          // grid itself now lives once, persistently, in the workspace header.
+          const text = (m.displayContent ?? m.content).split(CUBE_GRID_MARKER).join('');
           const isRich =
             m.role === 'assistant' &&
-            ((grid && text.includes(CUBE_GRID_MARKER)) ||
-              text.includes(DELIVERABLE_START) ||
+            (text.includes(DELIVERABLE_START) ||
               (onOpenPathwayDocument && text.includes(PATHWAY_DOC_MARKER)) ||
               (onOpenExplorerDocument &&
                 (text.includes(ANALYSIS_DOC_MARKER) || text.includes(EXEC_SUMMARY_MARKER))));
@@ -445,7 +472,7 @@ export default function ChatPanel({
                   </div>
                 ) : isRich ? (
                   <div className="space-y-3">
-                    {renderMessageContent(text, grid, onOpenPathwayDocument, onOpenExplorerDocument)}
+                    {renderMessageContent(text, onOpenPathwayDocument, onOpenExplorerDocument)}
                     {disclaimerBlock}
                     {sourcesBlock}
                   </div>

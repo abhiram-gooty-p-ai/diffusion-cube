@@ -1,335 +1,207 @@
 ---
 type: Pathway
 title: Bhili Language Enablement for Voice AI
-description: Bringing Dehwali Bhili, a zero-digital-resource tribal language, into ASR/NMT/TTS and into MahaVISTAAR's live voice bot in ~100 days.
+description: Bringing Dehwali Bhili, a zero-digital-resource tribal language, into ASR/NMT/TTS and into MahaVISTAAR's live voice bot — from a near-miss isolated data-collection effort to a district-to-state replication playbook.
 tags: [Voice AI, Language, Tribal Inclusion]
 sector: Agriculture
 stage: Pilot
-timestamp: 2026-07-31
+timestamp: 2026-08-31
 contributor: EkStep Foundation
 ---
 
-# 0. Overview
+# 0. Reading Guide
 
-Bringing a zero-digital-resource tribal language — Dehwali Bhili — into
-the voice AI ecosystem: automatic speech recognition (ASR), machine
-translation (NMT), and text-to-speech (TTS) — and into a live
-government advisory service. Source deployment: Project Astitva,
-Nandurbar district, Maharashtra, led by the District Administration
-with Bhashini (national platform), Karya (data collection partner),
-and AI4Bharat/IIT Madras (model building). The effort surfaced almost
-by accident: a Voice AI team building an agriculture advisory bot with
-Maharashtra's Agriculture Department discovered that Nandurbar district
-had already started an independent Bhili voice-data collection effort
-through Karya, running in isolation from the model-building side.
+This is not a case study — it documents what was built. This is a pathway — the marked trail Project Astitva's team left for the next adopter bringing a new language onto the AI map.
 
-**Who it serves.** 10 million+ Bhili speakers nationally; within
-Nandurbar, tribal community members — particularly women farmers who
-have smaller advice networks, limited exposure to Marathi, and are
-often excluded from government schemes reaching everyone else. As the
-district's own leadership put it: communities like this are not
-low-resource — they are under-represented in the digital systems built
-so far.
+Most of what matters here lives in three kinds of source: a structured interview with EkStep's Voice and Language AI lead (the programme-level view — decisions, models, cost, sustainability); eight field interviews recorded in Nandurbar with the district's own team, contributors, and farmers (the ground-level view — what the work actually felt like, what broke, what a live field test of the helpline showed); and the district's own published replication handbook. Where these three views agree, that's the strongest signal. Where they add detail to each other, both are kept.
 
-**Scale achieved.** 60,000+ voice samples and 60,000 Bhili–Marathi
-translation pairs collected in about one month from a standing start;
-~60 hours of spontaneous speech and 2 hours of studio-quality voice.
-Now live inside MahaVISTAAR's Vasudha voice bot.
-
-**Cost anchor.** ~₹27 lakh for Phase 1, fully government-funded; ~₹20
-lakh of that paid directly to community contributors. Model training
-was subsidised by AI4Bharat in exchange for open data.
-
-**Compression evidence.** Compressed into ~100 days end to end
-(collect → build → deploy) from an absolute zero — no prior ASR/NMT/TTS
-resource for the language. The next languages using the same approach —
-Mathwadi Bhili, Mavchi, Pawari, and eventually Bodo, Garo — are expected
-to move faster.
-
-**Where this pathway doesn't apply.** Built from a tribal, zero-resource
-language effort anchored to a government deployment. If your language
-already has some digital presence, or your effort isn't tied to a
-specific service a community will actually use, some of this won't
-transfer cleanly.
+Reusable value concentrates in Section 3 (eight tagged decisions, failures, and reusable assets, each with a condition tag) and Section 4 (the one fully reusable toolkit this deployment produced). Navigate by dimension if you're weighing a specific kind of decision (Persona = who this is for, Solution = what got built, Institution = who owns and governs it, Ecosystem = who else has to show up), or by stage if you know where your own effort stands (Explore = should we do this at all, Define = what has to be decided before recording starts, Pilot = what breaks with real users, Scale = can this run without its founding champion).
 
 # 1. Pathway Identity
 
 | Field | Value |
 |---|---|
-| Scale achieved (as of 2026-07-06) | 60,000+ voice samples, 60,000 Bhili–Marathi translation pairs, ~60 hours spontaneous speech, ~2 hours studio-quality voice per artist; live inside MahaVISTAAR's Vasudha voice bot |
-| Cost anchor (as of 2026-07-06) | ~₹27 lakh, Phase 1, fully government-funded; ~₹20 lakh paid directly to community contributors; model training subsidised by AI4Bharat in exchange for open data |
-| Build effort | ~100 days end to end (collect → build → deploy), starting from zero prior ASR/NMT/TTS resource for the language |
-| Known downstream reuse | Deployed inside MahaVISTAAR's Vasudha voice bot; the same approach is being extended to Mathwadi Bhili, Mavchi, and Pawari next, with Bodo and Garo on the map |
-| Scope / does not transfer when | Anchored to a tribal, zero-digital-resource language tied to a specific government deployment. Doesn't transfer cleanly if the target language already has some digital presence, or if the effort isn't tied to a specific service a community will actually use |
+| Deployment name | Project Astitva — Dehwali Bhili Language Enablement |
+| Sector | Agriculture (voice-first government advisory) |
+| Geography | Nandurbar district, Maharashtra — extends to Bhili-speaking populations across Madhya Pradesh and Rajasthan |
+| Population served | 10 million+ Dehwali Bhili speakers nationally; within Nandurbar, tribal community members specifically — particularly women farmers with smaller advice networks, limited exposure to Marathi, and reduced access to government schemes reaching everyone else |
+| Stage reached | Pilot — text and voice chat live inside MahaVISTAAR's Vasudha bot since ~26 May 2026; a standalone telephony/IVR line was in active field testing as of the August 2026 site visit, targeted for full rollout before October 2026 |
+| Contributing organisation(s) | District Administration, Nandurbar (convening authority); Karya (data collection platform); Bhashini/ULCA (national hosting); AI4Bharat/IIT Madras (model building); Voicera (voice stack / telephony integration learnings); State Agriculture Department & POCRA (deployment into MahaVISTAAR); EkStep Foundation (cross-stakeholder orchestration) |
+| Key dates (as of Aug 2026) | Data collection: ~1 month, standing start; models live in MahaVISTAAR app: ~26 May 2026; telephony/IVR field testing: August 2026; full telephony rollout targeted: before October 2026 |
+| Summary | A district-run effort to collect Dehwali Bhili voice and translation data, discovered running in isolation from the national model-building ecosystem and then connected to it, produced the first tribal-language voice AI stack built from zero digital presence — now a live, if still-tuning, feature inside Maharashtra's agricultural advisory bot, and an explicit replication playbook for the next language. |
+| Scale/impact achieved (as of Aug 2026) | 25,000 agricultural + 15,000 non-agricultural sentences (translation pairs); 60,000+ voice samples; ~60 hours spontaneous speech, ~6 hours studio speech, ~2 hours conversational speech per the booklet's later count (Otter interview cites ~500 hours as a longer-run target, not what Phase 1 actually delivered); live inside MahaVISTAAR's Vasudha voice bot and the MahaDBT-adjacent advisory channel; three further languages (Mathwadi Bhili, Mavchi, Pawari) queued using the same playbook |
 
-# 2. Coverage and Gaps
+# 2. Effort Details
 
-| Dimension | Explore | Define | Pilot | Scale |
+**Cost anchor (as of Jul 2026).** Phase 1 cost roughly ₹27 lakh, fully government-funded. Close to ₹20 lakh of that went directly back to community contributors — paid per task, with reported rates around ₹1 per word to validate and ₹2 per word to transcribe/translate; one lead validator's per-task rate is separately documented at ₹500/₹6,000 per 10-minute conversational block (₹3,000 per partner per 12-task batch). Model training itself was subsidised by AI4Bharat in exchange for open data access — not a cash cost to the district.
+
+**Build effort.** One month for the first data-collection phase, involving a 22–25 person field contributor team (selected from a ~70-person taluka agriculture staff pool by the Taluka Agriculture Officer), a small central studio team recording 10–12 hours a day in an existing community radio station, at least five named institutional partners, and a single lead district champion (the District Collector) coordinating across all of them. Roughly 100 days end to end from first recording to a live public feature.
+
+**Downstream adoptions.** None yet formally documented as live deployments by other adopters — but the same playbook is already committed to three further languages (Mathwadi Bhili, Mavchi, Pawari), with Bodo and Garo named as later candidates, and the district has published its own four-step replication handbook (see Unit 8) explicitly for other districts to pick up.
+
+## The 4×4 Coverage Grid
+
+Density reflects where this pathway's units originate (Stage of origin only — see Section 3), not where a topic is discussed in passing.
+
+| | Explore | Define | Pilot | Scale |
 |---|---|---|---|---|
-| Persona | ● | ○ | ● | ○ |
-| Solution | ○ | ●● | ● | ● |
-| Institution | ●● | ●●● | ●●● | ●●● |
-| Ecosystem | ○ | ● | ● | ● |
+| **Persona** | ●● (Unit 1) | ○ | ● (helpline field test, no numbered unit — see gaps) | ○ |
+| **Solution** | ○ | ●●● (Units 2, 3) | ● (validator/dialect friction, folded into Unit 5) | ○ |
+| **Institution** | ●● (Unit 4) | ●● (Unit 5) | ●● (Unit 6) | ○ |
+| **Ecosystem** | ○ | ●● (Unit 7) | ○ | ●● (Unit 8) |
 
-**Gaps that survive scrutiny:**
+**Where this is thin.** Persona/Explore's "current workaround" component (what excluded women actually did before this existed — informal relay through male family members, unregulated shopkeeper advice) is implied across several sources but never stated as a clean, citable fact — flagged as a gap rather than invented. Solution/Pilot and Solution/Scale have no reported Word Error Rate, BLEU, or Mean Opinion Score numbers despite the framework calling for them explicitly at this stage — the EkStep interview describes the evaluation approach in principle but the actual figures were not shared in any source reviewed. Institution/Scale and Ecosystem/Define-onward data-SLA formalisation are not documented with the same specificity as the Explore/Define material — see Section 2 gaps below for the full list.
 
-- **Persona / Define** — No single critical question this system must answer for a Bhili speaker specifically is documented; the narrower persona (Unit 1) is defined, but not translated into one binary success question the way it exists for MahaVISTAAR overall.
-- **Persona / Scale** — Persona work stopped at Explore/Pilot (Units 1–2). The source is explicit that each new language extension — Mathwadi Bhili, Mavchi, Pawari — will need its own persona validation; this hasn't been done yet.
-- **Solution / Explore** — No documented reasoning for why an AI-based ASR/NMT/TTS pipeline specifically was the right investment for this language, versus simpler alternatives (e.g. human interpreters, radio-only broadcast), before work began.
-- **Institution / Pilot** — Three units sit in this cell (12, 13, 14), but none document an actual first public failure of the live Bhili-enabled voice line, or whether the institution owned or disowned it once it happened.
-- **Ecosystem / Explore** — No documented account of whether any other actor had previously tried to serve Bhili speakers digitally, or what — if anything — would have transferred from a precedent.
+## Gaps
+
+1. No stated Word Error Rate, BLEU, or Mean Opinion Score figures for the live ASR/NMT/TTS models, despite these being named as the standard evaluation yardsticks in the EkStep interview itself. *(Solution/E, Pilot)*
+2. No documented "current workaround" for the specifically excluded population (tribal women) before this service existed — barriers are named, the prior behaviour is not. *(Persona/B, Explore)*
+3. No named budget line or recurring funding commitment for Scale-stage operation, beyond the general statement that ownership has "transitioned to the state." *(Institution/F, Scale)*
+4. No documented formal data SLA (cadence, accountability) between the state agriculture department and any external data source feeding the live advisory answers, unlike the mandi-price SLA pattern documented in the related MahaVISTAAR pathway. *(Ecosystem/B, Scale)*
+5. No account of what happened to the roughly 5–8 of the original 22–25 field contributors who did not complete the work — attrition is mentioned by the Taluka Agriculture Officer but not why, or what (if anything) was done about it. *(Ecosystem/E, Pilot)*
+6. No documented mechanism for a Bhili speaker to flag a wrong or unhelpful helpline answer back to the model-building team — the interview describes model-side monitoring, not a user-facing feedback path. *(Institution/C, Pilot)*
+7. No stated criteria for when the standalone telephony/IVR line — still in field testing as of August 2026 — will be judged ready for full public rollout, beyond a target date. *(Solution/E, Pilot)*
 
 # 3. Micro-Innovations
 
 ## Persona
 
-**1. Define the persona narrowly, not as "Bhili speakers"**
+**1. Center the specific population digital infrastructure keeps invisible, not "the language" in the abstract**
 - Dimension: Persona
 - Stage: Explore
-- Also relevant at: Define
 - Type: Strategic Decision
-- Decision: Scoped the target persona to tribal women farmers in Nandurbar specifically — smaller advice networks, limited exposure to Marathi, and least access to the government schemes reaching everyone else — rather than treating "Bhili speakers" as one undifferentiated group.
-- Alternative considered: Treating "Bhili speakers" as a generic, undifferentiated persona.
-- Condition — applies when: the excluded population isn't monolithic — a sub-group carries a sharper version of the exclusion.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source (no quantified figure; the effect described is that this narrower framing shaped who Project Astitva recruited and prioritized).
-
-**2. Keep recruitment local-administration-led, not vendor-led**
-- Dimension: Persona
-- Stage: Pilot
-- Type: Strategic Decision
-- Decision: Recruitment of community contributors was kept visibly led by local administration rather than handed to an external vendor.
-- Alternative considered: Vendor-led recruitment.
-- Condition — applies when: the target community trusts a government-backed effort more than an unfamiliar outside vendor.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source (qualitative outcome only — community members trusted the effort because it was visibly government-backed).
+- Decision: Frame the effort around a named excluded person and the service they can't access, not around the language as a technical artifact.
+- Alternative considered: Approach the project as "build Bhili AI resources" for the language generally.
+- Why: A district collector who had earlier served in a different tribal posting had already seen that speaking to people in their own language changes the entire dynamic of a service interaction — Marathi-only advisory left tribal women, who travel less and had the least Marathi exposure of anyone in the community, most cut off from agriculture, health, and education schemes.
+- What this looked like here: In the collector's own words, discussing the broader reframe the project forced: "Let's be careful when we say low-resource languages. They are not low-resource cultures. They are not low-resource communities. They are low-resource in our digital imagination." The project's stated aim was explicitly to reach "the last mile of society," with women in tribal communities named as the specific group at greatest risk of exclusion.
+- Condition — applies when: The population most excluded by a digital service is identifiable and named, not a diffuse "everyone who speaks language X."
+- Condition — fails when: The language effort has no specific service or excluded user in mind — the framework document's own related caution applies: "don't begin with 'let's build a model for this language.'"
 
 ## Solution
 
-**3. Fine-tune an existing model bootstrapped from a related language, don't build from zero**
+**2. Design for the phone call people will actually make, not the clean recording it's easy to collect**
 - Dimension: Solution
 - Stage: Define
-- Also relevant at: Explore
-- Type: Tactical Decision
-- Decision: AI4Bharat fine-tuned an existing open model, bootstrapping Bhili from Marathi — a higher-resource neighboring language — instead of building model architecture from scratch.
-- Alternative considered: Starting from zero architecture for Bhili specifically.
-- Condition — applies when: a higher-resource related language exists that a target zero-resource language can be bootstrapped from.
-- Condition — fails when: Not documented in the source (no closely related higher-resource language available).
-- Before → After: Described in the source as "the single most transferable technical decision in the whole effort" — no quantified before/after figure given.
-
-**4. Settle dialect, code-switching, and script before recording starts**
-- Dimension: Solution
-- Stage: Define
-- Type: Strategic Decision
-- Decision: Dialect cluster, code-switching handling, and script were settled before any recording began, rather than adjusted after collection was underway.
-- Alternative considered: Settling these questions after collection started.
-- Condition — applies when: the language has multiple dialects, or a script question is live (the source notes script disputes are "as much political as technical").
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source (a preventive decision — the source states a model trained on one dialect cluster underperforms for others, and a late script dispute can stall the entire effort).
-
-**5. First collection pass over-indexed on clean, studio-quality speech**
-- Dimension: Solution
-- Stage: Pilot
 - Type: Failure and Fix
-- Failure: The first data-collection attempt trained on only clean, studio-style audio from young, standard-dialect speakers.
-- Fix: Expanded collection to include telephony-grade (8kHz) recordings and naturalistic spontaneous speech spanning dialects, ages, and genders — not just studio-quality voice.
-- Insight: A model trained only on clean, standard-dialect audio fails everyone who doesn't match that narrow profile — data collection has to mirror the real telephony and dialect conditions of deployment, not the easiest conditions to record.
-- Condition — applies when: the deployment channel is voice/telephony serving a linguistically diverse population.
+- Failure: An earlier, separate attempt at Bhili data collection (before EkStep's involvement) gathered clean, studio-style audio without a specific deployment in mind and without a hard deadline. That data performed poorly once tested against real conditions.
+- Fix: Once the effort was tied to MahaVISTAAR, sampling shifted deliberately toward spontaneous, conversational speech, including a meaningful share captured at 8kHz phone-call quality — matched to how a rural user actually reaches the service, by voice call, not through a clean microphone.
+- Insight: A model trained only on clean, studio-style audio from careful readers fails the moment it meets a real, noisy phone call — telephony-grade sampling has to be designed in from session one, not bolted on once the first version underperforms.
+- What this looked like here: The district's own field studio still recorded under real constraints — one engineer's account of the process describes losing an entire day's recording batch to background noise, after which the studio adopted a standing rule of always producing a rough draft, a rough-final, and a final pass, and re-testing the full setup before any new recording block began.
+- Condition — applies when: The end deployment is a voice channel real users will reach by phone, especially over variable-quality rural connections.
+- Condition — fails when: The deployment is a controlled, high-bandwidth channel where studio-quality audio genuinely reflects real usage conditions.
 
-**6. Three-metric technical partner reporting checklist (WER / BLEU / MOS)**
+**3. Fine-tune an existing model from a related, higher-resource language rather than building from zero**
 - Dimension: Solution
-- Stage: Scale
-- Also relevant at: Pilot
-- Type: Toolkit Asset
-- Toolkit asset: A fixed set of three yardsticks — Word Error Rate (ASR), BLEU score (translation), and Mean Opinion Score (TTS naturalness) — to require from a technical partner at every milestone.
-- Reusable as-is: Any adopter building an ASR/NMT/TTS pipeline for a new language can request these same three metrics at each milestone without defining new evaluation criteria.
-- Condition — applies when: building or scaling a new-language ASR/NMT/TTS pipeline with an external technical partner. Early tribal-language models typically land well below production-grade on all three at first pass — the source treats this as expected for a first iteration, not a red flag.
+- Stage: Define
+- Type: Tactical Decision
+- Decision: Build Dehwali Bhili's ASR/NMT/TTS stack by fine-tuning an existing Marathi model rather than training new architecture from scratch.
+- Alternative considered: An earlier working assumption budgeted for only a translation (NMT) and text-to-speech (TTS) model, leaving out a full speech-recognition (ASR) component.
+- Why: A technical reviewer insisted the effort "will not have anything that's not a full model" — meaning ASR had to be included for the system to be genuinely usable by voice, not just text.
+- What this looked like here: Adding the ASR component raised the project's model-training cost estimate by roughly 2.5×, which briefly stalled budget approval until the data-collection partner (Karya) agreed to help absorb the difference because, in the district collector's account, "if there's extra money, we'll pitch in — it's important that it be done."
+- Condition — applies when: A genuinely low-resource language has a linguistically related, higher-resource neighbour language with existing model infrastructure to bootstrap from.
+- Condition — fails when: No related higher-resource language model exists to fine-tune from, or the target language's structure diverges too far from any available base model.
 
 ## Institution
 
-**7. The champion mattered more than the technology**
+**4. Anchor the effort to one personally-invested administrative champion before any technical work begins**
 - Dimension: Institution
 - Stage: Explore
-- Also relevant at: Define
 - Type: Strategic Decision
-- Decision: The effort was led and personally driven by Nandurbar's District Collector, who connected the pre-existing Karya data-collection effort to the AI4Bharat/MahaVISTAAR side and spent personal political and administrative capital keeping it moving.
-- Alternative considered: Not documented in the source (implicitly, the two efforts could have continued running in isolation without a connector).
-- Condition — applies when: a language-enablement effort spans two or more independently-run initiatives that need one person with real administrative authority to connect them.
-- Condition — fails when: Not documented in the source.
-- Before → After: Two efforts running in isolation (Karya's Bhili data collection and the Voice AI team's agriculture-bot work) → a single connected, deployment-bound effort once the District Collector linked them.
+- Decision: Let the effort be personally driven and coordinated by the District Collector, rather than delegated to a technical team or vendor.
+- Alternative considered: None documented — every account of the project's origin, from the district side and from EkStep independently, converges on the collector's direct, hands-on involvement as the starting condition, not an option weighed against alternatives.
+- Why: District-level administrative authority was needed to converge multiple line departments (agriculture, education, health, tribal welfare) and unlock delegated financial powers that no single department could access on its own.
+- What this looked like here: The collector described her own stake directly: prior tribal-area postings had already shown her that "when I speak in their language ... suddenly you see a different [dynamic] — people are listening in their own language." She personally chaired the stakeholder meeting that decided which language to prioritise, personally addressed a 150-person community meeting to answer "why are we doing this," and remained hands-on enough to say the district's biggest continuing frustration is present tense, not resolved.
+- Condition — applies when: The deployment needs to converge multiple government departments and community trust simultaneously, and no single technical team can unlock either alone.
+- Condition — fails when: The effort sits entirely within one department's mandate and doesn't require cross-department data or community mobilisation.
 
-**8. Use the district's own field staff for recruitment, not an external hiring pipeline**
-- Dimension: Institution
-- Stage: Explore
-- Type: Tactical Decision
-- Decision: The district's own Bhili-speaking agriculture officers did the on-the-ground recruitment and data-gathering work, rather than standing up an external hiring pipeline.
-- Alternative considered: An external hiring pipeline.
-- Condition — applies when: the government body already employs local-language-speaking field staff with standing community trust.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source.
-
-**9. Five non-negotiable conditions before starting**
+**5. Run a three-tier quality structure — contributors, checkers, validators — in parallel from day one, staffed through local administration**
 - Dimension: Institution
 - Stage: Define
-- Also relevant at: Explore
+- Also relevant at: Pilot
 - Type: Toolkit Asset
-- Toolkit asset: A five-point pre-flight checklist used before committing to the effort: (1) community trust and informed participation, (2) a clear deployment use case, (3) an institutional anchor that owns the project through its ups and downs, (4) ethical and fair compensation paid promptly, (5) a quality structure — contributors, checkers, expert validators — running from day one, not bolted on at the end.
-- Reusable as-is: Another adopter can use these five conditions directly as a go/no-go gate before starting a similar community-data-collection effort.
-- Condition — applies when: engaging a community as paid data contributors for a language or data effort tied to a public service.
+- Toolkit asset: A standing three-layer structure — field contributors and participants at the base, checkers/reviewers in the middle, subject-matter validators and linguistic experts at the top — with all three layers working simultaneously rather than validation happening only after collection finishes.
+- Purpose: Catches quality problems (mixed-dialect speech, contributors who don't actually know the language well, inconsistent translations) while collection is still happening, instead of discovering them in a finished dataset.
+- Reusable as-is: The tier structure itself, plus the recruitment principle behind it — contributors were sourced through local government departments (agriculture, education, health, revenue), not through an external vendor's hiring pipeline, because the administration already knew who was fluent, literate, and trusted locally. One field example: the taluka's own agriculture assistant officer became the single named validator for the entire district's data, personally building a roughly 3,000-word glossary and catching cases where a recorded "Bhili" speaker was actually mixing in Marathi or a neighbouring dialect (Mavchi) closely enough to need exclusion from the dataset.
+- Condition — applies when: The language has meaningful dialect variation, and credible, trusted contributors are more easily found through existing local institutions than through an open call.
+- Condition — fails when: No local administrative network already touches speakers of the target language, or the language has no meaningful internal dialect variation to validate against.
 
-**10. Split contributors into three defined roles**
-- Dimension: Institution
-- Stage: Define
-- Type: Tactical Decision
-- Decision: Contributors were split into three roles: multilingual translators, audio contributors who read a script aloud, and audio contributors who could only speak (given topics or images instead of a script).
-- Alternative considered: A single, undifferentiated contributor role.
-- Condition — applies when: the contributor pool includes people with different literacy levels and different comfort reading a script aloud versus speaking freely.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source.
-
-**11. Pay contributors per word, and release the dataset openly**
-- Dimension: Institution
-- Stage: Define
-- Type: Tactical Decision
-- Decision: Contributors were paid per word — roughly ₹1 to validate, ₹2 to transcribe or translate — treating fair pay as the point rather than a line item to minimize; the resulting dataset was released openly via AI Kosh and Bhashini.
-- Alternative considered: Not documented in the source (implicitly, a closed/proprietary dataset or a flat, non-per-unit pay structure).
-- Condition — applies when: a government-funded effort needs community trust and wants the underlying dataset reusable by others afterward.
-- Condition — fails when: Not documented in the source.
-- Before → After: Model training itself was subsidised by AI4Bharat in exchange for this open-data release — a direct trade documented in the source.
-
-**12. Operationalize consent, near-term benefit, and contributor diversity**
+**6. Scope the live assistant to answer only what the institution is prepared to stand behind**
 - Dimension: Institution
 - Stage: Pilot
 - Type: Strategic Decision
-- Decision: Consent was captured in the community's own language with a real option to withdraw; benefit to contributors was made visible within months, not years; and diversity of contributors across age, gender, dialect, and education was treated as non-optional.
-- Alternative considered: Not documented in the source.
-- Condition — applies when: recruiting members of a marginalized or under-represented community as paid data contributors.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source.
-
-**13. Sustain motivation through senior community members and influencers**
-- Dimension: Institution
-- Stage: Pilot
-- Type: Tactical Decision
-- Decision: Sustaining contributor motivation across months required continuous engagement with senior community members and local influencers, rather than one-off recruitment.
-- Alternative considered: Not documented in the source.
-- Condition — applies when: data collection depends on volunteer or lightly-compensated community participation over several months.
-- Condition — fails when: Not documented in the source.
-- Before → After: One individual who headed a local Adivasi language preservation community, once engaged this way, recorded eight hours of material in a single studio sitting.
-
-**14. Anchor to a named deployment target and a hard deadline**
-- Dimension: Institution
-- Stage: Pilot
-- Type: Failure and Fix
-- Failure: The effort nearly drifted early on — generic community engagement with no named deployment target, and no hard deadline, meant the work had no forcing function.
-- Fix: The effort was anchored to MahaVISTAAR as the concrete deployment target, and the India AI Impact Summit was used as a hard external deadline — compressing the first collection phase to about one month.
-- Insight: A language-data effort with no named service to plug into is a dataset, not a pathway — it needs both a real deployment target and an external forcing deadline, or it drifts indefinitely.
-- Condition — applies when: a community data-collection effort risks being treated as an open-ended research exercise rather than a deployment-bound sprint.
-
-**15. Build a distributed pool of linguistic validators, not a single expert**
-- Dimension: Institution
-- Stage: Scale
-- Type: Strategic Decision
-- Decision: Scaling requires a distributed pool of at least 5–10 linguistic validators rather than relying on a single expert.
-- Alternative considered: Continuing to rely on one linguistic validator.
-- Condition — applies when: quality validation depends on a scarce expert-linguist role and the effort is expanding to more languages or more volume.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source — framed as a named risk (a single validator leaving "can stall everything") to design against, not an event that had already occurred in this deployment.
-
-**16. Treat sustainability as a defined multi-stakeholder operating model**
-- Dimension: Institution
-- Stage: Scale
-- Type: Strategic Decision
-- Decision: Give AI4Bharat, Bhashini, and the local administration defined ongoing roles — continuous monitoring and feedback loops — and plan to extend the same language infrastructure to sectors beyond agriculture (health, education, citizen feedback).
-- Alternative considered: Treating the effort as a single-use agriculture project.
-- Condition — applies when: the underlying language infrastructure (ASR/NMT/TTS) has plausible reuse beyond the sector it was first built for.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source (forward-looking commitment, not yet realized at time of writing).
-
-**17. Move ownership from one official's tenure to a standing mandate**
-- Dimension: Institution
-- Stage: Scale
-- Type: Strategic Decision
-- Decision: Sustainability requires a standing mandate or MOU, not a project anchored to the tenure of one official.
-- Alternative considered: Continuing to run on the founding champion's personal authority and tenure.
-- Condition — applies when: the effort's institutional backing currently depends on one named individual rather than a formal structure.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source — the source names political or administrative change as "one of six ways this kind of effort typically fails," without detailing the other five.
+- Decision: Limit the deployed helpline's answers strictly to farming-related questions, explicitly declining market-rate, scheme, or other out-of-scope queries rather than attempting a general-purpose answer.
+- Alternative considered: Answering broadly across whatever the caller asked, using general capability rather than a scoped mandate.
+- Why: A government-branded voice service speaks in the department's name — every answer it gives is one the department has to be able to stand behind, so scope has to match what's actually been validated, not what the model happens to be able to generate.
+- What this looked like here: In a live field demonstration, a farmer asked the helpline about a cotton pest and a scheme question in the same call; the system answered the farming question directly and stated plainly, "I will answer only farming-related questions," declining the scheme question outright rather than guessing at it. A separate live test showed the same discipline when asked for a same-day mandi price the system did not have current data for: it said the information wasn't available, rather than approximating an answer.
+- Condition — applies when: The deployment speaks with institutional authority (a government brand, a named department) and answering wrongly carries more cost than answering narrowly.
+- Condition — fails when: The deployment is explicitly framed as general-purpose or experimental, where users expect and tolerate broader, less certain answers.
 
 ## Ecosystem
 
-**18. Eight-role partner map, named before model work began**
+**7. Don't let parallel efforts on the same language run in isolation from each other**
 - Dimension: Ecosystem
 - Stage: Define
-- Also relevant at: Explore
-- Type: Toolkit Asset
-- Toolkit asset: A named map of who needs to be at the table — convening authority (District Collector), community contributors (translators, audio contributors), linguistic experts/validators, community leaders and influencers, data-collection platform (Karya), national AI platform (Bhashini), technical partner (AI4Bharat/IIT Madras), and deployment partner (State Agriculture Department, POCRA).
-- Reusable as-is: Another adopter building a similar zero-resource-language effort tied to a government service can use this exact eight-role list as a starting checklist for whom to convene before model work begins.
-- Condition — applies when: building zero-resource-language AI capability tied to a specific government service deployment.
+- Type: Failure and Fix
+- Failure: The district's own Bhili data-collection effort with Karya had already been running for some time, entirely independent of the national voice-AI model-building ecosystem (AI4Bharat, Bhashini) — a separate team was simultaneously building an unrelated agriculture advisory bot and only discovered the Nandurbar effort by chance while working with the same state department.
+- Fix: Once discovered, EkStep connected the district's data-collection track to the model-building side, bringing AI4Bharat/IIT Madras (six years and 10,000+ hours of prior language-model experience), Bhashini (national hosting and GPU access), Voicera (open-source voice-stack and telephony-integration expertise), and the state agriculture department's deployment channel into a single coordinated effort rather than two disconnected ones.
+- Insight: A capable, well-intentioned local effort can still fail to produce a usable model simply because nobody who could build one knew it existed — discovery, not capability, was the actual constraint.
+- Condition — applies when: Multiple institutions might plausibly already be working on pieces of the same low-resource-language problem without visibility into each other.
+- Condition — fails when: A single institution already controls both the data-collection and model-building capability end to end.
 
-**19. Record in an existing community radio station instead of building a studio**
-- Dimension: Ecosystem
-- Stage: Pilot
-- Type: Tactical Decision
-- Decision: Recordings were made in an existing community radio station rather than building a dedicated studio.
-- Alternative considered: Building a purpose-built recording studio.
-- Condition — applies when: the target community already has existing local media or radio infrastructure available.
-- Condition — fails when: Not documented in the source.
-- Before → After: Not documented in the source as a specific figure, though this choice sits inside a Phase 1 cost anchor of about ₹27 lakh total.
-
-**20. Reuse the national crowdsourcing and annotation platforms for the next language**
+**8. Publish the replication steps as an explicit handbook for the next adopter, not an internal report**
 - Dimension: Ecosystem
 - Stage: Scale
-- Type: Toolkit Asset
-- Toolkit asset: BhashaDaan (bhashini.gov.in/bhashadaan) for crowdsourced data collection, and Shoonya (AI4Bharat) for annotation workflows — both existing national platforms.
-- Reusable as-is: An adopter extending this approach to the next language (the source names Mathwadi Bhili, Mavchi, Pawari, and eventually Bodo, Garo) can plug directly into these two platforms instead of building collection or annotation tooling from scratch.
-- Condition — applies when: operating within the Bhashini/AI4Bharat national ecosystem.
+- Type: Playbook
+- Playbook: The district's own published four-step sequence for another district or language to follow — (1) Assess Needs: a local assessment of linguistic and agricultural priorities; (2) Build Partnerships: engage local NGOs, cooperatives, and the agriculture department; (3) Develop Content & Tools: adapt advisory content into the local language using voice-based tools; (4) Deploy & Train: launch the platform and train field staff and local resource persons.
+- Note: The handbook itself names what not to rush ahead of validation — quality over speed, and validation and use-case testing before wider expansion — a common failure mode being treating the four steps as a race rather than a gate at each stage.
+- Condition — applies when: The next adopter has, or can build, the same kind of convening authority (a district-level or equivalent administrative anchor) this playbook assumes at step 2.
+- Condition — fails when: No equivalent local administrative convening authority exists to execute steps 2 and 4 — the playbook's steps assume that authority is already in place, not that it needs to be created from nothing.
 
 # 4. Toolkits and Playbooks
 
-| Unit | Type | Reuse condition |
-|---|---|---|
-| 6 | Toolkit Asset | Building or scaling an ASR/NMT/TTS pipeline with an external technical partner — request WER/BLEU/MOS at every milestone |
-| 9 | Toolkit Asset | Engaging a community as paid data contributors for a public-service-linked effort — use as a go/no-go gate |
-| 18 | Toolkit Asset | Building zero-resource-language AI tied to a government service — use as the starting partner-convening checklist |
-| 20 | Toolkit Asset | Operating within the Bhashini/AI4Bharat ecosystem — plug into BhashaDaan + Shoonya rather than building new tooling |
-
-No genuine multi-step, gated playbook is documented in the source for this deployment.
-
-# 5. Problem → Solution Patterns
-
-| Problem | Root cause | Solution | Result | Condition |
-|---|---|---|---|---|
-| Model failed for most real speakers | First collection pass used only clean, studio-quality audio from young, standard-dialect speakers | Expanded collection to telephony-grade (8kHz) recordings and naturalistic spontaneous speech across dialects, ages, genders | Not documented in the source (no quantified WER improvement given) | Applies when the deployment channel is voice/telephony serving a linguistically diverse population (Unit 5) |
-| Effort risked drifting indefinitely | Generic community engagement with no named deployment target and no hard deadline | Anchored to MahaVISTAAR as the deployment target; used the India AI Impact Summit as a hard deadline | Compressed the first collection phase to ~1 month | Applies when a data-collection effort risks being treated as open-ended research rather than a deployment-bound sprint (Unit 14) |
+| # | Asset | Type | Reuse condition |
+|---|---|---|---|
+| 5 | Three-tier quality structure (contributor → checker → validator, run in parallel, staffed via local administration) | Toolkit Asset | Applies where local government departments already have credible, trusted speakers of the target language on staff. |
+| 8 | Four-step district replication handbook (Assess Needs → Build Partnerships → Develop Content & Tools → Deploy & Train) | Playbook | Applies where a district or equivalent administrative body can convene departments and community trust; fails without an equivalent convening authority. |
 
 # 6. Retrieval Guide
 
-- *"How did you decide which population within the language group to actually target?"* → Unit 1
-- *"How did you get the community to trust and participate in an outside-led data effort?"* → Unit 2
-- *"Should we build our own model architecture or start from an existing one?"* → Unit 3
-- *"When should we lock in dialect and script decisions?"* → Unit 4
-- *"Our model works in testing but fails with real users — what did we miss?"* → Unit 5
-- *"What should we ask our AI vendor to report on as we scale?"* → Unit 6
-- *"We don't have executive sign-off yet — does that matter this early?"* → Unit 7
-- *"Should we hire externally for fieldwork, or use our own staff?"* → Unit 8
-- *"What conditions should we insist on before starting a community data-collection effort?"* → Unit 9
-- *"How should we structure the roles of the people doing the data collection?"* → Unit 10
-- *"How much should we pay community contributors, and should we open-source what we collect?"* → Unit 11
-- *"How do we make sure consent and diversity aren't just a checkbox during the pilot?"* → Unit 12
-- *"Contributors are losing motivation a few months in — what helps?"* → Unit 13
-- *"Our data-collection effort feels open-ended with no clear finish line — what's missing?"* → Unit 14
-- *"What happens if our one language expert leaves?"* → Unit 15
-- *"How do we make sure this doesn't stay 'the project team's problem' as we scale?"* → Unit 16
-- *"Our whole effort depends on one champion — is that a risk?"* → Unit 17
-- *"Who actually needs to be in the room before we start building?"* → Unit 18
-- *"We don't have budget for a studio — does that block us?"* → Unit 19
-- *"We want to add another language next — do we have to build new tooling?"* → Unit 20
+*"How do I get people to trust a government-branded voice AI enough to use it?"* → Unit 1, Unit 4, Unit 6
+
+*"Our first data collection didn't produce a usable model — why?"* → Unit 2
+
+*"Should we train our own model from scratch for a low-resource language?"* → Unit 3
+
+*"Who needs to personally own this before we start?"* → Unit 4
+
+*"How do we make sure our contributors are actually fluent, and catch it when they're not?"* → Unit 5
+
+*"Should our AI assistant try to answer anything a user asks?"* → Unit 6
+
+*"We think another team might already be working on this — does it matter?"* → Unit 7
+
+*"We want to expand to another district or language using what worked here — where do we start?"* → Unit 8
+
+*"What did a real user's first live call with the system actually look like?"* → Unit 6 (field-demonstration evidence), Gap 1
 
 ---
 
-## Provenance
+## Source Trace
+
+*Contributor-only — not surfaced to adopters.*
 
 | Source file | Covers | Notes |
 |---|---|---|
-| `bhili-language-enablement.md` (prior version, as of 2026-07-06) | Section 0 (overview); Section 1 (all identity fields — scale achieved, cost anchor, build effort, downstream reuse, scope/non-transfer); Section 3, Units 1–20; Section 4 (toolkit/playbook table); Section 5 (problem→solution table); Section 6 (retrieval guide) | Sole source. This is a reclassification of an existing corpus entry — originally written under the prior 7-category × 4-stage structure (Problem, Persona, Technology, Institution, Ecosystem, Workforce, Operating Model) — into the current 4-dimension framework; not fresh raw-material synthesis. No facts were added beyond what the prior version stated. |
+| Otter Summary_Bhili.pdf / Otter_Bhili_transcript.pdf (interview with Santosh Kevlani, EkStep, 22 Jul 2026) | Section 1 (scale, cost, dates); Section 2 (build effort, cost anchor); Units 3, 7; sustainability and evaluation-approach material in Gaps 1, 3, 4 | Primary source for programme-level decisions, cost, and sustainability framing. Summary PDF confirms the transcript's content, doesn't add beyond it. |
+| NANDURBAR TRIP — Transcriptions.pdf, Interview 1 (Dr. Mitali Sethi, District Collector) | Units 1, 4; Section 1 population/summary framing | Primary source for the champion narrative and the "digital imagination" framing quote. |
+| NANDURBAR TRIP — Transcriptions.pdf, Interview 2 (Jaywant, Radio Vikas Bharati) | Unit 2 (studio recording/QA process detail) | Primary source for the audio-production side of Unit 2. |
+| NANDURBAR TRIP — Transcriptions.pdf, Interviews 3 & 4 (farmers Ravi and Govan, live helpline field tests) | Unit 6; Gap 1, Gap 7 | Primary source for the only direct field evidence of the live system's real-user behaviour, including the refusal-design demonstration and the unavailable-mandi-rate response. |
+| NANDURBAR TRIP — Transcriptions.pdf, Interview 5 (Agriculture extension officer) | Gap 6 (feedback-loop absence); background for Section 2 grid notes | Confirms only — describes existing field-advisory workflow, not model-specific new information. |
+| NANDURBAR TRIP — Transcriptions.pdf, Interview 6 (Santosh, Karya contributor) | Section 2 (per-task/per-word compensation figures); Unit 5 (contributor-side detail) | Primary source for the specific compensation numbers cited in Section 2. |
+| NANDURBAR TRIP — Transcriptions.pdf, Interview 7 (Raveeshankar, Taluka Agriculture Officer) | Unit 5 (recruitment and validator detail); Gap 5 (contributor attrition) | Primary source for the local-administration-led recruitment account and the 22–25 → 17–18 contributor attrition figure. |
+| NANDURBAR TRIP — Transcriptions.pdf, Interview 8 (Tunsidas "Tike," lead validator) | Unit 5 (glossary, validation detail, dialect-mixing exclusion) | Primary source for the named validator example and the ~3,000-word glossary figure. |
+| Astitva Booklet.pdf | Unit 8; Section 1 (partner roles, "transitioned to state" institutionalisation); Section 2 grid Ecosystem/Scale note | Primary source for the published four-step replication handbook and the district-to-state institutionalisation framing. |
+| Bhili_Interview Questions (July 22nd)_.docx | Cross-checked against Units 1, 3, 4, 7, 8; Gaps 1–7 (used as the open-questions list, Tab 2) | Confirms the shape of the EkStep interview above; its own "Questions to close information gaps" tab is the direct source for this document's Gaps list. |
+| Executive Summary/Bhili_Executive_Summary.docx | Confirms Units 2, 3, 7, 8 and Section 1/2 figures | An earlier synthesis of the same underlying interviews and booklet — confirms, doesn't add beyond what the primary sources above already establish. |
+| Extended Pathway/Bhili pathway v1.docx | Confirms overall structure and framing of Units 3, 4, 7, 8; superseded by this document as the pathway's live version | An earlier full draft of this same pathway, produced before the Nandurbar field interviews existed. Superseded — every claim it makes is independently re-sourced above from primary interviews rather than carried over from this draft directly. |
+| Low Resource Language AI Map Draft 1.1.docx/.pdf | Not used | General landscape document, not specific to the Bhili deployment — nothing from it made it into this document. |
