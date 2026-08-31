@@ -1,0 +1,162 @@
+import { readFile } from 'fs/promises';
+import path from 'path';
+import { createClient } from '@/lib/supabase/server';
+
+// Reads the same in-repo corpus lib/wiki-loader.ts injects into prompts, but
+// for on-demand browsing in the app UI — separate concerns: wiki-loader.ts
+// feeds the model, this feeds the /wiki pages a signed-in user reads
+// directly. WIKI_PATH lets both point at the same override if set.
+const WIKI_PATH = process.env.WIKI_PATH ?? path.join(process.cwd(), 'content', 'wiki');
+
+async function readSource(filePath: string): Promise<string> {
+  try {
+    return await readFile(filePath, 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
+export interface WikiPathwaySummary {
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  // The pathway's sector (e.g. Agriculture, Livelihoods) — distinct from
+  // `category` above, which is the index.md heading it's filed under (often
+  // a technology grouping like "Voice AI", not a sector). For static pathway
+  // docs this comes from the file's own `sector:` frontmatter; for
+  // community-published ones it's carried over at publish time from the
+  // adoption's own AdoptionMeta.sector (see app/api/pathway-submissions/push
+  // /route.ts) — undefined only for pathways published before that carry-over
+  // existed. "Cross-Sector" marks a deliberately horizontal pathway (a
+  // synthesis or diagnostic spanning many sectors) rather than a real sector
+  // — callers that want an actual sector list should filter it out, same as
+  // an undefined sector.
+  sector?: string;
+  stage?: string;
+  timestamp?: string;
+  contributor?: string;
+}
+
+// Parses the pathways index's grouped bullet list:
+// # Category
+// * [Title](slug.md) - description.
+async function listStaticPathways(): Promise<WikiPathwaySummary[]> {
+  const index = await readSource(path.join(WIKI_PATH, 'pathways', 'index.md'));
+  if (!index) return [];
+
+  const entries: { title: string; slug: string; description: string; category: string }[] = [];
+  let category = '';
+  const bulletRe = /^\*\s*\[(.+?)\]\((.+?)\.md\)\s*-\s*(.+)$/;
+
+  for (const rawLine of index.split('\n')) {
+    const line = rawLine.trim();
+    const headingMatch = line.match(/^#\s+(.+)$/);
+    if (headingMatch) {
+      if (headingMatch[1].trim() !== 'Pathways') category = headingMatch[1].trim();
+      continue;
+    }
+    const m = line.match(bulletRe);
+    if (m) entries.push({ title: m[1], slug: m[2], description: m[3], category });
+  }
+
+  return Promise.all(
+    entries.map(async (entry) => {
+      const raw = await readSource(path.join(WIKI_PATH, 'pathways', `${entry.slug}.md`));
+      const sectorMatch = raw.match(/^sector:\s*(.+)$/m);
+      const stageMatch = raw.match(/^stage:\s*(.+)$/m);
+      const timestampMatch = raw.match(/^timestamp:\s*(.+)$/m);
+      const contributorMatch = raw.match(/^contributor:\s*(.+)$/m);
+      return {
+        ...entry,
+        sector: sectorMatch?.[1]?.trim(),
+        stage: stageMatch?.[1]?.trim(),
+        timestamp: timestampMatch?.[1]?.trim(),
+        contributor: contributorMatch?.[1]?.trim(),
+      };
+    })
+  );
+}
+
+// The curated corpus lives as static files; admin-published community
+// pathways (see supabase/migrations/0012_published_pathways.sql) live in
+// Supabase so publishing is instant — no git commit or redeploy per pathway.
+// Both are merged here for browsing.
+export async function listWikiPathways(): Promise<WikiPathwaySummary[]> {
+  const [staticPathways, publishedResult] = await Promise.all([
+    listStaticPathways(),
+    (async () => {
+      const supabase = await createClient();
+      return supabase
+        .from('published_pathways')
+        .select('slug, title, description, category, sector')
+        .order('created_at', { ascending: false });
+    })(),
+  ]);
+
+  const published = (publishedResult.data ?? []).map((p) => ({
+    slug: p.slug,
+    title: p.title,
+    description: p.description,
+    category: p.category,
+    sector: p.sector ?? undefined,
+  }));
+
+  return [...staticPathways, ...published];
+}
+
+export interface WikiStats {
+  total: number;
+  // Unique real sectors across the merged static + published corpus (see
+  // WikiPathwaySummary.sector) — excludes "Cross-Sector" and any pathway with
+  // no sector tagged (all community-published ones, for now), since neither
+  // is an actual sector to name in browse-intent copy.
+  sectors: string[];
+}
+
+// Powers the "Explore the Pathways Library" intent's opening line (see
+// app/api/wiki-stats/route.ts) — how many pathways exist right now and which
+// sectors they span, so that line stays accurate as the corpus grows via
+// community publishing instead of being frozen in a prompt file.
+export async function getWikiStats(): Promise<WikiStats> {
+  const pathways = await listWikiPathways();
+  const sectors = Array.from(new Set(pathways.map((p) => p.sector).filter((s): s is string => Boolean(s) && s !== 'Cross-Sector')));
+  return { total: pathways.length, sectors };
+}
+
+// The Source Trace appendix (previously "Provenance appendix") is contributor-
+// only — never surfaced to adopters in any mode, including this browsing page.
+// Cuts at the first heading whose text mentions "Source Trace" or "Provenance"
+// (the old name, still present in existing static pathway files).
+function stripProvenanceAppendix(markdown: string): string {
+  const match = markdown.match(/^#{1,6}\s*.*(provenance|source trace).*$/im);
+  if (!match || match.index === undefined) return markdown;
+  return markdown.slice(0, match.index).trim();
+}
+
+function stripFrontmatter(markdown: string): string {
+  return markdown.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+}
+
+export interface WikiPathwayContent {
+  title: string;
+  content: string;
+}
+
+export async function getWikiPathway(slug: string): Promise<WikiPathwayContent | null> {
+  const raw = await readSource(path.join(WIKI_PATH, 'pathways', `${slug}.md`));
+  if (raw) {
+    const titleMatch = raw.match(/^title:\s*(.+)$/m);
+    return {
+      title: titleMatch?.[1]?.trim() ?? slug,
+      content: stripProvenanceAppendix(stripFrontmatter(raw)),
+    };
+  }
+
+  // Not a static file — check admin-published community pathways.
+  const supabase = await createClient();
+  const { data } = await supabase.from('published_pathways').select('title, content').eq('slug', slug).maybeSingle();
+  if (!data) return null;
+
+  return { title: data.title, content: stripProvenanceAppendix(stripFrontmatter(data.content)) };
+}

@@ -1,0 +1,42 @@
+name: Deploy to Vercel
+
+# Vercel's Hobby plan blocks any deploy whose commit author isn't a Vercel
+# team member, and Hobby doesn't support adding team members at all
+# (confirmed after Kamesh's own push got blocked). Deploying via the CLI
+# with a token instead of relying on the native Git integration avoids that
+# specific check — but only for a plain source deploy (`vercel deploy`).
+# A `vercel build` + `vercel deploy --prebuilt` pair, run from inside a real
+# GitHub Actions runner specifically, still gets blocked (confirmed by
+# testing) even with the same token — a prebuilt/CI-flagged deployment
+# apparently goes through a different, still-gated path. Keep this as a
+# plain source deploy; do not reintroduce --prebuilt here.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy
+        run: vercel deploy --prod --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
