@@ -22,6 +22,12 @@ const FRAMEWORK_FILE = path.join(process.cwd(), 'content', 'framework.md');
 // adoption in the same structure for their review.
 const PATHWAY_GENERATION_PROMPT_FILE = path.join(process.cwd(), 'content', 'pathway-generation-prompt.md');
 
+// External tools/repos/reference material outside the pathway corpus (e.g.
+// Voicera) — citable alongside pathway units but tagged distinctly, since
+// they carry no contributor attribution or condition tag. See
+// content/resources.md for the citation discipline itself.
+const RESOURCES_FILE = path.join(process.cwd(), 'content', 'resources.md');
+
 async function readSource(filePath: string): Promise<string> {
   try {
     return await readFile(filePath, 'utf-8');
@@ -53,6 +59,10 @@ export async function loadFrameworkContent(): Promise<string> {
 
 export async function loadPathwayGenerationPrompt(): Promise<string> {
   return readSource(PATHWAY_GENERATION_PROMPT_FILE);
+}
+
+export async function loadResourcesContent(): Promise<string> {
+  return readSource(RESOURCES_FILE);
 }
 
 // Loads the pathway corpus: the pathways index plus every pathway document,

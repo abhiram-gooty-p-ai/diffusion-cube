@@ -1,386 +1,176 @@
 ---
 type: Pathway
 title: Voice AI for Inclusion
-description: A cross-deployment synthesis of what MahaVISTAAR, BharatVISTAAR, Amul/Sarlaben, Jal Jeevan Mission Assam, and the Bhili effort learned about reaching users excluded by literacy, language, device access, or connectivity.
-tags: [Voice AI, Inclusion, Cross-deployment]
+description: A cross-deployment synthesis of what MahaVISTAAR, Bharat Vistaar, Amul/Sarlaben, Jal Jeevan Mission Assam, the Bhili effort, Lend A Hand, and the India–Africa exchange learned in common about reaching people digital services routinely miss.
+tags: [Voice AI, Cross-Sector, Synthesis]
 sector: Cross-Sector
 stage: Scale
-timestamp: 2026-07-31
+timestamp: 2026-08-31
 contributor: EkStep Foundation
 ---
 
-# 0. Overview
+# 0. Reading Guide
 
-A horizontal pathway synthesised across multiple voice deployments — not
-one case study but the recurring implementation questions that showed up
-in all of them. Source deployments: MahaVISTAAR (Maharashtra),
-BharatVISTAAR, Amul/Sarlaben, Jal Jeevan Mission Assam, the Bhili
-language effort, Lend A Hand, and the India–Africa exchange with Crane
-AI Labs.
+This pathway is different in kind from the others in this corpus — it is not one deployment, but a synthesis across several (MahaVISTAAR, Bharat Vistaar, Amul/Sarlaben, Jal Jeevan Mission Assam, the Bhili language effort, Lend A Hand, and the India–Africa exchange with Crane AI Labs), drawn from a structured interview with EkStep Foundation's Lead for Voice and Language AI. Where a single-deployment pathway in this corpus documents what one team decided, this one documents what recurred across several teams making similar decisions independently — which is itself a stronger signal that a given lesson generalises.
 
-**Who it serves.** Female farmers, feature-phone users, Indic language
-speakers, migrant labourers, rural households — users excluded by
-existing digital service channels.
+Read this pathway when the question is "is voice AI even the right channel, and what should I watch for regardless of which specific deployment I most resemble" — read MahaVISTAAR or Bhili instead when the question is about one specific deployment's own detail. Reusable value concentrates in Section 3's architecture and institutionalisation units, and Annexure 3 of the source material (not reproduced here as file content, since it references external documents rather than pathway units) points to the same external resources — an RFP telephony spec, a government Voice AI RFP template, and the Voicera GitHub repository — surfaced under "External resources" in this corpus's Navigate flow when relevant.
 
-**Scale achieved.** MahaVISTAAR: 342K+ unique users, 1.67M+ questions
-answered, 17 lakh farmers/day via proactive alerts. Amul/Sarlaben: 3.6M
-farmers, launched in 3 weeks.
-
-**Cost anchor.** ~$250K setup, ~$250K/year at MahaVISTAAR's scale
-(mid-2026) — an order-of-magnitude anchor, not a voice-specific
-benchmark.
-
-**Where this pathway doesn't apply.** Built from deployments solving
-access problems. If the use case is closer to internal automation, or
-users are already comfortable with apps and smartphones, this won't
-transfer cleanly.
-
-# 1. Pathway identity
+# 1. Pathway Identity
 
 | Field | Value |
 |---|---|
-| Scale achieved | MahaVISTAAR: 342K+ unique users, 1.67M+ questions answered, 17 lakh farmers/day via proactive alerts (as of mid-2026). Amul/Sarlaben: 3.6M farmers. |
-| Cost anchor | ~$250K setup, ~$250K/year at MahaVISTAAR's scale (as of mid-2026) — an order-of-magnitude anchor, not a voice-specific benchmark. |
-| Build effort | 9 months (MahaVISTAAR, built from scratch) → 3 months (Ethiopia's ATI, drawing on MahaVISTAAR) → 3 weeks (Amul/Sarlaben, drawing on two full learning cycles). |
-| Known downstream adopters | Ethiopia's ATI (drew on MahaVISTAAR's architecture and trust-framing); Amul/Sarlaben (drew on two prior learning cycles). |
-| Scope / does not transfer when | Built from deployments solving access problems for users excluded by literacy, language, device, or connectivity. Does not transfer cleanly to internal automation use cases, or to user populations already comfortable with apps and smartphones. |
+| Deployment name | Voice AI for Inclusion — a cross-deployment synthesis, not a single deployment |
+| Sector | Cross-Sector (agriculture, water services, dairy, skilling/livelihoods) |
+| Geography | India (Maharashtra, Assam, Gujarat) plus the India–Africa exchange |
+| Population served | Female farmers, feature-phone users, Indic-language speakers, migrant labourers, rural households — populations excluded by literacy, language, device access, or connectivity from existing digital service channels |
+| Stage reached | Scale — synthesised from deployments spanning Explore through Scale, with the most-repeated pattern (MahaVISTAAR → Ethiopia ATI → Amul/Sarlaben) itself demonstrating compounding speed at Scale |
+| Contributing organisation(s) | EkStep Foundation (synthesis); source deployments: Department of Agriculture Government of Maharashtra, Jal Jeevan Mission Assam, Amul/Sarlaben, Lend A Hand, Crane AI Labs |
+| Key dates | As of July 2026 |
+| Summary | What recurred across seven voice-AI deployments serving digitally excluded populations — not what one team built, but what several teams, working independently, learned in common about channel choice, architecture, model selection, governance, and sustaining a service after launch. |
+| Scale/impact achieved (as of mid-2026) | MahaVISTAAR: 342K+ unique users, 1.67M+ questions answered, 17 lakh farmers/day via proactive alerts. Amul/Sarlaben: 3.6M farmers, launched in 3 weeks. Compression across the pattern: 9 months (MahaVISTAAR, built from scratch) → 3 months (Ethiopia ATI) → 3 weeks (Amul/Sarlaben). |
 
-# 2. Coverage grid and gaps
+# 2. Effort Details
 
-| Dimension | Explore | Define | Pilot | Scale |
+**Cost anchor (as of Jul 2026).** ~$250K setup, ~$250K/year at MahaVISTAAR's scale — an order-of-magnitude anchor across the pattern, not a single deployment's precise figure. Per-minute telephony cost across the deployments synthesised here runs roughly ₹0.5–1.5/minute on an open self-hosted stack once earned at scale, ₹2.5–4.5/minute on a fully managed commercial platform (the realistic starting point for most adopters), and above ₹6/minute for a human-only call centre by comparison. Two variables move the bill more than the per-minute rate: call duration and concurrency — the number of languages supported barely moves it.
+
+**Build effort.** Varies by deployment, but the compression pattern itself is the finding: 9 months (MahaVISTAAR, built from scratch, no prior pathway to draw on) → 3 months (Ethiopia's ATI, drawing on MahaVISTAAR's architecture) → 3 weeks (Amul/Sarlaben, drawing on two full cycles of shared learning).
+
+**Downstream adoptions.** This pathway is itself downstream of MahaVISTAAR, Jal Jeevan Mission Assam, and the others it synthesises — its purpose is to be the thing a next, not-yet-started deployment reads before choosing an architecture, not a record of what any one deployment did.
+
+## The 4×4 Coverage Grid
+
+| | Explore | Define | Pilot | Scale |
 |---|---|---|---|---|
-| Persona | ● | ● | ●● | ● |
-| Solution | ●● | ●● | ● | ●● |
-| Institution | ○ | ●●● | ●●● | ●●● |
-| Ecosystem | ○ | ● | ○ | ● |
+| **Persona** | ●●● (Unit 1) | ● | ●● (Unit 7) | ● |
+| **Solution** | ●● (Unit 2) | ●●● (Units 3, 4) | ● | ● |
+| **Institution** | ● | ●● (Unit 6) | ●● (Unit 5) | ● |
+| **Ecosystem** | ○ | ● | ● | ●● (Unit 8) |
 
-Density counts each unit once, at its Stage of origin (Section 3).
+## Gaps
 
-**Gaps**
+1. No single, precise per-deployment cost breakdown is given for most of the seven source deployments — the per-minute figures are a synthesised range across them, not a confirmed number for any one. *(Solution/Explore)*
+2. No documented method for confirming, rather than inferring, that a given deployment has genuinely reached the workforce-capability outcome described in Unit 5, versus dependency — the interview names the marker (who does daily QA) but not a scoring method. *(Institution/Pilot)*
+3. The India–Africa reverse-technology-transfer claim referenced in this pathway's own source material is explicitly unverified at the time of writing — carried through here as a direction worth testing, not a settled fact (see the African Voice AI pathway in this corpus for the fuller, appropriately-hedged treatment). *(Ecosystem/Scale)*
+4. No consolidated, single list of which of the seven source deployments have published their own reusable toolkits versus which remain internal-only. *(Ecosystem/Scale)*
 
-- **No current-workaround detail behind the named excluded users (Persona).** Unit 1 names who is excluded (women farmers, dispersed interns, rural piped-water households) but doesn't record what they do instead today — the workaround itself, not just the person, is what Explore is supposed to surface.
-- **No liability or compliance framing for what the bot gets wrong (Institution).** Units 13 and 14 establish who owns the channel and what it can't say, but nothing in the source addresses formal liability, legal accountability, or compliance sign-off for incorrect answers at scale.
-- **No named-partner dependency map for the core voice stack (Ecosystem).** Unit 25 covers ecosystem-building for a low-resource language, but no equivalent dependency map — naming a partner for telephony, ASR, LLM, or TTS — exists for the ordinary voice stack itself.
-- **No partner-performance log or contingency plan (Ecosystem).** Unit 10 covers parallel model/vendor testing before selection, but nothing in the source describes monitoring a live partner's performance mid-pilot or having a contingency if one underperforms.
-
-# 3. Micro-innovations
+# 3. Micro-Innovations
 
 ## Persona
 
-**1. Anchor the excluded-user definition to a precise sentence, not a demographic label**
+**1. Name the excluded person precisely, not the demographic**
 - Dimension: Persona
 - Stage: Explore
 - Type: Strategic Decision
-- Origin deployment: MahaVISTAAR; Lend A Hand; Jal Jeevan Mission Assam
-- Decision: "We want to do voice AI" is a legitimate starting point only if it's quickly tied to a specific excluded user rather than left as a technology in search of a problem. Not "farmers" but "women farmers in remote districts who rely on small trust circles" (MahaVISTAAR); not "youth" but "interns across dispersed locations needing fortnightly feedback that two human callers can't keep up with" (Lend A Hand); not "citizens" but "rural households on piped water where the government needs to know if water actually arrives daily" (Jal Jeevan Mission Assam).
-- Alternative considered: starting from the technology and looking for a use case afterward.
-- Condition — applies when: a team already has stated interest in voice AI and needs to convert that interest into a real problem definition.
-- Before → After: Not documented in the source.
+- Decision: Define the excluded user precisely enough to name the person and the specific constraint — not "farmers," but "women farmers in remote districts who rely on small trust circles and cannot easily visit an agriculture office"; not "youth," but "interns across dispersed locations from whom fortnightly feedback is needed but two human callers cannot keep up."
+- Why: The sharper the user and problem, the easier every downstream decision becomes — channel, model, data, workflow, language, testing.
+- What this looked like here: Across the deployments synthesised here, this precision was sometimes itself a multi-round process requiring several stakeholder discussions before it converged — worth treating as an explicit, resourced first milestone rather than a formality to skip.
+- Condition — applies when: A population genuinely exists that is excluded by language, literacy, device access, trust, or connectivity — the claim this pathway makes is specific to access problems, not automation or internal-efficiency use cases.
 
-**2. Treat unresolved persona definition as a resourced milestone, not a skipped step**
-- Dimension: Persona
-- Stage: Define
-- Type: Strategic Decision
-- Decision: Precise user definition is the single highest-leverage step, and sometimes a genuine luxury requiring multiple rounds of discussion. Where it can't be resolved upfront, it should be an explicit, resourced first milestone, not a formality skipped on the way to building.
-- Alternative considered: treating persona definition as already settled and moving straight to build.
-- Condition — applies when: the target user isn't yet precisely agreed on inside the team.
-- Before → After: Not documented in the source.
-
-**3. Size human-channel capacity honestly before positioning voice AI as extension, not replacement**
+**7. A prototype clears two bars before it's ready for a real pilot — one technical, one human**
 - Dimension: Persona
 - Stage: Pilot
-- Type: Tactical Decision
-- Origin deployment: Lend A Hand
-- Decision: One human caller manages 60-80 calls a day at ~₹1,000 daily wage; two callers couldn't cover the required fortnightly-feedback frequency at any wage. Voice AI was positioned to extend reach without replacing the human judgement complex cases still need.
-- Alternative considered: hiring additional human callers to cover the required frequency.
-- Condition — applies when: the volume/frequency required outstrips what human callers can cover regardless of staffing.
-- Before → After: Two human callers at capacity, unable to meet required call frequency → voice AI extends reach to the required frequency while humans remain for complex cases.
-
-**4. Voice-only channel design fails users who need images, quiet text, or human escalation**
-- Dimension: Persona
-- Stage: Pilot
-- Type: Failure and Fix
-- Failure: Several deployments romanticised voice and discovered later that some users needed to send images, some preferred text in noisy environments, and some needed human escalation the bot couldn't provide.
-- Fix: Treat voice as the channel that opens the door, not the channel that has to complete the entire journey — add complementary channels/escalation paths where the journey requires them.
-- Insight: A single channel, however well designed, can't serve every context a heterogeneous user base brings to it.
-- Condition — applies when: the user base spans varied contexts (noise, literacy, complexity) that no single channel can serve alone.
-
-**5. Trust attaches to the institution behind the voice, not to the AI itself**
-- Dimension: Persona
-- Stage: Scale
-- Type: Strategic Decision
-- Decision: Users don't trust a voice system because it's AI — they trust it because of who stands behind it. The institution behind the voice is part of the product, especially for personas with small trust networks.
-- Alternative considered: Not documented in the source.
-- Condition — applies when: the persona relies on small, local trust circles rather than institutional brand recognition.
-- Before → After: Not documented in the source.
+- Type: Playbook
+- Playbook: Before committing from prototype to pilot, confirm (1) the technical bar — it runs on a real phone call, understands the actual dialects of the target users (tested with native speakers, not a generic benchmark), and replies in under roughly two seconds; and (2) the human bar — the person being called has a genuine reason to stay on the line, evidenced by a real connect rate and a few unprompted, genuine conversations, not clean demo calls.
+- Note: The second bar is the one teams most often skip. Cold outbound calling fails where opted-in advisory or reminders succeed — a technically working prototype can still fail at pilot if nobody has a reason to answer it. Also confirm operationally that someone inside the organisation owns it, the knowledge base is real content rather than placeholder data, and success metrics (connect rate, talk time, conversion) were fixed before the first live call went out. On the technical bar specifically, lab metrics (word error rate, latency, noise cancellation) are useful as a rejection filter but not as the real pass/fail signal — the deployments in this synthesis converged on the same practical test instead: does the population the system is meant to serve actually say, unprompted, that it understood them and didn't sound robotic. A model that clears every lab benchmark but fails that plainer test isn't ready, and a model that clears the plainer test is usually good enough even with mediocre lab numbers.
+- Condition — applies when: Moving any voice deployment from a working demo to a real-user pilot.
+- Condition — fails when: The use case is a simple broadcast or yes/no poll — SMS or IVR is cheaper and this two-bar test is unnecessary overhead.
 
 ## Solution
 
-**6. Five-layer voice stack, with an on-device variant for offline/edge conditions**
+**2. Price against the platform you'll actually start on, not the floor you haven't earned yet**
 - Dimension: Solution
 - Stage: Explore
-- Type: Toolkit Asset
-- Origin deployment: India–Africa exchange with Crane AI Labs (edge variant)
-- Toolkit asset: A reference architecture of five layers that connect in sequence for a telephony-led use case — telephony, ASR, LLM, TTS, orchestration. In offline/edge deployments, the telephony layer may not be needed — ASR-LLM-TTS runs locally on-device instead.
-- Reusable as-is: A new adopter can map their own deployment onto these five layers to decide what to build versus buy, and to recognise when the edge variant (dropping telephony) applies.
-- Condition — applies when: a telephony-led deployment for the standard variant; unreliable or absent connectivity for the on-device edge variant.
+- Type: Strategic Decision
+- Decision: Estimate voice-AI cost at the exploration stage by multiplying calls per month × minutes per call × the per-minute rate of the managed platform a first deployment will actually start on (roughly ₹2.5–4.5/minute) — not the open-source, self-hosted rate (₹0.5–1.5/minute) that a deployment earns only after real scale and its own migration work.
+- Alternative considered: Budgeting against the open-source floor from the outset, assuming it's achievable immediately.
+- Why: Cost is no longer the primary obstacle to voice AI adoption — but budgeting against a rate a deployment hasn't earned yet produces a plan that looks cheaper than it will actually be in the phase that matters, the first one.
+- What this looked like here: The number of languages a deployment supports barely moves the bill; call duration and concurrency move it far more — and first-time adopters reliably under-provision for the parts that aren't AI at all: content, data, and system integration. Not every use case needs a large dataset or complex build to be worth costing out: a water-supply feedback line in Assam needed nothing more than a phone number list and five yes/no questions (did water arrive, on schedule, in sufficient quantity, adequate quality, are you satisfied) to surface exactly where a 55-litres-per-person mandate was actually being met — the cost and build effort should scale with the use case's real complexity, not a default assumption that voice AI always requires rich data infrastructure.
+- Condition — applies when: Estimating cost before any pilot has run.
 
-**7. A capacity-and-intent lens before choosing an architecture starting point**
+**3. Shortlist and test multiple vendors in parallel during the pilot**
 - Dimension: Solution
-- Stage: Explore
-- Type: Toolkit Asset
-- Toolkit asset: Two independent lenses to apply before choosing an architecture — what capacity you already have (zero / limited / evolved technical team), and what you actually want (test quickly / scale quickly / long-term sovereignty).
-- Reusable as-is: A new adopter can place themselves on both axes to identify their actual starting point, rather than an aspirational one.
-- Condition — applies when: a team is choosing where to start architecturally and risks defaulting to an aspirational rather than actual position.
+- Stage: Define
+- Type: Playbook
+- Playbook: Run more than one voice-AI vendor in parallel during the pilot phase wherever feasible, rather than committing to one vendor before real comparative data exists.
+- Note: This shows real comparison under similar conditions, reveals which vendor adapts fastest to feedback, creates competitive pressure on cost and quality, and reduces the risk of being stuck mid-way. Because voice AI is usually priced by usage, splitting call volume across providers during a pilot may not meaningfully increase total cost relative to the lock-in risk it removes — one deployment in this synthesis measured the premium at roughly 2–5% over a single-vendor commitment. In government procurement specifically, where single-vendor empanelment can make formal multi-vendor testing difficult, a closed sandbox test ahead of formal procurement is the pattern several of the source deployments used instead. For teams starting from zero with limited in-house capability, the easier on-ramp is a single bundled end-to-end provider (India's ecosystem has dozens active in Indic languages); vendor unbundling — telephony, speech, and language model procured and evaluated separately — is the move to make once a deployment has moved past pilot and wants more control, not the starting point.
+- Condition — applies when: A pilot is genuinely still deciding on a long-term vendor, and usage-based pricing makes parallel testing affordable.
+- Condition — fails when: Procurement rules make any parallel testing genuinely infeasible even in a sandbox, or the vendor decision is already fixed by an existing institutional relationship.
 
-**8. Start bundled, plan to unbundle**
+**4. Invest in open orchestration as shared infrastructure, not just in better models**
 - Dimension: Solution
 - Stage: Define
 - Type: Strategic Decision
-- Decision: A team with limited capacity testing quickly should start fully bundled without apology; a team with an evolved technical function wanting sovereignty may unbundle earlier.
-- Alternative considered: unbundling components from day one regardless of team capacity.
-- Condition — applies when: limited capacity and a need to test quickly (start bundled).
-- Condition — fails when: an evolved technical team wants long-term sovereignty from the outset (unbundle earlier instead).
-- Before → After: Not documented in the source.
-
-**9. Ordered model-selection criteria**
-- Dimension: Solution
-- Stage: Define
-- Type: Toolkit Asset
-- Toolkit asset: A ranked model-selection checklist, in order — conversational language support (not nominal support); latency (1-2 seconds, non-negotiable on a call); sectoral precedent; long-term control; cost at scale.
-- Reusable as-is: An adopter can apply the same ranked criteria directly when evaluating vendors for a live telephony use case.
-- Condition — applies when: selecting a conversational/voice model for a real-time call channel.
-
-**10. Passing benchmarks isn't the same as covering real dialects — parallel vendor testing during pilot**
-- Dimension: Solution
-- Stage: Pilot
-- Type: Failure and Fix
-- Origin deployment: not named in the source ("one deployment")
-- Failure: One deployment passed every benchmark and then hit a dialect gap its test group hadn't covered.
-- Fix: Use metrics to reject a model, use real users to select it — shortlist multiple vendors and test them in parallel during the pilot.
-- Insight: There's no shortcut around real-user testing for coverage gaps that a benchmark's test group simply didn't include.
-- Condition — applies when: usage-based vendor pricing makes parallel testing cheap relative to the lock-in risk it removes.
-
-**11. Voiceera: an open-source, agnostic orchestration layer**
-- Dimension: Solution
-- Stage: Scale
-- Type: Toolkit Asset
-- Toolkit asset: Voiceera — open-source, model-agnostic, language-agnostic, telephony-provider-agnostic orchestration software that connects telephony, ASR, LLM, and TTS into one deployable system.
-- Reusable as-is: An adopter can use Voiceera directly instead of building custom orchestration between components, avoiding vendor lock-in at any one layer.
-- Condition — applies when: the recurring gap is not a lack of language models but the absence of an orchestration layer connecting them.
-
-**12. WebSocket over WebRTC for Indian telephony conditions**
-- Dimension: Solution
-- Stage: Scale
-- Type: Tactical Decision
-- Decision: WebSocket APIs proved more practical than WebRTC for Indian telephony conditions specifically.
-- Alternative considered: WebRTC.
-- Condition — applies when: operating under Indian telephony infrastructure conditions specifically.
-- Before → After: Not documented in the source.
+- Decision: Treat the orchestration layer — the piece connecting ASR, LLM, and TTS to telephony, accountable data sources, moderation, and analytics — as its own investment, distinct from and as important as model selection.
+- Why: The gap that kept recurring across these deployments was not the absence of capable language models — it was the absence of an orchestration layer able to connect them into something deployable and maintainable. Models alone do not create adoption; a piece can work perfectly in a demo while the whole never becomes a working service without this layer.
+- What this looked like here: This is the gap Voicera (an open-source orchestration platform designed for open Indic voice models, connecting to telephony via WebSocket APIs, deployable through infrastructure like Bhashini) was built to close — model-agnostic, language-agnostic, and telephony-provider-agnostic by design. WebSocket APIs were found more practical for Indian telephony conditions than WebRTC, which some global guidance recommends by default — match infrastructure to local network realities, not external best practice alone.
+- Condition — applies when: Multiple capable models already exist for the target language but no deployable system has emerged from them.
 
 ## Institution
 
-**13. Name an accountable channel owner before launch**
+**5. The clearest sign of genuine institutionalisation is who does the daily quality checks**
+- Dimension: Institution
+- Stage: Pilot
+- Type: Strategic Decision
+- Decision: Track whether one person inside the deploying organisation — not at the vendor — listens to real calls daily and fixes the script, as the clearest marker of whether a deployment is becoming institutionalised versus staying vendor-dependent.
+- Why: Every deployment in this synthesis that worked had this internal role; where it was missing, the pilot usually stalled. Dependency sets in when an organisation picks a vendor from a demo and dashboard, then discovers only after launch that the system can't handle its own users' dialects — because nobody inside was positioned to judge what they'd bought.
+- What this looked like here: MahaVISTAAR is the clearest positive case — it is wired into the state's own systems (AgriStack, MahaDBT, PoCRA), so switching it off would break a working government process, not just close a helpline; and when the department moved its LLM from commercial GPT-4.1 to a fine-tuned open model, cutting inference cost roughly 180×, it needed no vendor sign-off and no rebuild, because the department itself controlled the stack. The pattern holds at the individual level too — MahaVISTAAR's own Additional Chief Secretary and Pocra Programme Director tested the live bot themselves at odd hours, past midnight more than once, rather than relying solely on vendor or field reports; the Bhili low-resource-language effort had the same marker in the Nandurbar District Collector, who convened and stayed personally invested in the effort from its start.
+- Condition — applies when: Assessing whether a deployment has genuinely absorbed a voice-AI system versus still depending on its original vendor or founding team.
+
+**6. Design for refusal, not just for response**
 - Dimension: Institution
 - Stage: Define
 - Type: Strategic Decision
-- Decision: Who owns this channel and is accountable for its output must be answered before launch, not deferred. A voice agent can be technically ready and institutionally homeless — no owner, no update process, nobody accountable when it fails.
-- Alternative considered: deferring ownership until after launch.
-- Condition — applies when: a voice channel is about to launch in an institution's name.
-- Before → After: Not documented in the source.
-
-**14. Define what the bot is not allowed to say before launch**
-- Dimension: Institution
-- Stage: Define
-- Type: Strategic Decision
-- Decision: What the bot is not allowed to say must be answered before launch, not deferred, alongside channel ownership.
-- Alternative considered: relying on general prompting without an explicit boundary definition.
-- Condition — applies when: a voice channel speaks in an institution's name and its outputs carry institutional weight.
-- Before → After: Not documented in the source.
-
-**15. Voice AI should extend human capacity by explicit design, not default to replacement**
-- Dimension: Institution
-- Stage: Define
-- Type: Strategic Decision
-- Decision: Voice AI should extend human capacity, not automatically replace it — this has to be a design decision made explicitly, not an afterthought.
-- Alternative considered: designing voice AI as a straightforward replacement for human agents.
-- Condition — applies when: an institution already has human agents/callers performing a related function.
-- Before → After: Not documented in the source.
-
-**16. Two-phase operating model: validate first, then scale**
-- Dimension: Institution
-- Stage: Define
-- Type: Playbook
-- Playbook: (1) Validate — prove voice is the right channel for a specific user, problem, and institutional context, using a narrow use case and a bundled provider. Only once that's proven: (2) Scale — unbundle components where it matters, separate data ownership from the AI layer, plan multilingual expansion, build the safety bank, and set up monitoring.
-- Note: Not documented in the source whether skipping the validate phase was attempted or what happened when it was.
-- Condition — applies when: an institution is building out a voice channel in phases rather than committing to full scale immediately.
-- Before → After: Not documented in the source.
-
-**17. Pre-launch safety/stress-test bank**
-- Dimension: Institution
-- Stage: Pilot
-- Type: Toolkit Asset
-- Toolkit asset: A stress-test bank covering out-of-scope questions, distress, harassment, romantic/inappropriate prompts (especially relevant with a female voice), jailbreak attempts, and escalation triggers — built before public launch.
-- Reusable as-is: An adopter can build their own test bank directly from these named categories rather than discovering them live with real users.
-- Condition — applies when: launching a voice channel in an institution's name, particularly one using a female voice.
-
-**18. Staged institutional testing gate**
-- Dimension: Institution
-- Stage: Pilot
-- Type: Playbook
-- Playbook: Institutional testing proceeds in stages, each gating the next — builder team, then a small institutional group, then a wider group across geographies and accents, then a limited public rollout.
-- Note: Don't outsource trust to a vendor — the institution itself has to run this progression rather than delegate it.
-- Condition — applies when: preparing a voice channel for public rollout.
-- Before → After: Not documented in the source.
-
-**19. Split interactions by type: AI for structured, humans for high-risk**
-- Dimension: Institution
-- Stage: Pilot
-- Also relevant at: Scale
-- Type: Tactical Decision
-- Decision: The right design is almost always a combination — voice AI handles repeated, structured, scalable interactions; humans handle sensitive, complex, ambiguous, or high-risk cases. At scale, this is named explicitly as extension officers and human agents handling the relationship while the system handles the routine, off-hours question — a division of labour that has to be named, not assumed.
-- Alternative considered: framing voice AI as a human replacement.
-- Condition — applies when: interaction types genuinely vary in sensitivity and complexity.
-- Condition — fails when: framed purely as replacement — this loses institutional trust quickly.
-- Before → After: Not documented in the source.
-
-**20. Dead air during backend fetch breaks the feel of the call**
-- Dimension: Institution
-- Stage: Pilot
-- Type: Failure and Fix
-- Failure: Dead silence during a backend data fetch made the call feel broken rather than alive.
-- Fix: A hold message plus targeted latency work.
-- Insight: Small experience choices decide whether a call feels alive or broken — perceived responsiveness matters as much as actual latency.
-- Condition — applies when: any turn requires a backend round-trip long enough to be perceptible to the caller.
-
-**21. Call-experience design heuristics**
-- Dimension: Institution
-- Stage: Pilot
-- Type: Toolkit Asset
-- Toolkit asset: A short set of call-design heuristics — introductions under 30 seconds; lighter follow-up prompts for a public-service tone rather than a commercial one; simpler yes/no question design where it improves accuracy more than a better model would.
-- Reusable as-is: An adopter can apply these heuristics directly when scripting their own voice flows.
-- Condition — applies when: designing telephony-based conversational scripts for public-service, non-commercial contexts.
-
-**22. Scale-readiness checklist: control, not just uptime**
-- Dimension: Institution
-- Stage: Scale
-- Type: Toolkit Asset
-- Toolkit asset: A four-point scale-readiness check — can the institution change vendors, update data, monitor failures, and govern safety, without the founding team?
-- Reusable as-is: An adopter can run this same four-point check against their own deployment before committing to scale.
-- Condition — applies when: assessing whether an institution is genuinely ready to scale, as opposed to merely live.
-
-**23. Cost-tracking dimensions from pilot onward**
-- Dimension: Institution
-- Stage: Scale
-- Also relevant at: Pilot
-- Type: Toolkit Asset
-- Toolkit asset: Cost is shaped by architectural decisions, not just negotiation — premium TTS, proprietary LLMs, Indic tokenisation, agentic tool calls, and long conversations all drive cost at scale. Track cost per minute, per interaction, by language, and for failed calls, starting from pilot onward.
-- Reusable as-is: An adopter can adopt the same four cost dimensions as their own monitoring framework from pilot onward, rather than discovering cost drivers only once at scale.
-- Condition — applies when: an architecture involves any of premium TTS, proprietary LLMs, Indic tokenisation, agentic tool calls, or long conversations.
-
-**24. Named continuous-improvement ownership, or the system degrades invisibly**
-- Dimension: Institution
-- Stage: Scale
-- Type: Strategic Decision
-- Decision: The work doesn't end at launch — someone must own continuous improvement, or the system degrades invisibly.
-- Alternative considered: treating launch as the end state with no dedicated ongoing ownership.
-- Condition — applies when: a voice channel has moved from pilot into ongoing operation.
-- Before → After: Not documented in the source.
+- Decision: Build a safety and stress-test bank before public launch, covering in-scope questions, out-of-scope questions, sensitive and distress scenarios, abuse or harassment, complaints about officials or policy, jailbreak attempts, and questions needing human escalation.
+- Why: A voice agent backed by an institution is experienced as that institution — a wrong answer, silence, or a mishandled sensitive question is read as the institution failing the caller, not as a model error. This is not a marginal edge case; several deployments reported it as central, particularly where the system used a female voice and drew inappropriate conversation attempts.
+- What this looked like here: Institutional testing moved through graded, widening stages — the builder team, then a small institutional group, then a wider institutional group across geographies and accents, then a limited public rollout — with the institution's own staff kept in the loop throughout rather than the testing fully outsourced to a vendor.
+- Condition — applies when: The deployment is institutionally branded and public-facing.
 
 ## Ecosystem
 
-**25. For low-resource languages, the ecosystem is the deliverable, not the dataset**
-- Dimension: Ecosystem
-- Stage: Define
-- Type: Strategic Decision
-- Decision: For low-resource languages, the ecosystem — native speakers, annotators, linguistic experts, model builders, hosting infrastructure, a real-world application, a neutral convening authority — is the actual deliverable. A dataset is one output of building that ecosystem, not the goal itself.
-- Alternative considered: treating a completed dataset as the end goal of the work.
-- Condition — applies when: building for a language with no existing ecosystem of speakers, annotators, or tooling in place.
-- Before → After: Not documented in the source.
-
-**26. Size data requirements to the use case, not a generic assumption**
+**8. Voice opens the door — the service may need other channels to complete the journey**
 - Dimension: Ecosystem
 - Stage: Scale
 - Type: Strategic Decision
-- Origin deployment: Jal Jeevan Mission Assam; MahaVISTAAR
-- Decision: Not every deployment needs a large dataset. Jal Jeevan Mission Assam needed phone numbers and five questions; MahaVISTAAR needed multiple live, governed data sources. The minimum viable data requirement comes from the use case, not from generic assumptions.
-- Alternative considered: assuming every deployment requires a large dataset regardless of use case.
-- Condition — applies when: sizing data requirements for a new deployment.
-- Before → After: Jal Jeevan Mission Assam (minimal: phone numbers plus five questions) and MahaVISTAAR (multiple live, governed data sources) each sized to their own use case rather than a shared generic assumption.
+- Decision: Design voice as part of a multichannel service, not as a full replacement for every other channel a user might need.
+- Why: Several deployments in this synthesis initially romanticised voice as sufficient on its own, and discovered later that some users needed to send images, some preferred text in noisy environments, and some needed a human escalation route a bot could not provide.
+- Condition — applies when: The use case may eventually require image sharing, text-based interaction in noisy environments, or human escalation for complex cases.
+- Condition — fails when: The use case is genuinely voice-complete — a simple, structured, repeatable interaction with no foreseeable need for another modality.
 
-# 4. Toolkits and playbooks
+# 4. Toolkits and Playbooks
 
-| Unit | Type | Reuse condition |
-|---|---|---|
-| 6 | Toolkit Asset | Applies to any telephony-led voice deployment; the on-device variant applies where connectivity is unreliable. |
-| 7 | Toolkit Asset | Applies when choosing an architecture starting point and at risk of defaulting to an aspirational rather than actual position. |
-| 9 | Toolkit Asset | Applies when selecting a conversational/voice model for a real-time call channel. |
-| 11 | Toolkit Asset | Applies when the gap is orchestration, not the absence of language models. |
-| 16 | Playbook | Applies when building out a voice channel in phases rather than committing to full scale immediately. |
-| 17 | Toolkit Asset | Applies when launching a voice channel in an institution's name, particularly with a female voice. |
-| 18 | Playbook | Applies when preparing a voice channel for public rollout. |
-| 21 | Toolkit Asset | Applies when designing telephony scripts for public-service, non-commercial contexts. |
-| 22 | Toolkit Asset | Applies when assessing genuine scale-readiness, not just liveness. |
-| 23 | Toolkit Asset | Applies when architecture includes premium TTS, proprietary LLMs, Indic tokenisation, agentic tool calls, or long conversations. |
+| # | Asset | Type | Reuse condition |
+|---|---|---|---|
+| 3 | Parallel multi-vendor pilot testing (including the government sandbox pattern) | Playbook | Applies wherever usage-based pricing makes parallel testing affordable, or a sandbox can substitute for formal multi-vendor empanelment. |
+| 7 | Two-bar prototype-to-pilot readiness test (technical + human "reason to stay on the line") | Playbook | Applies before moving any voice deployment from demo to real-user pilot; does not apply to simple broadcast/poll use cases better served by SMS or IVR. |
+| — | Voicera — open-source, model-agnostic, telephony-provider-agnostic orchestration platform | Toolkit Asset | Applies to any Indic-language voice deployment needing an orchestration layer rather than a single vendor's closed stack. See `content/resources.md` for repository and documentation links. |
 
-# 5. Problem→solution patterns
+# 6. Retrieval Guide
 
-| Problem | Root cause | Solution | Result | Condition |
-|---|---|---|---|---|
-| Voice-only channel leaves some users unable to complete their journey | Some users need to send images, some prefer text in noisy environments, some need human escalation the bot can't provide | Treat voice as the entry channel, not the whole journey — add complementary channels/escalation paths | Users complete the journey through the channel suited to their situation | Applies when the user base spans varied contexts (noise, literacy, complexity) |
-| A model passes every benchmark, then fails in the field on an uncovered dialect | Benchmark/test-group coverage didn't include the dialect actually encountered in deployment | Use benchmarks only to reject candidates; use parallel real-user testing with shortlisted vendors during pilot to select | Dialect gap caught before full-scale rollout, at marginal added cost | Applies when usage-based vendor pricing makes parallel testing cheap relative to lock-in risk |
-| Calls feel broken during backend data fetches | Dead silence with no acknowledgment while the system retrieves data | Add a hold message plus targeted latency work | The call feels alive and responsive instead of dead during fetch waits | Applies when any turn requires a backend round-trip long enough to be perceptible to the caller |
+*"How do I define who this is actually for?"* → Unit 1
 
-# 6. Retrieval guide
+*"Is my prototype actually ready to move to a real pilot?"* → Unit 7
 
-*"How do we describe our target user precisely instead of a broad demographic label?"* → Unit 1
+*"How much should I budget before running a pilot?"* → Unit 2
 
-*"We can't get everyone to agree on exactly who this is for — is that a blocker?"* → Unit 2
+*"Should we commit to one vendor now, or test several?"* → Unit 3
 
-*"Should voice AI replace our human callers entirely?"* → Unit 3, Unit 15, Unit 19
+*"We have good models but no working system"* → Unit 4
 
-*"Users keep asking for things voice alone can't handle — what does that mean?"* → Unit 4
+*"How do we know if this deployment has become genuinely institutionalised?"* → Unit 5
 
-*"Whose trust are we actually building — the AI's or someone else's?"* → Unit 5
+*"How do we handle out-of-scope or sensitive questions?"* → Unit 6
 
-*"What components do we need to stitch together for a phone-based voice assistant?"* → Unit 6
-
-*"We don't have much of a technical team yet — where should we start?"* → Unit 7
-
-*"Should we build everything ourselves or use a bundled vendor first?"* → Unit 8, Unit 16
-
-*"How do we pick a model or vendor for a voice deployment?"* → Unit 9
-
-*"Our model passed every benchmark — are we ready to launch?"* → Unit 10
-
-*"What's actually missing in the voice AI tooling landscape right now?"* → Unit 11
-
-*"WebRTC or WebSocket for our telephony integration?"* → Unit 12
-
-*"Who owns this channel once it's live?"* → Unit 13
-
-*"What is the bot not allowed to say?"* → Unit 14
-
-*"How do we test for safety before public launch?"* → Unit 17, Unit 18
-
-*"How do we split work between the AI and our staff?"* → Unit 15, Unit 19
-
-*"Why does the call feel awkward or broken partway through?"* → Unit 20, Unit 21
-
-*"Are we actually ready to scale, or just live?"* → Unit 22
-
-*"How do we track cost once we're at scale?"* → Unit 23
-
-*"The system feels like it's degrading since launch — is that normal?"* → Unit 24
-
-*"We're building for a language with almost no digital presence — where do we start?"* → Unit 25
-
-*"How much data do we actually need before we can launch?"* → Unit 26
+*"Should voice be our only channel?"* → Unit 8
 
 ---
 
-## Provenance appendix
+## Source Trace
+
+*Contributor-only — not surfaced to adopters.*
 
 | Source file | Covers | Notes |
 |---|---|---|
-| `voice-ai-for-inclusion.md` (previous version, 7-category framework, timestamp 2026-07-26) | Section 1 (all fields); Section 2 (grid and gaps); Section 3 Units 1–26 (all); Section 4; Section 5; Section 6 | Reclassification of an existing corpus entry into the new 4-dimension framework — not a synthesis from fresh raw material. Same underlying facts, decisions, and examples as the prior version; re-tagged by dimension/sub-category/stage/type and restructured into the Sections 0–6 format. No new source material consulted. |
+| 1. Voice AI - Diffusion Pathway - V4.docx (full narrative pathway + executive summary, dated 26 Jul 2026) | Section 1 (identity, scale, dates); Section 2 (cost anchor, downstream framing); Units 1, 3, 4, 6, 8; Gaps 3, 4 | Primary source — a complete narrative synthesis document, including its own condensed executive summary appended within the same file. |
+| Information gaps - Voice AI.docx | Units 2, 5, 7; Gaps 1, 2 | Primary source for the cost-range figures, the institutionalisation/workforce-outcome marker, and the two-bar prototype-readiness test — answers to a structured follow-up interview, richer and more specific than the main pathway document on these three points. |
+| Santosh Interview Transcript - AI Diffusion.docx / Transcript 2.pdf / Voice Pathway Transcript (1).pdf | Enriches Units 2, 3, 5, 7 (Jal Jeevan Mission Assam example, vendor-unbundling sequencing, named institutional champions, the lab-metric-vs-citizen-acceptance evaluation approach) | Read in full — the raw interview underlying the V4 pathway document and info-gaps answers above. The three files are the same interview captured three times (one clean Otter transcript, two lower-quality OCR duplicates of very similar content); read as one source. Confirms the synthesised documents point-for-point and adds direct texture — named champions, vendor names (Sarvam, Gnani, Korover, Bolna for full-stack; Plivo, Ubona, Exotel for telephony), and the WER/latency-vs-real-usage distinction — not present in the synthesis at this level of specificity. |
+| Questions for Santosh.docx | Background only | Interview question guide; content already reflected in the documents above. |
