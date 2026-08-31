@@ -19,6 +19,10 @@ import { createServerClient } from '@supabase/ssr';
 const PUBLIC_PATHS = [
   '/login',
   '/explore',
+  '/analyse',
+  // Old route name (Navigate) — kept public purely so its redirect page
+  // (app/navigate/page.tsx) can forward a stale link to /analyse without
+  // hitting the login wall first.
   '/navigate',
   '/contribute',
   '/api/chat',

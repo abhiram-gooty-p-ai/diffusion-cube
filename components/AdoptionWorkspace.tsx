@@ -160,6 +160,7 @@ export default function AdoptionWorkspace({
   const [welcomeInput, setWelcomeInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [gridOpen, setGridOpen] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
   // The Explorer intent picked from the welcome menu, before any row exists.
   // Once a row exists the intent lives on conversation.meta.intent instead —
@@ -355,7 +356,7 @@ export default function AdoptionWorkspace({
           </div>
           {preChat.flow === 'explorer' && (
             <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-              Navigate through your own adoption
+              Analyse your own adoption
             </p>
           )}
           {preChat.flow === 'contributor' && pathwayPreview?.title && (
@@ -680,6 +681,14 @@ export default function AdoptionWorkspace({
             >
               📎 Files
             </button>
+            {flow === 'explorer' && (
+              <button
+                onClick={() => setGridOpen(true)}
+                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
+              >
+                ▦ Grid
+              </button>
+            )}
             {flow === 'contributor' && (
               <button
                 onClick={openPathwayDocument}
@@ -714,7 +723,7 @@ export default function AdoptionWorkspace({
 
         {flow === 'explorer' && (
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-            {'Navigate through your own adoption'}
+            {'Analyse your own adoption'}
           </p>
         )}
         {showDeploymentHeader && (
@@ -751,18 +760,6 @@ export default function AdoptionWorkspace({
               </>
             )}
           </>
-        )}
-        {/* One persistent grid, bound directly to live conversation.grid state
-            (already updated every turn via the <grid_update> contract, see
-            useAdoptionConversation) — replaces the old per-message <cube_grid/>
-            marker so the table renders once and simply reflects current state,
-            instead of a fresh copy mounting in every qualifying chat bubble.
-            Rendering here costs nothing extra on the response path: the data
-            was already live-updating regardless of whether anything showed it. */}
-        {flow === 'explorer' && headerExpanded && (
-          <div className="mt-3">
-            <HeatmapGrid grid={conversation.grid} />
-          </div>
         )}
       </div>
 
@@ -810,7 +807,10 @@ export default function AdoptionWorkspace({
                 inset-y-0 (rather than top-0 + h-full) anchors both edges
                 directly to this wrapper's height, so it reliably fills the
                 full column instead of depending on percentage-height
-                resolving through an absolutely positioned descendant. */}
+                resolving through an absolutely positioned descendant. The
+                grid lives behind its own header button + modal instead (see
+                gridOpen below) — a hover sidebar was too cramped to read a
+                real note in comfortably. */}
             <div className="flex h-full w-8 cursor-default items-center justify-center border-l border-navy/10 text-ink-soft transition group-hover:border-coral/40 group-hover:text-coral">
               <span aria-hidden className="rotate-180 font-mono text-[10px] uppercase tracking-[0.2em] [writing-mode:vertical-lr]">
                 Files
@@ -848,6 +848,34 @@ export default function AdoptionWorkspace({
                 onAttachFiles={handleAttachFiles}
                 onRemoveAttachment={removeAttachment}
               />
+            </div>
+          </div>
+        )}
+
+        {/* The coverage grid, opened on demand from the "Grid" header button
+            rather than shown persistently or on hover — a real note reads
+            far more comfortably in a centered modal with room to breathe
+            than it ever did in a slim sidebar. */}
+        {gridOpen && (
+          <div
+            className="fixed inset-0 z-40 flex items-center justify-center bg-navy/40 p-4"
+            onClick={() => setGridOpen(false)}
+          >
+            <div
+              className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-paper p-4 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Coverage grid</p>
+                <button
+                  onClick={() => setGridOpen(false)}
+                  aria-label="Close"
+                  className="px-1 text-lg leading-none text-ink-soft transition hover:text-navy"
+                >
+                  ×
+                </button>
+              </div>
+              <HeatmapGrid grid={conversation.grid} />
             </div>
           </div>
         )}

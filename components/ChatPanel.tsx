@@ -91,6 +91,25 @@ function parseChatInline(text: string): React.ReactNode[] {
     return -1;
   }
 
+  // Trailing punctuation that reads as sentence structure, not part of the
+  // URL itself (a link at the end of a clause like "...test: https://x.com.")
+  // shouldn't swallow the period into the href).
+  const URL_TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/;
+
+  function renderLink(key: React.Key, label: string, href: string): React.ReactNode {
+    return (
+      <a
+        key={key}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-coral underline decoration-coral/40 underline-offset-2 hover:decoration-coral"
+      >
+        {label}
+      </a>
+    );
+  }
+
   let i = 0;
   while (i < text.length) {
     if (text[i] === '*' && text[i + 1] === '*') {
@@ -108,6 +127,39 @@ function parseChatInline(text: string): React.ReactNode[] {
         nodes.push(<em key={i}>{parseChatInline(text.slice(i + 1, end))}</em>);
         i = end + 1;
         continue;
+      }
+    } else if (text[i] === '[') {
+      // [label](url) — the one link syntax the model is asked to use for
+      // proactively surfacing external resources (see the "External
+      // resources" section of explorerSystemPrompt).
+      const labelEnd = text.indexOf(']', i + 1);
+      if (labelEnd !== -1 && text[labelEnd + 1] === '(') {
+        const urlEnd = text.indexOf(')', labelEnd + 2);
+        if (urlEnd !== -1) {
+          const label = text.slice(i + 1, labelEnd);
+          const href = text.slice(labelEnd + 2, urlEnd);
+          if (label && /^https?:\/\//.test(href)) {
+            flush();
+            nodes.push(renderLink(i, label, href));
+            i = urlEnd + 1;
+            continue;
+          }
+        }
+      }
+    } else if (text.slice(i, i + 8) === 'https://' || text.slice(i, i + 7) === 'http://') {
+      // A bare URL the model pasted without [label](...) wrapping — still
+      // worth making clickable rather than showing as inert text.
+      const match = text.slice(i).match(/^https?:\/\/\S+/);
+      if (match) {
+        let raw = match[0];
+        const trailing = raw.match(URL_TRAILING_PUNCTUATION);
+        if (trailing) raw = raw.slice(0, raw.length - trailing[0].length);
+        if (raw.length > 8) {
+          flush();
+          nodes.push(renderLink(i, raw, raw));
+          i += raw.length;
+          continue;
+        }
       }
     }
     buf += text[i];
