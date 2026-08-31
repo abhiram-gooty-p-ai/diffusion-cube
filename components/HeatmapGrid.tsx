@@ -7,10 +7,10 @@ interface Props {
 // The full 4×4 grid, styled after 100pathways.com's own dimension × stage
 // table (colored accent bar + dimension name, stage names as column
 // headers). Each cell shows what's actually been established for this
-// adoption (the note), not the framework's core question. Rendered inline
-// in the chat by ChatPanel wherever the model emits a <cube_grid/> marker —
-// see the model's own grid-first instruction in Step 3 of the Explorer
-// prompt (lib/system-prompts.ts).
+// adoption (the note), not the framework's core question. Rendered once,
+// persistently, in AdoptionWorkspace's header — bound directly to live
+// conversation.grid, which already updates every turn via the
+// <grid_update> contract (see lib/system-prompts.ts).
 export default function HeatmapGrid({ grid }: Props) {
   return (
     <div className="overflow-x-auto rounded-xl border border-navy/10 bg-white">

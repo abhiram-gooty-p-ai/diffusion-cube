@@ -16,7 +16,17 @@ import { createServerClient } from '@supabase/ssr';
 // own tiered gating (see their own page.tsx — an AccessGateMessage for an
 // anonymous or under-qualified visitor, the real workspace once approved).
 // Letting the middleware redirect them away first would defeat that entirely.
-const PUBLIC_PATHS = ['/login', '/explore', '/navigate', '/contribute', '/api/chat', '/api/wiki-pathways'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/explore',
+  '/navigate',
+  '/contribute',
+  '/api/chat',
+  '/api/wiki-pathways',
+  // The testing-environment login route establishes the very first session
+  // for a new name+email — it has to be reachable before one exists.
+  '/api/auth/testing-login',
+];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
