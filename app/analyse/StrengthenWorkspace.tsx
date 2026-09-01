@@ -1,22 +1,18 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AdoptionWorkspace from '@/components/AdoptionWorkspace';
 import { AdoptionConversation } from '@/lib/adoption-conversation';
 import { fetchAdoption } from '@/lib/adoptions-cache';
 
-// /strengthen owns Explorer sessions end to end: starting a new one from the
-// intent menu, and reopening a past one via ?open=<id> (the sidebar's "Recent
-// Explorations" links here rather than to the /adoptions grid, so the way
-// back is always the intent menu rather than someone else's list view).
-//
-// "Back to the menu" is a remount, not a navigation — the App Router won't
-// remount a route you're already on, and the conversation lives inside
-// AdoptionWorkspace's own hook. Bumping the key gives it a null conversation,
-// which is exactly the menu state. Nothing is lost either way: the row is
-// already persisted and reopens from the sidebar or /adoptions.
+// /analyse owns Explorer sessions end to end: starting a new one, and
+// reopening a past one via ?open=<id> (the sidebar's "Recent Explorations"
+// links here). When a new row is created, the URL is updated to include
+// ?open=<id> so a refresh (or a later sidebar link) reopens the same
+// session — without remounting or disrupting the conversation in progress.
 function StrengthenWorkspaceContent() {
+  const router = useRouter();
   const openId = useSearchParams().get('open');
 
   const [opened, setOpened] = useState<AdoptionConversation | null>(null);
@@ -24,14 +20,33 @@ function StrengthenWorkspaceContent() {
   // than tracked as its own state that has to be kept in sync.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
+  // Stable workspace key — only changes when switching to a different
+  // pre-existing session. Does NOT change when the current session creates
+  // its row (onCreated), so the in-progress conversation isn't interrupted
+  // by the URL update.
+  const [sessionKey, setSessionKey] = useState<string>(openId ?? 'new');
+
+  // ID of the row created in this component's lifetime, so the URL change
+  // driven by onCreated doesn't trigger a re-fetch or remount.
+  const createdInSessionRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!openId) return;
+    if (!openId) {
+      // Bare /analyse — only reset the key if no in-session row exists, so
+      // clicking the nav item while a conversation is running preserves it.
+      if (!createdInSessionRef.current) setSessionKey('new');
+      return;
+    }
+    // URL was updated by onCreated for the row we just created — skip.
+    if (openId === createdInSessionRef.current) return;
+
+    // A different (pre-existing) session is being opened — remount and fetch.
+    setSessionKey(openId);
     let cancelled = false;
     fetchAdoption(openId)
       .then((row) => {
         if (cancelled) return;
-        // A Contributor row deep-linked here would render the wrong flow, so
-        // anything that isn't an Explorer adoption falls back to the menu.
+        // A Contributor row deep-linked here would render the wrong flow.
         setOpened(row && row.meta.flow === 'explorer' ? row : null);
         setLoadedFor(openId);
       })
@@ -45,7 +60,10 @@ function StrengthenWorkspaceContent() {
     };
   }, [openId]);
 
-  const loading = Boolean(openId) && loadedFor !== openId;
+  // Show a loading state only when fetching a pre-existing session — not
+  // during in-session row creation where onCreated already populated the state.
+  const loading =
+    Boolean(openId) && openId !== createdInSessionRef.current && loadedFor !== openId;
   const initial = openId && loadedFor === openId ? opened : null;
 
   if (loading) {
@@ -58,9 +76,17 @@ function StrengthenWorkspaceContent() {
 
   return (
     <AdoptionWorkspace
-      key={`navigate-${initial?.id ?? 'new'}`}
+      key={`analyse-${sessionKey}`}
       initial={initial}
       fixedFlow="explorer"
+      onCreated={(c) => {
+        // Stamp the in-session ID immediately so the URL change below
+        // doesn't trigger a re-fetch or remount of the running workspace.
+        createdInSessionRef.current = c.id;
+        setOpened(c);
+        setLoadedFor(c.id);
+        router.replace(`/analyse?open=${c.id}`);
+      }}
     />
   );
 }
