@@ -2,40 +2,23 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-
-type Stage = 'Explore' | 'Define' | 'Pilot' | 'Scale';
-type Accent = 'coral' | 'yellow' | 'blue' | 'navy';
-
-interface WikiPathwayIndexEntry {
-  slug: string;
-  title: string;
-  description: string;
-  category: string;
-  sector?: string;
-  stage?: string;
-  contributor?: string;
-}
-
-interface LibraryPathway extends WikiPathwayIndexEntry {
-  accent: Accent;
-}
+import { libraryPathways, libraryStages, type Accent, type LibraryPathway, type Stage } from '@/lib/library-pathways';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type View = 'library' | 'chat';
 
 // A signed-in visitor's saved chat (library_conversations) — an anonymous
 // visitor never has any of these, and their own chats stay purely in-memory.
-// Listed in the sidebar's "Recent Explorations" (alongside Strengthen
+// Listed in the sidebar's "Recent Explorations" (alongside Analyse
 // sessions), not as blocks on this page — reopened here via ?open=<id>,
 // resolved server-side into `initialConversation` (see app/explore/page.tsx).
+// pathway_slug holds the LibraryPathway's `id` (column name is generic).
 interface SavedConversation {
   id: string;
   pathway_slug: string | null;
   pathway_title: string | null;
   messages: ChatMessage[];
 }
-
-const ACCENT_ROTATION: Accent[] = ['coral', 'yellow', 'blue', 'navy'];
 
 // Same theme tokens the whole app already uses (bg-coral-soft, text-blue,
 // etc. are all defined in globals.css) — the Diffusion Library app these
@@ -60,8 +43,6 @@ const accentBadge: Record<Accent, string> = {
   navy: 'bg-navy/10 text-navy',
 };
 
-const STAGE_ORDER: Stage[] = ['Explore', 'Define', 'Pilot', 'Scale'];
-
 export default function ExploreLibrary({
   signedIn = false,
   initialConversation = null,
@@ -71,10 +52,12 @@ export default function ExploreLibrary({
   // Explorations" link) — resolved server-side in app/explore/page.tsx.
   initialConversation?: SavedConversation | null;
 }) {
-  const [pathways, setPathways] = useState<LibraryPathway[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [activeStage, setActiveStage] = useState<Stage | 'All'>('All');
-  const [selected, setSelected] = useState<LibraryPathway | null>(null);
+  const [selected, setSelected] = useState<LibraryPathway | null>(
+    initialConversation?.pathway_slug
+      ? (libraryPathways.find((p) => p.id === initialConversation.pathway_slug) ?? null)
+      : null
+  );
   const [messages, setMessages] = useState<ChatMessage[]>(initialConversation?.messages ?? []);
   const [draft, setDraft] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -85,31 +68,6 @@ export default function ExploreLibrary({
   // tracks which row (if any) this chat continues, so saves after the first
   // one update in place instead of creating a new row per turn.
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(initialConversation?.id ?? null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/wiki-pathways')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: WikiPathwayIndexEntry[]) => {
-        if (cancelled) return;
-        const withAccents = data.map((p, i) => ({ ...p, accent: ACCENT_ROTATION[i % ACCENT_ROTATION.length] }));
-        setPathways(withAccents);
-        setLoaded(true);
-        // Re-match the reopened conversation's pathway once the list is in —
-        // only needed for the chat header's badge/icon, not the messages.
-        if (initialConversation?.pathway_slug) {
-          setSelected(withAccents.find((p) => p.slug === initialConversation.pathway_slug) ?? null);
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Upserts the current conversation for a signed-in visitor — fire-and-
   // forget, called right after each assistant reply finishes so a refresh
@@ -128,14 +86,13 @@ export default function ExploreLibrary({
     }
     const { data } = await supabase
       .from('library_conversations')
-      .insert({ pathway_slug: pathway?.slug ?? null, pathway_title: pathway?.title ?? null, messages: history })
+      .insert({ pathway_slug: pathway?.id ?? null, pathway_title: pathway?.title ?? null, messages: history })
       .select('id')
       .single();
     if (data) setCurrentConversationId(data.id);
   }
 
-  const availableStages = STAGE_ORDER.filter((s) => pathways.some((p) => p.stage === s));
-  const filtered = activeStage === 'All' ? pathways : pathways.filter((p) => p.stage === activeStage);
+  const filtered = activeStage === 'All' ? libraryPathways : libraryPathways.filter((p) => p.stage === activeStage);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -148,14 +105,20 @@ export default function ExploreLibrary({
   // through explicitly rather than read from `selected` state here, so
   // saveConversation always gets the pathway this exact turn belongs to,
   // never a stale value from a state update that hasn't landed yet.
-  async function streamReply(history: ChatMessage[], pathwayTitle: string | undefined, pathway: LibraryPathway | null) {
+  // Streams a reply for `history` (the full conversation so far, including
+  // the just-added user turn — or empty, for the pathway kickoff below).
+  // `pathwayId`, not just its title, is threaded through and resent every
+  // turn — matches the original backend, which stays grounded in that one
+  // pathway's full document for the whole conversation, not just the first
+  // message.
+  async function streamReply(history: ChatMessage[], pathwayId: string | undefined, pathway: LibraryPathway | null) {
     setMessages([...history, { role: 'assistant', content: '' }]);
     setIsThinking(true);
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, mode: 'library', pathwayTitle }),
+        body: JSON.stringify({ messages: history, mode: 'library', pathwayId }),
       });
       if (!res.body) throw new Error('No response body');
 
@@ -184,28 +147,25 @@ export default function ExploreLibrary({
     }
   }
 
-  function sendMessage(
-    text: string,
-    options?: { pathwayTitle?: string; pathway?: LibraryPathway | null; historyOverride?: ChatMessage[] }
-  ) {
+  function sendMessage(text: string, options?: { pathway?: LibraryPathway | null; historyOverride?: ChatMessage[] }) {
     const trimmed = text.trim();
     if (!trimmed) return;
     const base = options?.historyOverride ?? messages;
     const next = [...base, { role: 'user' as const, content: trimmed }];
     setDraft('');
-    void streamReply(next, options?.pathwayTitle, options?.pathway ?? null);
+    void streamReply(next, options?.pathway?.id, options?.pathway ?? null);
   }
 
+  // Opening a pathway shows only the assistant's kickoff overview — no
+  // "Tell me about X" user bubble — matching the original library exactly:
+  // an empty message history plus pathwayId elicits the fixed kickoff turn
+  // server-side (see LIBRARY_KICKOFF_PROMPT in lib/system-prompts.ts).
   function startPathwayChat(pathway: LibraryPathway) {
     setSelected(pathway);
     setView('chat');
     setMessages([]);
     setCurrentConversationId(null);
-    sendMessage(`Tell me about the ${pathway.title} pathway.`, {
-      pathwayTitle: pathway.title,
-      pathway,
-      historyOverride: [],
-    });
+    void streamReply([], pathway.id, pathway);
   }
 
   function handleAskGeneral(text: string) {
@@ -224,7 +184,7 @@ export default function ExploreLibrary({
         setDraft={setDraft}
         isThinking={isThinking}
         bottomRef={bottomRef}
-        onSend={(text) => sendMessage(text, { pathwayTitle: selected?.title, pathway: selected })}
+        onSend={(text) => sendMessage(text, { pathway: selected })}
         onBack={() => setView('library')}
       />
     );
@@ -233,14 +193,14 @@ export default function ExploreLibrary({
   return (
     <div className="animate-fade-in flex-1 overflow-y-auto bg-paper">
       <section className="mx-auto flex max-w-6xl flex-col items-center px-6 pt-12 pb-10 text-center sm:pt-16 sm:pb-14">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">Explore</p>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">Diffusion Library</p>
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-medium leading-[1.1] tracking-tight text-navy sm:text-5xl">
           Every deployment adds new evidence.{' '}
           <span className="font-serif italic text-coral">Every adopter</span> begins further ahead.
         </h1>
         <p className="mt-6 max-w-2xl text-base leading-relaxed text-ink-soft sm:text-lg">
           A use case shows what worked in one place. A pathway captures what can travel to the next — and what has to
-          be adapted. Ask, or explore any of the pathways below.
+          be adapted. Browse the deployments below, or ask the library directly.
         </p>
       </section>
 
@@ -269,69 +229,67 @@ export default function ExploreLibrary({
       <p className="mx-auto mb-14 max-w-2xl px-6 text-center text-sm text-ink-soft">or click a pathway below to start</p>
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
-        <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-coral">Browse the pathways</p>
+        <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-coral">Browse the library</p>
 
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <FilterChip label="All" active={activeStage === 'All'} onClick={() => setActiveStage('All')} />
-          {availableStages.map((stage) => (
+          {libraryStages.map((stage) => (
             <FilterChip key={stage} label={stage} active={activeStage === stage} onClick={() => setActiveStage(stage)} />
           ))}
         </div>
 
-        {!loaded ? (
-          <p className="text-sm text-ink-soft">Loading…</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-sm text-ink-soft">No pathways found.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((pathway) => (
-              <PathwayCard key={pathway.slug} pathway={pathway} onSelect={startPathwayChat} />
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((pathway) => (
+            <PathwayCard key={pathway.id} pathway={pathway} selected={selected?.id === pathway.id} onSelect={startPathwayChat} />
+          ))}
+        </div>
       </section>
     </div>
   );
 }
 
-function PathwayCard({ pathway, onSelect }: { pathway: LibraryPathway; onSelect: (pathway: LibraryPathway) => void }) {
+function PathwayCard({
+  pathway,
+  selected,
+  onSelect,
+}: {
+  pathway: LibraryPathway;
+  selected: boolean;
+  onSelect: (pathway: LibraryPathway) => void;
+}) {
   const initial = pathway.title.charAt(0);
-  const tags = [pathway.sector, pathway.category].filter((t, i, arr): t is string => !!t && arr.indexOf(t) === i);
 
   return (
     <button
       type="button"
       onClick={() => onSelect(pathway)}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-navy/10 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:border-coral hover:shadow-lg"
+      className={`group flex flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${
+        selected ? 'border-coral ring-2 ring-coral/40' : 'border-navy/10'
+      }`}
     >
       <div className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${accentGradient[pathway.accent]}`}>
         <span className="font-display text-6xl font-semibold text-white/25">{initial}</span>
-        {pathway.stage && (
-          <span className="absolute right-3 top-3 rounded-full bg-white/85 px-3 py-1 text-xs font-medium text-navy">
-            {pathway.stage}
-          </span>
-        )}
+        <span className="absolute right-3 top-3 rounded-full bg-white/85 px-3 py-1 text-xs font-medium text-navy">
+          {pathway.stage}
+        </span>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
           <h3 className="font-display text-lg font-medium text-navy">{pathway.title}</h3>
-          {pathway.contributor && (
-            <p className={`mt-0.5 text-xs font-medium ${accentText[pathway.accent]}`}>{pathway.contributor}</p>
-          )}
+          <p className={`mt-0.5 text-xs font-medium ${accentText[pathway.accent]}`}>{pathway.category}</p>
+          <p className="text-xs text-ink-soft">{pathway.location}</p>
         </div>
 
-        <p className="line-clamp-3 flex-1 text-sm font-medium leading-relaxed text-navy">{pathway.description}</p>
+        <p className="flex-1 text-sm font-medium leading-relaxed text-navy">{pathway.hook}</p>
 
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {tags.map((tag) => (
-              <span key={tag} className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${accentBadge[pathway.accent]}`}>
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {pathway.tags.map((tag) => (
+            <span key={tag} className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${accentBadge[pathway.accent]}`}>
+              {tag}
+            </span>
+          ))}
+        </div>
 
         <span className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-navy group-hover:text-coral">
           Ask about this pathway
@@ -375,7 +333,7 @@ function ChatView({
             <span aria-hidden className="transition-transform">
               ←
             </span>{' '}
-            Explore other pathways
+            Back to library
           </button>
 
           {selected ? (
@@ -388,22 +346,18 @@ function ChatView({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="font-display text-lg font-medium text-navy">{selected.title}</h1>
-                  {selected.stage && (
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${accentBadge[selected.accent]}`}>
-                      {selected.stage}
-                    </span>
-                  )}
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${accentBadge[selected.accent]}`}>
+                    {selected.stage}
+                  </span>
                 </div>
-                {(selected.sector || selected.category) && (
-                  <p className={`text-xs font-medium ${accentText[selected.accent]}`}>
-                    {[selected.sector, selected.category].filter(Boolean).join(' · ')}
-                  </p>
-                )}
+                <p className={`text-xs font-medium ${accentText[selected.accent]}`}>
+                  {selected.category} · {selected.location}
+                </p>
               </div>
             </div>
           ) : (
             <div className="mb-6 border-b border-navy/10 pb-6">
-              <h1 className="font-display text-lg font-medium text-navy">Ask a question</h1>
+              <h1 className="font-display text-lg font-medium text-navy">Ask the Diffusion Library</h1>
               <p className="text-xs text-ink-soft">A general question — not tied to one pathway yet</p>
             </div>
           )}

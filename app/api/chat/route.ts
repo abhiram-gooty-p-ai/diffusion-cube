@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { loadWikiContext, loadFrameworkContent, loadPathwayGenerationPrompt, loadResourcesContent } from '@/lib/wiki-loader';
+import { readLibraryPathwayDocument, buildLibraryOverview } from '@/lib/library-wiki-loader';
 import {
   explorerSystemPrompt,
   contributorSystemPrompt,
@@ -9,7 +10,9 @@ import {
   pathwayDraftSystemPrompt,
   executiveSummarySystemPrompt,
   pathwaySubmissionExecutiveSummarySystemPrompt,
-  librarySystemPrompt,
+  libraryPathwaySystemPrompt,
+  libraryOverviewSystemPrompt,
+  LIBRARY_KICKOFF_PROMPT,
 } from '@/lib/system-prompts';
 import { logConversation } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
@@ -42,7 +45,7 @@ function lastUserMessageText(messages: { role: string; content: unknown }[]): st
 }
 
 export async function POST(req: Request) {
-  const { messages, mode, grid, meta, versionNumber, designId, flow, existingPublishedDoc, pathwayTitle } = await req.json();
+  const { messages, mode, grid, meta, versionNumber, designId, flow, existingPublishedDoc, pathwayId } = await req.json();
 
   if (!MODES.includes(mode)) {
     return Response.json({ error: 'Unknown mode.' }, { status: 400 });
@@ -74,14 +77,56 @@ export async function POST(req: Request) {
     }
   }
 
+  let systemPrompt: string;
+  let apiMessages = messages;
+  const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+
+  // The Library (/explore) is a fully separate entity — its own corpus
+  // (content/library-wiki/pathways/), ported as-is from the standalone
+  // Diffusion Library app, not the shared Analyse corpus loaded below.
+  if (mode === 'library') {
+    if (typeof pathwayId === 'string' && pathwayId) {
+      const document = await readLibraryPathwayDocument(pathwayId);
+      if (!document) return Response.json({ error: 'Unknown pathway.' }, { status: 404 });
+      systemPrompt = libraryPathwaySystemPrompt(document);
+    } else {
+      systemPrompt = libraryOverviewSystemPrompt(await buildLibraryOverview());
+    }
+    // Mirrors the original backend: an empty history means "just opened a
+    // pathway," so the model gets a fixed kickoff turn instead — never shown
+    // to the user as a chat bubble.
+    if (!Array.isArray(apiMessages) || apiMessages.length === 0) {
+      apiMessages = [{ role: 'user', content: LIBRARY_KICKOFF_PROMPT }];
+    }
+
+    const stream = await anthropic.messages.stream({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: apiMessages,
+    });
+
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            controller.enqueue(encoder.encode(chunk.delta.text));
+          }
+        }
+        controller.close();
+      },
+    });
+
+    return new Response(readable, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
+
   const [wikiContent, frameworkContent, resourcesContent] = await Promise.all([
     loadWikiContext(),
     loadFrameworkContent(),
     loadResourcesContent(),
   ]);
 
-  let systemPrompt: string;
-  const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
   if (mode === 'analysis-doc') {
     systemPrompt = analysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt);
   } else if (mode === 'executive-summary') {
@@ -115,8 +160,6 @@ export async function POST(req: Request) {
     );
   } else if (mode === 'pathway-exec-summary') {
     systemPrompt = pathwaySubmissionExecutiveSummarySystemPrompt(meta ?? {}, generatedAt);
-  } else if (mode === 'library') {
-    systemPrompt = librarySystemPrompt(wikiContent, typeof pathwayTitle === 'string' ? pathwayTitle : undefined);
   } else if (flow === 'contributor') {
     systemPrompt = contributorSystemPrompt(
       wikiContent,
