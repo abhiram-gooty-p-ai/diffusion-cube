@@ -14,16 +14,12 @@ import {
   useAdoptionConversation,
 } from '@/lib/adoption-conversation';
 import {
-  EXPLORER_INTENTS,
   WHAT_THE_CUBE_DOES,
   STRENGTHEN_INTRO,
   getExplorerIntent,
-  getBrowseOpeningMessage,
   type ExplorerIntent,
-  type ExplorerIntentId,
 } from '@/lib/explorer-intents';
 import type { DocType } from '@/lib/design-documents';
-import type { WikiStats } from '@/lib/wiki-content';
 
 // The fixed opening line a brand-new Contributor conversation shows before
 // any row exists — the whole point of this flow is document-first, so it
@@ -162,31 +158,8 @@ export default function AdoptionWorkspace({
   const [filesOpen, setFilesOpen] = useState(false);
   const [gridOpen, setGridOpen] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(true);
-  // The Explorer intent picked from the welcome menu, before any row exists.
-  // Once a row exists the intent lives on conversation.meta.intent instead —
-  // this only carries the choice across the gap between "picked an intent"
-  // and "sent the first message," which is what lazily creates the row.
-  const [pendingIntent, setPendingIntent] = useState<ExplorerIntentId | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
-
-  // Backs the "browse" intent's opening line (how many pathways, which
-  // sectors) — fetched once on mount rather than hardcoded, so it stays
-  // accurate as the corpus grows via community publishing. Null until it
-  // resolves; getBrowseOpeningMessage falls back to a static line if so.
-  const [wikiStats, setWikiStats] = useState<WikiStats | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/wiki-stats')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled && data) setWikiStats(data);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const [pathwayLookup, setPathwayLookup] = useState<Record<string, PathwayInfo>>({});
   useEffect(() => {
@@ -201,16 +174,8 @@ export default function AdoptionWorkspace({
       .catch(() => {});
   }, []);
 
-  // Which flow's intent is currently in play, for the handlers below —
-  // conversation.meta.intent once a row exists, the pending menu choice
-  // before that.
-  const activeIntent: ExplorerIntent = conversation?.meta.intent ?? pendingIntent ?? '';
-
-  // Resolves an intent's opening line — dynamic for "browse" (see
-  // wikiStats above), the fixed copy from lib/explorer-intents.ts otherwise.
-  function resolveOpeningMessage(intent: ExplorerIntentId): string {
-    return intent === 'browse' ? getBrowseOpeningMessage(wikiStats) : getExplorerIntent(intent)!.openingMessage;
-  }
+  // Which flow is currently in play — used by file-attach handlers.
+  const activeIntent: ExplorerIntent = conversation?.meta.intent ?? 'open';
 
   // A specific older version picked from the pane's dropdown wins first;
   // otherwise the latest own draft; otherwise fall back to the pathway's
@@ -247,11 +212,9 @@ export default function AdoptionWorkspace({
   const conversationOpeningMessage: Message | null = conversation
     ? conversation.meta.flow === 'contributor'
       ? CONTRIBUTOR_OPENING_MESSAGE
-      : fixedFlow === 'explorer'
+      : conversation.meta.flow === 'explorer'
         ? STRENGTHEN_OPENING_MESSAGE
-        : conversation.meta.flow === 'explorer' && conversation.meta.intent
-          ? { role: 'assistant', content: resolveOpeningMessage(conversation.meta.intent) }
-          : null
+        : null
     : null;
 
   const displayMessages = conversation
@@ -288,27 +251,18 @@ export default function AdoptionWorkspace({
   }
 
   // Both flows can open straight into a chat before any row exists: the
-  // Contributor's document-first entry point (no marketing hero — it asks for
-  // documents immediately), and an Explorer who has just picked an intent
-  // from the welcome menu. Either way the opening line is client-constructed
-  // and never persisted, which keeps the stored history starting on a user
-  // turn — the Messages API requires that. The row itself is created lazily
-  // by the first real send, carrying the flow and (for Explorer) the intent.
+  // Contributor's document-first entry point (no marketing hero) and the
+  // Explorer's auto-detect flow. The opening line is client-constructed and
+  // never persisted — the row is created lazily by the first real send,
+  // carrying the flow and intent ('open' for Explorer, to be auto-detected).
   const preChat: { opening: Message; flow: AdoptionFlow; intent: ExplorerIntent; onBackToMenu?: () => void } | null =
     conversation
       ? null
       : fixedFlow === 'contributor'
         ? { opening: CONTRIBUTOR_OPENING_MESSAGE, flow: 'contributor', intent: '' }
         : fixedFlow === 'explorer'
-          ? { opening: STRENGTHEN_OPENING_MESSAGE, flow: 'explorer', intent: 'guidance' }
-          : pendingIntent
-            ? {
-                opening: { role: 'assistant', content: resolveOpeningMessage(pendingIntent) },
-                flow: 'explorer',
-                intent: pendingIntent,
-                onBackToMenu: () => setPendingIntent(null),
-              }
-            : null;
+          ? { opening: STRENGTHEN_OPENING_MESSAGE, flow: 'explorer', intent: 'open' }
+          : null;
 
   if (preChat) {
     return (
@@ -451,9 +405,6 @@ export default function AdoptionWorkspace({
     const hasBlockingAttachment = pendingAttachments.some((a) => a.state !== 'ready');
     const hasReadyAttachment = pendingAttachments.some((a) => a.state === 'ready');
     const canSend = !loading && !hasBlockingAttachment && (welcomeInput.trim().length > 0 || hasReadyAttachment);
-    // The Explorer flow always starts from the intent menu, so it replaces
-    // the generic "Start" button wherever the Explorer flow is startable.
-    const showStrengthenMenu = fixedFlow === 'explorer' || (!fixedFlow && canStrengthen);
 
     function handleWelcomeSend(flow: AdoptionFlow, intent: ExplorerIntent = '') {
       if (!canSend) return;
@@ -462,26 +413,11 @@ export default function AdoptionWorkspace({
       void handleUserSend(text, flow, intent);
     }
 
-    // The Explorer flow's intent is chosen here, explicitly, before anything
-    // else happens — the Cube never infers it from what someone types. If
-    // they've already typed something or staged a document, that goes
-    // straight through as the first message; otherwise the chat opens on this
-    // intent's own opening line and waits.
-    function handlePickIntent(intent: ExplorerIntentId) {
-      if (canSend) {
-        handleWelcomeSend('explorer', intent);
-        return;
-      }
-      setPendingIntent(intent);
-    }
-
     function handleWelcomeKey(e: React.KeyboardEvent) {
       if (e.key !== 'Enter' || e.shiftKey) return;
-      // With the intent menu up there's no single "start" action to bind
-      // Enter to — the choice of intent is the start. Let the newline happen.
-      if (showStrengthenMenu || !defaultFlow) return;
+      if (!defaultFlow) return;
       e.preventDefault();
-      handleWelcomeSend(defaultFlow);
+      handleWelcomeSend(defaultFlow, fixedFlow === 'explorer' ? 'open' : '');
     }
 
     return (
@@ -499,66 +435,29 @@ export default function AdoptionWorkspace({
         )}
 
         <div className="w-full max-w-2xl animate-fade-in-up">
-          {/* The intent menu opens on its question directly — a kicker above
-              it just delays the one thing the screen is actually asking. */}
-          {!showStrengthenMenu && (
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">
-              {fixedFlow === 'contributor' ? 'Contribute a Pathway' : 'Diffusion Cube'}
-            </p>
-          )}
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">
+            {fixedFlow === 'contributor' ? 'Contribute a Pathway' : 'Diffusion Cube'}
+          </p>
           <h1
-            className={`font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl ${
-              showStrengthenMenu ? '' : 'mt-4'
-            }`}
+            className="font-display mt-4 text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl"
           >
             {fixedFlow === 'contributor' ? (
               <>
                 Turn your deployment into a <span className="font-serif italic text-coral">pathway</span>
               </>
-            ) : showStrengthenMenu ? (
-              <>
-                What brings you to the <span className="font-serif italic text-coral">Cube</span>?
-              </>
             ) : (
               <>
-                Where does your adoption <span className="font-serif italic text-coral">actually</span> stand?
+                What brings you to the <span className="font-serif italic text-coral">Cube</span>?
               </>
             )}
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft">
             {fixedFlow === 'contributor'
               ? "Share the write-up you have. I'll remap it into the four-dimension pathway format, flag the open gaps, and help you push it to the wiki once you're ready."
-              : showStrengthenMenu
-                ? WHAT_THE_CUBE_DOES
-                : 'Share the documents you have, or just start talking. Everything you hear back is grounded in what real deployments learned.'}
+              : WHAT_THE_CUBE_DOES}
           </p>
 
-          {/* The intent menu. Explicit and up front — the Cube asks rather
-              than inferring which of the four jobs someone is here for, so
-              the flow it runs is never a guess about their free text. */}
-          {showStrengthenMenu && (
-            <div className="mt-7 grid gap-2 sm:grid-cols-2">
-              {EXPLORER_INTENTS.map((intent) => (
-                <button
-                  key={intent.id}
-                  type="button"
-                  onClick={() => handlePickIntent(intent.id)}
-                  disabled={loading || hasBlockingAttachment}
-                  className="group flex flex-col justify-start rounded-xl border border-navy/15 bg-white p-4 text-left transition hover:border-coral disabled:opacity-40"
-                >
-                  <p className="text-sm font-medium text-navy transition group-hover:text-coral">{intent.label}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-soft">{intent.menuDescription}</p>
-                </button>
-              ))}
-            </div>
-          )}
-
           <div className="mt-8">
-            {showStrengthenMenu && (
-              <p className="mb-2 text-xs text-ink-soft">
-                Optional — add a document or a few lines of context first, then pick a starting point above.
-              </p>
-            )}
             {pendingAttachments.length > 0 && (
               <div className="mb-2 flex flex-col gap-1">
                 {pendingAttachments.map((a) => (
@@ -615,7 +514,7 @@ export default function AdoptionWorkspace({
               />
               {fixedFlow && (
                 <button
-                  onClick={() => handleWelcomeSend(showStrengthenMenu ? 'explorer' : fixedFlow, showStrengthenMenu ? 'open' : '')}
+                  onClick={() => handleWelcomeSend(fixedFlow, fixedFlow === 'explorer' ? 'open' : '')}
                   disabled={!canSend}
                   className="rounded-xl bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
                 >
