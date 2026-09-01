@@ -40,35 +40,61 @@ export async function POST(request: Request) {
 
   // A duplicate-email error just means this is a returning tester — not a
   // real failure. Anything else is a genuine problem worth surfacing.
-  const isNewUser = !createError;
   if (createError && !/already/i.test(createError.message)) {
     return Response.json({ error: createError.message }, { status: 400 });
   }
 
-  // The service-role client above can create the user, but only a real
-  // sign-in through the request-scoped SSR client actually sets the session
-  // cookies the browser needs — that's what proxy.ts checks on every request.
+  let userId: string;
+  if (created?.user) {
+    userId = created.user.id;
+  } else {
+    // Existing account whose password isn't the derived one — e.g. it
+    // predates this flow, or was created some other way. generateLink is
+    // the only admin-API way to resolve an email to a user id without
+    // paginating every user; the link itself is never sent anywhere, only
+    // used to read the id below. Then force the password to the derived
+    // value so the sign-in right after this always succeeds, regardless of
+    // whatever password (if any) the account had before.
+    const { data: existing, error: lookupError } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+    });
+    if (lookupError || !existing.user) {
+      return Response.json({ error: lookupError?.message ?? 'Could not find existing account.' }, { status: 400 });
+    }
+    userId = existing.user.id;
+    await admin.auth.admin.updateUserById(userId, { password });
+  }
+
+  // The service-role client above can create/update the user, but only a
+  // real sign-in through the request-scoped SSR client actually sets the
+  // session cookies the browser needs — that's what proxy.ts checks on
+  // every request.
   const supabase = await createClient();
   const { data: signedIn, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
   if (signInError || !signedIn.user) {
     return Response.json({ error: signInError?.message ?? 'Could not sign in.' }, { status: 400 });
   }
 
-  const userId = signedIn.user.id;
   // Keep the display name current even for a returning tester who typed a
   // different name this time.
   await admin.auth.admin.updateUserById(userId, { user_metadata: { name } });
 
-  // Testing environment: every new name+email gets full access immediately,
-  // no approval step. Granted once, at first creation, only — so an admin
-  // can still hand-adjust a tester's roles afterward without this silently
-  // re-granting them on a later visit.
-  if (isNewUser) {
+  // Testing environment: full access immediately, no approval step — for
+  // any account that doesn't already have roles yet. Covers a genuinely new
+  // signup as well as an existing-but-never-approved account (e.g. one
+  // created before this testing flow existed); an account that already has
+  // roles keeps them untouched rather than being re-granted on every visit.
+  const { count } = await admin
+    .from('user_roles')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+  if (!count) {
     await admin.from('user_roles').insert([
       { user_id: userId, role: 'adopter' },
       { user_id: userId, role: 'pathway_contributor' },
     ]);
   }
 
-  return Response.json({ ok: true, isNewUser, userId: created?.user?.id ?? userId });
+  return Response.json({ ok: true, isNewUser: !!created?.user, userId });
 }
