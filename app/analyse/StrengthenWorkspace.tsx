@@ -83,7 +83,7 @@ function StrengthenWorkspaceContent() {
         createdInSessionRef.current = c.id;
         setOpened(c);
         setLoadedFor(c.id);
-        router.replace(`/navigate?open=${c.id}`);
+        router.replace(`/analyse?open=${c.id}`);
       }}
     />
   );
