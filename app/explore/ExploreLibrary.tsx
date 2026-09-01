@@ -168,13 +168,6 @@ export default function ExploreLibrary({
     void streamReply([], pathway.id, pathway);
   }
 
-  function handleAskGeneral(text: string) {
-    setSelected(null);
-    setView('chat');
-    setCurrentConversationId(null);
-    sendMessage(text, { historyOverride: [] });
-  }
-
   if (view === 'chat') {
     return (
       <ChatView
@@ -200,33 +193,9 @@ export default function ExploreLibrary({
         </h1>
         <p className="mt-6 max-w-2xl text-base leading-relaxed text-ink-soft sm:text-lg">
           A use case shows what worked in one place. A pathway captures what can travel to the next — and what has to
-          be adapted. Browse the deployments below, or ask the library directly.
+          be adapted. Browse the deployments below.
         </p>
       </section>
-
-      <div className="sticky top-0 z-30 -mx-0 bg-paper/85 px-6 py-4 backdrop-blur-sm">
-        <section className="mx-auto w-full max-w-2xl">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleAskGeneral(draft);
-            }}
-            className="glow-input flex items-end gap-3 rounded-3xl border border-navy/15 bg-white p-3 transition focus-within:border-coral"
-          >
-            <ComposerTextarea
-              value={draft}
-              onChange={setDraft}
-              onSubmit={() => handleAskGeneral(draft)}
-              placeholder="Ask anything about the pathways…"
-              className="flex-1 resize-none bg-transparent px-4 py-3 text-lg outline-none placeholder:text-ink-soft"
-              minHeight={32}
-              maxHeight={200}
-            />
-            <SendButton disabled={!draft.trim()} size="lg" />
-          </form>
-        </section>
-      </div>
-      <p className="mx-auto mb-14 max-w-2xl px-6 text-center text-sm text-ink-soft">or click a pathway below to start</p>
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-coral">Browse the library</p>
