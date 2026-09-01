@@ -27,9 +27,6 @@ const PUBLIC_PATHS = [
   '/contribute',
   '/api/chat',
   '/api/wiki-pathways',
-  // The testing-environment login route establishes the very first session
-  // for a new name+email — it has to be reachable before one exists.
-  '/api/auth/testing-login',
 ];
 
 export async function proxy(request: NextRequest) {
