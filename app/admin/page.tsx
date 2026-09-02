@@ -4,7 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin, type Role } from '@/lib/roles';
 import AdminDashboard, { AdminUserRow } from '@/components/AdminDashboard';
-import PathwaySubmissionsPanel, { PathwaySubmissionRow } from '@/components/PathwaySubmissionsPanel';
+import AdminPathwayPublishRequestsPanel, {
+  PathwayPublishRequestRow,
+} from '@/components/AdminPathwayPublishRequestsPanel';
 import AdminPathwaysPanel, { AdminPathwayRow } from '@/components/AdminPathwaysPanel';
 import AdminContributorRegistrationsPanel, {
   AdminContributorRegistrationRow,
@@ -24,9 +26,7 @@ export default async function AdminPage() {
   const [
     { data: usersData },
     { data: rolesData },
-    { data: submissionsData },
-    { data: publishedData },
-    { data: execSummariesData },
+    { data: publishRequestsData },
     { data: pathwaysData },
     { data: pathwayContributorsData },
     { data: registrationsData },
@@ -34,15 +34,9 @@ export default async function AdminPage() {
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
       admin.from('user_roles').select('user_id, role'),
       admin
-        .from('pathway_submissions')
-        .select('id, design_id, content, status, created_at, designs(meta)')
+        .from('pathway_publish_requests')
+        .select('id, requested_by, content, status, created_at, pathways(slug, title)')
         .order('created_at', { ascending: false }),
-      admin.from('published_pathways').select('slug, source_submission_id'),
-      // Backend-only, admin-visible-only artifact — see PathwaySubmissionsPanel
-      // and lib/system-prompts.ts's pathwaySubmissionExecutiveSummarySystemPrompt.
-      // Read here via the service-role client since RLS grants contributors no
-      // select policy on this table at all (see migration 0015).
-      admin.from('pathway_submission_exec_summaries').select('submission_id, content'),
       admin.from('pathways').select('id, slug, title, sector, created_at').order('created_at', { ascending: false }),
       admin.from('pathway_contributors').select('pathway_id'),
       admin
@@ -50,16 +44,6 @@ export default async function AdminPage() {
         .select('id, poc_name, poc_email, organisation_name, pathway_role, pathway_description, access_status, created_at')
         .order('created_at', { ascending: false }),
     ]);
-
-  const slugBySubmission = new Map<string, string>();
-  for (const p of publishedData ?? []) {
-    if (p.source_submission_id) slugBySubmission.set(p.source_submission_id, p.slug);
-  }
-
-  const execSummaryBySubmission = new Map<string, string>();
-  for (const s of execSummariesData ?? []) {
-    execSummaryBySubmission.set(s.submission_id, s.content);
-  }
 
   const contributorCountByPathway = new Map<string, number>();
   for (const c of pathwayContributorsData ?? []) {
@@ -93,6 +77,11 @@ export default async function AdminPage() {
     rolesByUser.set(row.user_id, list);
   }
 
+  const emailByUserId = new Map<string, string>();
+  for (const u of usersData?.users ?? []) {
+    emailByUserId.set(u.id, u.email ?? '');
+  }
+
   const rows: AdminUserRow[] = (usersData?.users ?? [])
     .map((u) => ({
       id: u.id,
@@ -103,17 +92,17 @@ export default async function AdminPage() {
     }))
     .sort((a, b) => a.roles.length - b.roles.length);
 
-  const submissionRows: PathwaySubmissionRow[] = (submissionsData ?? []).map((s) => {
-    const design = s.designs as unknown as { meta?: { name?: string } } | { meta?: { name?: string } }[] | null;
-    const meta = Array.isArray(design) ? design[0]?.meta : design?.meta;
+  const publishRequestRows: PathwayPublishRequestRow[] = (publishRequestsData ?? []).map((r) => {
+    const pathwayRef = r.pathways as unknown as { slug: string; title: string } | { slug: string; title: string }[] | null;
+    const pathway = Array.isArray(pathwayRef) ? pathwayRef[0] : pathwayRef;
     return {
-      id: s.id,
-      adoptionName: meta?.name ?? '',
-      content: s.content,
-      status: s.status,
-      created_at: s.created_at,
-      slug: slugBySubmission.get(s.id),
-      executiveSummary: execSummaryBySubmission.get(s.id),
+      id: r.id,
+      pathwayTitle: pathway?.title ?? '',
+      pathwaySlug: pathway?.slug ?? '',
+      requestedByEmail: (r.requested_by && emailByUserId.get(r.requested_by)) || '',
+      content: r.content,
+      status: r.status,
+      createdAt: r.created_at,
     };
   });
 
@@ -132,11 +121,12 @@ export default async function AdminPage() {
       </p>
       <AdminContributorRegistrationsPanel initialRows={registrationRows} />
 
-      <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathway Submissions</h2>
+      <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathway Publish Requests</h2>
       <p className="text-sm text-ink-soft mb-4">
-        Drafts users approved from their own adoption — review before adding any of them to the wiki.
+        A contributor&rsquo;s request to publish or update a pathway page. Approve to commit it live; reject to turn
+        it down — they can resubmit anytime.
       </p>
-      <PathwaySubmissionsPanel initialRows={submissionRows} />
+      <AdminPathwayPublishRequestsPanel initialRows={publishRequestRows} />
 
       <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathways</h2>
       <p className="text-sm text-ink-soft mb-4">

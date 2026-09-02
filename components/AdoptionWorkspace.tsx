@@ -187,13 +187,23 @@ export default function AdoptionWorkspace({
       ? pathwayDoc.versions.find((v) => v.version_number === pathwayDoc.selectedVersionNumber)
       : undefined;
   const pathwayDocMarkdown = selectedPathwayDocVersion?.content ?? pathwayDoc.content ?? pathwayDoc.pathwayPublishedContent ?? '';
-  const pathwayDocPublishedSlug = pathwayDoc.publishedSlug ?? pathwayDoc.pathwayPublishedSlug;
+  const pathwayDocPublishedSlug = pathwayDoc.pathwayPublishedSlug;
   // "Published" means the content CURRENTLY SHOWN is exactly what's live —
   // not just "this pathway has been published at some point." Any
   // unpublished edit (a new generate/revise, or browsing an older version
   // via the dropdown) shows as "Draft" again, even after a prior publish.
+  // A pending or rejected request (see PathwayDocState.publishStatus) takes
+  // priority over that comparison — it's neither a fresh draft nor live yet.
   const pathwayDocIsPublished =
     !!pathwayDoc.pathwayPublishedContent && pathwayDocMarkdown === pathwayDoc.pathwayPublishedContent;
+  const pathwayDocStatus: 'draft' | 'pending' | 'published' | 'rejected' =
+    pathwayDoc.publishStatus === 'pending'
+      ? 'pending'
+      : pathwayDocIsPublished
+        ? 'published'
+        : pathwayDoc.publishStatus === 'rejected'
+          ? 'rejected'
+          : 'draft';
   // Deep-links back to this specific chat (not just the Contribute grid) —
   // conversation.id may not exist yet if nothing has been sent in this chat.
   const pathwayDocLiveHref = pathwayDocPublishedSlug
@@ -349,7 +359,7 @@ export default function AdoptionWorkspace({
                 error={pathwayDoc.error}
                 onPublish={publishPathwayDocument}
                 liveHref={pathwayDocLiveHref}
-                isPublished={pathwayDocIsPublished}
+                status={pathwayDocStatus}
                 versions={pathwayDoc.versions}
                 selectedVersionNumber={pathwayDoc.selectedVersionNumber}
                 latestVersionNumber={pathwayDoc.versionNumber}
@@ -580,7 +590,7 @@ export default function AdoptionWorkspace({
             >
               📎 Files
             </button>
-            {flow === 'explorer' && (
+            {(flow === 'explorer' || flow === 'contributor') && (
               <button
                 onClick={() => setGridOpen(true)}
                 className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
@@ -688,7 +698,7 @@ export default function AdoptionWorkspace({
               error={pathwayDoc.error}
               onPublish={publishPathwayDocument}
               liveHref={pathwayDocLiveHref}
-              isPublished={pathwayDocIsPublished}
+              status={pathwayDocStatus}
               versions={pathwayDoc.versions}
               selectedVersionNumber={pathwayDoc.selectedVersionNumber}
               latestVersionNumber={pathwayDoc.versionNumber}

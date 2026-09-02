@@ -178,7 +178,6 @@ export interface PathwayDocState {
   // older version from the dropdown, purely for viewing; it never changes
   // what a revision or publish acts on.
   selectedVersionNumber: number | null;
-  publishedSlug: string | null;  // set after a successful publish in this chat
   // The pathway's own already-published document (pathways.content_cache),
   // fetched once on mount so a contributor who hasn't generated a draft in
   // THIS chat yet — e.g. a second contributor joining a pathway another
@@ -187,6 +186,12 @@ export interface PathwayDocState {
   // own in-progress draft (content, above) always takes precedence.
   pathwayPublishedContent: string | null;
   pathwayPublishedSlug: string | null;
+  // Publishing goes to an admin for approval rather than live immediately
+  // (see app/api/pathways/assemble/route.ts) — 'pending' right after a
+  // publish call until an admin reviews it, 'rejected' if they turned it
+  // down, 'none' otherwise (nothing requested yet, or it was approved —
+  // once approved, pathwayPublishedContent reflects it the normal way).
+  publishStatus: 'none' | 'pending' | 'rejected';
   paneOpen: boolean;
   loading: boolean;
   error: string | null;
@@ -224,9 +229,9 @@ export const EMPTY_PATHWAY_DOC: PathwayDocState = {
   versionNumber: 0,
   versions: [],
   selectedVersionNumber: null,
-  publishedSlug: null,
   pathwayPublishedContent: null,
   pathwayPublishedSlug: null,
+  publishStatus: 'none',
   paneOpen: false,
   loading: false,
   error: null,
@@ -381,6 +386,26 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fetches this design's own publish request (if any) once, so a reopened
+  // chat shows "Pending review" / "Not approved" correctly rather than
+  // reverting to Draft — see PathwayDocState.publishStatus.
+  useEffect(() => {
+    const designId = initial?.id;
+    if (!initial || initial.meta?.flow !== 'contributor' || !designId) return;
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('pathway_publish_requests')
+        .select('status')
+        .eq('design_id', designId)
+        .maybeSingle();
+      if (data?.status === 'pending' || data?.status === 'rejected') {
+        updatePathwayDoc((prev) => ({ ...prev, publishStatus: data.status as 'pending' | 'rejected' }));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Updater functions passed to setState must be pure — calling onChange
   // (which triggers the parent's list update) from inside one produces
   // React's "Cannot update a component while rendering a different
@@ -502,12 +527,13 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     }
   }
 
-  // Publishes this chat's current draft as the pathway's live document,
-  // verbatim (see app/api/pathways/assemble/route.ts) — merging another
-  // contributor's earlier work already happened once, at generation time
-  // (pathwayDraftSystemPrompt's merge rules), not again here. Requires the
-  // design to be linked to a pathway (meta.pathwayId).
-  async function publishPathwayDocument(commitMessage?: string): Promise<{ ok: boolean; slug?: string; error?: string }> {
+  // Submits this chat's current draft for admin approval (see
+  // app/api/pathways/assemble/route.ts) — merging another contributor's
+  // earlier work already happened once, at generation time
+  // (pathwayDraftSystemPrompt's merge rules), not again here. Nothing goes
+  // live until an admin approves it. Requires the design to be linked to a
+  // pathway (meta.pathwayId).
+  async function publishPathwayDocument(commitMessage?: string): Promise<{ ok: boolean; error?: string }> {
     const c = conversationRef.current;
     const pathwayId = c?.meta.pathwayId;
     if (!pathwayId) {
@@ -523,23 +549,10 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         body: JSON.stringify({ pathwayId, designId: c.id, commitMessage }),
       });
       const data = await res.json();
-      if (!res.ok) return { ok: false, error: data.error ?? 'Publish failed.' };
+      if (!res.ok) return { ok: false, error: data.error ?? 'Submission failed.' };
 
-      // The server publishes this design's latest draft version verbatim, so
-      // the response's content should already match what the pane shows —
-      // syncing explicitly keeps them correct even if that ever changes.
-      // Also updates pathwayPublishedContent/-Slug immediately so the
-      // Draft/Published label (compares the displayed content against
-      // these) reflects "published" right away, without waiting for the
-      // next generate/revise's fresh fetch.
-      updatePathwayDoc((prev) => ({
-        ...prev,
-        content: typeof data.content === 'string' ? data.content : prev.content,
-        publishedSlug: data.slug ?? prev.publishedSlug,
-        pathwayPublishedContent: typeof data.content === 'string' ? data.content : prev.pathwayPublishedContent,
-        pathwayPublishedSlug: data.slug ?? prev.pathwayPublishedSlug,
-      }));
-      return { ok: true, slug: data.slug };
+      updatePathwayDoc((prev) => ({ ...prev, publishStatus: 'pending' }));
+      return { ok: true };
     } catch {
       return { ok: false, error: 'Could not reach the server. Try again.' };
     }
@@ -579,8 +592,10 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     if (conversationRef.current) void persist(conversationRef.current);
   }
 
-  function appendPublishOutcomeMessage(result: { ok: boolean; slug?: string; error?: string }) {
-    const content = result.ok ? `Published — it's live now.\n\n${PATHWAY_DOC_MARKER}` : `I couldn't publish it — ${result.error || 'something went wrong. Try again.'}`;
+  function appendPublishOutcomeMessage(result: { ok: boolean; error?: string }) {
+    const content = result.ok
+      ? `Submitted for admin review — it'll go live once approved.\n\n${PATHWAY_DOC_MARKER}`
+      : `I couldn't submit it — ${result.error || 'something went wrong. Try again.'}`;
     update((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', content }] }));
     if (conversationRef.current) void persist(conversationRef.current);
   }

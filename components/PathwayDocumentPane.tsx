@@ -10,17 +10,18 @@ interface Props {
   loading: boolean;
   error: string | null;
   onClose: () => void;
-  onPublish: (commitMessage: string) => Promise<{ ok: boolean; slug?: string; error?: string }>;
+  onPublish: (commitMessage: string) => Promise<{ ok: boolean; error?: string }>;
   // Where the pathway's live document can be viewed, if it's been published
   // at least once — null if nothing has ever gone live for this pathway.
   liveHref: string | null;
-  // Whether the markdown CURRENTLY SHOWN matches what's actually live —
-  // false whenever there are edits (a new generate/revise, or an older
-  // version picked from the dropdown) that haven't been published, even if
-  // this pathway has been published before. Drives the Draft/Published label
-  // — "published" means this exact content is live, not just "has this ever
-  // been published."
-  isPublished: boolean;
+  // 'published' means the markdown CURRENTLY SHOWN matches what's actually
+  // live — not just "has this ever been published" — so a new generate/
+  // revise, or an older version picked from the dropdown, drops back to
+  // 'draft' even after a prior publish. 'pending' is set the moment a
+  // publish request goes to the admin, until they approve or reject it;
+  // 'rejected' shows after a turned-down request, cleared back to 'pending'
+  // by publishing again (see PathwayDocState.publishStatus).
+  status: 'draft' | 'pending' | 'published' | 'rejected';
   // Full version history, newest first — hidden when there's one or none.
   versions: VersionOption[];
   // null means "the latest" — see PathwayDocState.selectedVersionNumber.
@@ -42,7 +43,7 @@ export default function PathwayDocumentPane({
   onClose,
   onPublish,
   liveHref,
-  isPublished,
+  status,
   versions,
   selectedVersionNumber,
   latestVersionNumber,
@@ -56,11 +57,14 @@ export default function PathwayDocumentPane({
     setPublishError(null);
     try {
       const result = await onPublish('Update pathway page');
-      if (!result.ok) setPublishError(result.error || 'Could not publish. Try again.');
+      if (!result.ok) setPublishError(result.error || 'Could not submit. Try again.');
     } finally {
       setPublishing(false);
     }
   }
+
+  const statusLabel =
+    status === 'pending' ? 'Pending review' : status === 'rejected' ? 'Not approved' : status === 'published' ? 'Published' : 'Draft';
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-paper text-ink">
@@ -68,7 +72,7 @@ export default function PathwayDocumentPane({
         <div>
           <h2 className="font-display text-sm font-medium text-navy">Pathway Document</h2>
           <p className="text-xs text-ink-soft">
-            {isPublished ? 'Published' : 'Draft'}
+            {statusLabel}
             {liveHref && (
               <>
                 {' '}
@@ -116,13 +120,15 @@ export default function PathwayDocumentPane({
             <p className="mr-auto text-xs text-ink-soft">
               Viewing v0.{selectedVersionNumber} — publishing always uses the latest version.
             </p>
+          ) : status === 'pending' ? (
+            <p className="mr-auto text-xs text-ink-soft">Submitted — waiting on admin approval.</p>
           ) : (
             <button
               onClick={handlePublish}
               disabled={publishing || loading}
               className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
             >
-              {publishing ? 'Publishing…' : 'Publish'}
+              {publishing ? 'Submitting…' : status === 'rejected' ? 'Resubmit' : 'Publish'}
             </button>
           )}
         </div>

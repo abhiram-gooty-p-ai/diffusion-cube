@@ -2,17 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { hasAnyRole, hasRole } from '@/lib/roles'
-import { ghReadFile, ghWriteFile } from '@/lib/github'
 
-// Publishes a contributor's current pathway draft as the pathway's live
-// document, verbatim — whatever design_documents (doc_type='draft') holds
-// for this design becomes content/wiki/pathways/<slug>.md and
-// pathways.content_cache exactly as-is. No app-level reformatting or
-// unit extraction: when this pathway already has a published document, the
-// contributor's draft was generated as a merge of it (see
-// pathwayDraftSystemPrompt's merge rules and generatePathwayDraft in
-// lib/adoption-conversation.ts) — the merging happens once, in that
-// generation call, not again here.
+// A contributor "publishing" no longer writes to GitHub directly — it
+// submits the current draft for admin approval. Only
+// app/api/admin/pathway-publish-requests/review/route.ts's approve branch
+// actually commits content/wiki/pathways/<slug>.md and updates
+// pathways.content_cache. One request per design (unique on design_id):
+// publishing again while already pending just refreshes its content;
+// publishing again after a rejection resets it back to pending.
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -70,17 +67,27 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  try {
-    const assembledPath = `content/wiki/pathways/${pathway.slug}.md`
-    const existing = await ghReadFile(assembledPath)
-    await ghWriteFile(assembledPath, draftRow.content, `publish pathway: ${pathway.slug}`, existing?.sha)
+  const { error: upsertError } = await admin
+    .from('pathway_publish_requests')
+    .upsert(
+      {
+        pathway_id: pathwayId,
+        design_id: designId,
+        requested_by: user.id,
+        content: draftRow.content,
+        status: 'pending',
+        admin_note: '',
+        reviewed_by: null,
+        reviewed_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'design_id' }
+    )
 
-    // Best-effort — the GitHub commit already succeeded either way.
-    await admin.from('pathways').update({ content_cache: draftRow.content }).eq('id', pathwayId)
-
-    return NextResponse.json({ content: draftRow.content, slug: pathway.slug })
-  } catch (err) {
-    console.error('[assemble] publish failed:', err)
-    return NextResponse.json({ error: 'Publish failed', detail: String(err) }, { status: 500 })
+  if (upsertError) {
+    console.error('[assemble] publish request failed:', upsertError)
+    return NextResponse.json({ error: 'Could not submit for review', detail: upsertError.message }, { status: 500 })
   }
+
+  return NextResponse.json({ status: 'pending_review', content: draftRow.content })
 }
