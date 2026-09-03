@@ -293,6 +293,11 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
   // plain functions, not memoized against pathwayDoc's identity.
   const [pathwayDoc, setPathwayDoc] = useState<PathwayDocState>(EMPTY_PATHWAY_DOC);
   const pathwayDocRef = useRef<PathwayDocState>(EMPTY_PATHWAY_DOC);
+  // This contributor's own organisation for this pathway (pathway_contributors
+  // .org_id), fetched once — passed to pathway-draft generation so each
+  // section can carry a small "Contributed by" byline. Never shown directly;
+  // only used to build that request. null if they have no org on record.
+  const contributorOrgRef = useRef<string | null>(null);
   const updatePathwayDoc = useCallback((updater: (d: PathwayDocState) => PathwayDocState) => {
     setPathwayDoc((prev) => {
       const next = updater(prev);
@@ -382,6 +387,19 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         }));
       }
       setPathwayPreview({ title: data.title ?? '', sector: data.sector ?? '', description: data.description ?? '' });
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: membership } = await supabase
+        .from('pathway_contributors')
+        .select('organisations(name)')
+        .eq('pathway_id', pid)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const orgRef = membership?.organisations as unknown as { name: string } | { name: string }[] | null;
+      contributorOrgRef.current = (Array.isArray(orgRef) ? orgRef[0]?.name : orgRef?.name) ?? null;
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -489,6 +507,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
           grid: c.grid,
           meta: c.meta,
           existingPublishedDoc,
+          contributorOrg: contributorOrgRef.current,
         }),
       });
       if (!res.body) throw new Error('No response from the server.');

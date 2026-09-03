@@ -42,7 +42,7 @@ function lastUserMessageText(messages: { role: string; content: unknown }[]): st
 }
 
 export async function POST(req: Request) {
-  const { messages, mode, grid, meta, versionNumber, designId, flow, existingPublishedDoc, pathwayTitle } = await req.json();
+  const { messages, mode, grid, meta, versionNumber, designId, flow, existingPublishedDoc, pathwayTitle, contributorOrg } = await req.json();
 
   if (!MODES.includes(mode)) {
     return Response.json({ error: 'Unknown mode.' }, { status: 400 });
@@ -111,7 +111,8 @@ export async function POST(req: Request) {
       grid ?? EMPTY_GRID,
       meta ?? {},
       generatedAt,
-      typeof existingPublishedDoc === 'string' ? existingPublishedDoc : null
+      typeof existingPublishedDoc === 'string' ? existingPublishedDoc : null,
+      typeof contributorOrg === 'string' ? contributorOrg : null
     );
   } else if (mode === 'pathway-exec-summary') {
     systemPrompt = pathwaySubmissionExecutiveSummarySystemPrompt(meta ?? {}, generatedAt);
