@@ -901,6 +901,38 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     [update]
   );
 
+  // Shared low-level extract-insights call: reads `text` against `grid` and
+  // returns the parsed <grid_update> block, or null on any failure. Used
+  // both post-creation (extractInsightsForAttachment, below) and
+  // pre-creation (ensureCreated, seeding a new contributor's very first
+  // grid from a pathway's existing published document).
+  async function fetchExtractedGridUpdate(text: string, grid: GridState): Promise<ParsedGridUpdate | null> {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: text }],
+          mode: 'extract-insights',
+          grid,
+        }),
+      });
+      if (!res.body) return null;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        full += decoder.decode(value, { stream: true });
+      }
+      return parseGridUpdate(full);
+    } catch {
+      return null;
+    }
+  }
+
   // Creates the row on first use; a no-op if the conversation already exists
   // (in which case `flow`/`intent` are ignored — they only matter at creation
   // time; an intent can still change later, but only through a confirmed
@@ -921,18 +953,52 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         // pathway itself already has that information.
         let name = '';
         let summary = '';
+        let sector = '';
+        let geography = '';
+        let seededGrid: GridState = EMPTY_GRID;
         if (pathwayId) {
-          const { data: pw } = await supabase.from('pathways').select('title, description').eq('id', pathwayId).maybeSingle();
+          const { data: pw } = await supabase
+            .from('pathways')
+            .select('title, description, content_cache')
+            .eq('id', pathwayId)
+            .maybeSingle();
           if (pw) {
             name = pw.title ?? '';
             summary = pw.description ?? '';
+            // A new contributor joining a pathway that already has a
+            // published document shouldn't start from a blank grid — run
+            // the same silent extraction an uploaded document gets, against
+            // that document, so the grid (and the coverage read in step 3
+            // of contributorSystemPrompt) reflects what's already
+            // established from the very first turn.
+            if (pw.content_cache) {
+              const parsed = await fetchExtractedGridUpdate(pw.content_cache, EMPTY_GRID);
+              if (parsed) {
+                const nextGrid = { ...EMPTY_GRID };
+                for (const [key, cell] of Object.entries(parsed.cells)) {
+                  if (cell && key in nextGrid) nextGrid[key] = cell;
+                }
+                seededGrid = nextGrid;
+                sector = parsed.meta?.sector || '';
+                geography = parsed.meta?.geography || '';
+              }
+            }
           }
         }
 
-        const initialMeta: AdoptionMeta = { ...EMPTY_META, flow, intent, pathwayId: pathwayId ?? '', name, summary };
+        const initialMeta: AdoptionMeta = {
+          ...EMPTY_META,
+          flow,
+          intent,
+          pathwayId: pathwayId ?? '',
+          name,
+          summary,
+          sector,
+          geography,
+        };
         const insertPayload: Record<string, unknown> = {
           meta: initialMeta,
-          grid_state: EMPTY_GRID,
+          grid_state: seededGrid,
           messages: [],
         };
         if (pathwayId) insertPayload.pathway_id = pathwayId;
@@ -969,28 +1035,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
   async function extractInsightsForAttachment(text: string, flow: AdoptionFlow, intent: ExplorerIntent) {
     try {
       const c = await ensureCreated(flow, intent);
-
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: text }],
-          mode: 'extract-insights',
-          grid: c.grid,
-        }),
-      });
-      if (!res.body) return;
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let full = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        full += decoder.decode(value, { stream: true });
-      }
-
-      const parsed = parseGridUpdate(full);
+      const parsed = await fetchExtractedGridUpdate(text, c.grid);
       if (!parsed) return;
 
       update((cur) => {

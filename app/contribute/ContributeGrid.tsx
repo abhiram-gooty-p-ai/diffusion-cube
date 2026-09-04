@@ -108,11 +108,16 @@ function ContributeGridContent() {
   // shows the Contributor-flow slice of it.
   const contributions = adoptions.filter((a) => a.meta.flow === 'contributor');
 
-  // All orgs actually contributing somewhere in the corpus, in first-seen
-  // order — drives both the filter chips and each card's stable badge color.
-  const allOrgs = Array.from(new Set(pathways.flatMap((p) => p.orgs)));
+  // Only pathways this person has actually joined — not the whole corpus.
+  // Joining a new one happens through "+ New Contribution" (PathwaySelector),
+  // which browses everything; this grid is just "my contributions."
+  const myPathways = pathways.filter((p) => p.isContributor);
+
+  // All orgs among MY pathways, in first-seen order — drives both the filter
+  // chips (currently hidden, see SHOW_ORG_FILTER) and each card's badge color.
+  const allOrgs = Array.from(new Set(myPathways.flatMap((p) => p.orgs)));
   const visiblePathways =
-    activeOrg === 'All' ? pathways : pathways.filter((p) => p.orgs.includes(activeOrg));
+    activeOrg === 'All' ? myPathways : myPathways.filter((p) => p.orgs.includes(activeOrg));
 
   // Deep-links (e.g. /contribute?open=<id>) always jump straight to the chat,
   // regardless of which view is currently showing.
@@ -185,10 +190,9 @@ function ContributeGridContent() {
     );
   }
 
-  // Top level: one block per pathway in the corpus, optionally narrowed by
-  // org. Clicking a block goes straight into that pathway's chat — the most
-  // recently updated one if the user already has one, otherwise a fresh chat
-  // that joins them onto it (same join-on-open behavior PathwaySelector uses).
+  // Top level: one block per pathway this person has joined. Clicking a
+  // block goes straight into that pathway's chat — the most recently
+  // updated one if they already have one, otherwise a fresh chat for it.
   function openPathway(pathwayId: string) {
     const chat = contributions.find((a) => a.meta.pathwayId === pathwayId);
     setView(chat ? { kind: 'existing', id: chat.id } : { kind: 'new', pathwayId });
@@ -247,7 +251,7 @@ function ContributeGridContent() {
       ) : visiblePathways.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
           <p className="text-sm text-ink-soft">
-            {pathways.length === 0
+            {myPathways.length === 0
               ? 'Start a new contribution from the button above to see it here.'
               : 'No pathways from this organization yet.'}
           </p>
