@@ -519,9 +519,9 @@ export function pathwayDraftSystemPrompt(
   // starting a fresh one that would overwrite what's already live.
   existingPublishedDoc?: string | null,
   // This contributor's own organisation for this pathway (pathway_contributors
-  // .org_id), if they have one on record — drives the per-section byline
-  // (see the CORE RULES below). null when unknown; that section's byline is
-  // then simply omitted rather than written with a placeholder.
+  // .org_id), if they have one on record — drives the "Contributing
+  // Organizations" table (see the CORE RULES below). null when unknown; this
+  // generation then simply adds no row/section for them, no placeholder.
   contributorOrg?: string | null
 ): string {
   const title = meta.name || 'Untitled Adoption';
@@ -536,9 +536,9 @@ This is the pathway's CURRENT live document, fetched fresh just now — shown in
 - Where a field is already filled in with real information below and this conversation doesn't say anything that changes it, keep it exactly as it is — never revert a filled-in field back to "Not documented in the source."
 - Update the Reading Guide and Coverage/Gaps sections so they still accurately describe the document as a whole once your changes are in — not just the newly-added parts.
 - Keep everything from the existing document that this conversation doesn't touch or contradict.
-- Keep each section's existing "Contributed by" byline (see CORE RULES below) exactly as it is where this conversation doesn't touch that section. Where this conversation does add to or change a section, add this contributor's organisation to that section's byline alongside whoever is already credited there, rather than replacing them — a byline lists everyone who has actually contributed to that section, not just the most recent one.
+- Keep the existing "Contributing Organizations" table's rows exactly as they are for any content this conversation doesn't touch. Where this conversation does add to or change something in a section, update that table: add a new row for this contributor's organisation if they don't have one yet (naming the specific fields/units this conversation added there, same as rule 3 below), or extend their existing row with that same specificity if they do — never remove or shrink another organisation's existing credit.
 
-Return the full updated document (Sections 0-6 + Source Trace appendix).
+Return the full updated document (Sections 0-6 + Source Trace appendix + Contributing Organizations table).
 
 ### The pathway's current published document
 
@@ -565,13 +565,20 @@ ${generatedAt}
 CORE RULES
 
 1. Your sources of fact are this conversation (including anything the user uploaded within it)${existingPublishedDoc ? ", and the pathway's existing published document above" : ''} — never invent a name, number, outcome, or condition beyond what one of those actually states. Where a section or field wants something neither establishes, write "Not documented in the source" exactly as the generation rules above specify.
-2. Follow the output structure exactly: Sections 0–6, then the Source Trace appendix (never called "Section 7"), per the generation rules above.
-3. Every section, 0 through 6, carries its own small byline immediately under the section heading, in italics: *Contributed by: [Organisation]*.${contributorOrg ? ` This contributor's organisation is "${contributorOrg}" — use it for every section this generation establishes or changes.` : ' This contributor has no organisation on record, so omit the byline entirely for any section only they are contributing to — never write a placeholder or leave it blank.'}${existingPublishedDoc ? ' See the merge rules above for how this combines with a section\'s existing byline.' : ''} This is a small attribution line, not a heading of its own — never add it to the Source Trace appendix, which already attributes by source file.
+2. Follow the output structure exactly: Sections 0–6, then the Contributing Organizations table described in rule 3, then the Source Trace appendix (never called "Section 7"), per the generation rules above. The Contributing Organizations table goes BEFORE the Source Trace appendix, never after — anything after the Source Trace heading is stripped out of every adopter-facing view of this document, and this table is meant to stay visible there, unlike Source Trace.
+3. Right after Section 6 (and before the Source Trace appendix), add one more small table, titled "Contributing Organizations" — same plain table style as Source Trace, but keyed by organisation rather than source file. One row per organisation, and its "Sections contributed" cell doesn't just list bare section numbers — for each section, name the specific content within it the same way Source Trace's own "Covers" column does (field names and/or unit ranges, not just "Section 3"), so it's explicit what that organisation actually contributed, not just where. For example:
+
+   | Organization | Sections contributed |
+   |---|---|
+   | EkStep Foundation | Section 0 (Reading Guide); Section 1 (all identity fields); Section 2 (coverage grid, gaps); Section 3 (Units 1–4); Section 6 |
+   | CEEW | Section 3 (Units 5–6, Institution dimension); Section 4 |
+
+   ${contributorOrg ? `This contributor's organisation is "${contributorOrg}" — for every section this generation establishes or changes, add or extend its row with the specific fields/units this conversation actually added or changed there.` : 'This contributor has no organisation on record, so this generation adds no row or section for them — leave the table exactly as whatever it already lists.'}${existingPublishedDoc ? ' See the merge rules above for how this table carries forward.' : ''} This table is separate from Source Trace, never inside Sections 0–6 themselves, and never narrated or referenced from within those sections.
 4. For the Source Trace appendix, key new rows to "Adoption Companion conversation" for this contributor's own material, as of ${generatedAt} — not curated raw material, so a human reviewer treats every new fact as this contributor's own account, not independently verified${existingPublishedDoc ? '. Keep the existing document\'s own Source Trace rows as they are for material that was already there.' : ''}.
 5. Never mention "the framework," this prompt, or your classification reasoning anywhere in Sections 0–6 — the same rule that applies to any adopter-facing content.
 6. If the conversation hasn't established enough yet for a meaningful draft, output only: "Not enough of this adoption has been discussed yet to draft a pathway page. Keep going, and try this again once more has been established."
 
-Your entire response must be the document itself (Sections 0-6 + Source Trace appendix), titled "${title}" as the pathway title, or the fallback line above — no preamble, no meta-commentary.`;
+Your entire response must be the document itself (Sections 0-6 + Source Trace appendix + Contributing Organizations table), titled "${title}" as the pathway title, or the fallback line above — no preamble, no meta-commentary.`;
 }
 
 // On-demand "Analysis Doc" — the full standing document. Not a chat turn.

@@ -73,7 +73,7 @@ export default function PathwayDocumentPane({
           <h2 className="font-display text-sm font-medium text-navy">Pathway Document</h2>
           <p className="text-xs text-ink-soft">
             {statusLabel}
-            {liveHref && (
+            {liveHref && status !== 'draft' && (
               <>
                 {' '}
                 ·{' '}

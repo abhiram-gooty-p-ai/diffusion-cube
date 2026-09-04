@@ -38,6 +38,11 @@ function accentForOrg(org: string, allOrgs: string[]): Accent {
   return ACCENT_ROTATION[index % ACCENT_ROTATION.length];
 }
 
+// Turned off for everyone for now — keeping the filter chips, activeOrg
+// state, and visiblePathways logic below intact (all inert while this is
+// false) rather than deleting them, in case this comes back later.
+const SHOW_ORG_FILTER = false;
+
 function formatRelativeTime(iso: string): string {
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (minutes < 1) return 'just now';
@@ -207,7 +212,7 @@ function ContributeGridContent() {
         </button>
       </div>
 
-      {allOrgs.length > 0 && (
+      {SHOW_ORG_FILTER && allOrgs.length > 0 && (
         <div className="mb-6">
           <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">Filter by organization</p>
           <div className="flex flex-wrap gap-2">
