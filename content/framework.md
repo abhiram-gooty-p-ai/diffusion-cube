@@ -36,21 +36,7 @@ This framework serves two purposes: (1) generating a structured pathway document
 | Pilot | What breaks with real users and real institutional conditions? | Failure taxonomy. Named institutional response to first public failure. Real cost-per-interaction data. |
 | Scale | Can the institution own, sustain, and continuously improve it? | Budget line. Named operational owner. Monitoring mechanism. Operating model written down. |
 
-## The five unit types
-
-| Type | Definition | What makes it reusable |
-|---|---|---|
-| Strategic Decision | A framing, governance, or design decision that shaped what got built. Usually invisible in the final product. | The condition tag — when does this apply, when doesn't it? |
-| Tactical Decision | A stack, sequence, cost, or implementation decision specific enough to reuse. | A before→after: what changed because of this decision. |
-| Failure and Fix | Something that broke, the fix, and what the fix revealed about the system. | The fix reveals the structural insight — not the failure alone. |
-| Playbook | A genuine multi-step, gated sequence for a recurring situation. | Actionable: "if X, do Y before Z." |
-| Toolkit Asset | A reusable technical component, template, or governance artefact. | Another adopter can lift and adapt it without rebuilding. |
-
-**Tag every unit:** Dimension + Sub-category + Stage + Type + Condition tag.
-
 ## The question bank — insight forms per dimension × stage
-
-This is the classification standard when extracting units from raw material (does this content satisfy this cell's insight form?), and the retrieval logic when responding to a live adopter (what corpus units are relevant to what they raised?).
 
 ### EXPLORE — Is AI the right answer, and what would it take?
 
@@ -88,55 +74,205 @@ This is the classification standard when extracting units from raw material (doe
 | Institution | Has the institution absorbed this — budget line, named owner, review cadence — and does the system leave people more capable or more dependent? | Absorption vs "still the project team's problem." Workforce agency outcome. | Absorption indicators (budget + owner + review cadence) + agency outcome (capability vs dependency) | African Voice AI: every contract in the programme ends in 2026 and the compute allocation expires that November — the team names "who maintains this SDK in three years" as a still-open funding and governance question, not a technical one. |
 | Ecosystem | What from your deployment could the next adopter reuse — with what conditions? | Not "we did X." "X works when Y is true, fails when Z is true." | Transferable unit + condition tag (applies when / fails when) | Nivesh Suvidha: schemas, pipelines, and governance approaches were designed from day one to be picked up by the next state or department — not one-off artefacts. Infrastructure built once and shared is a public good; built once and siloed is technical debt. |
 
-## Stage-weighting of sub-categories
+## Exhaustive List of Questions
+### 1. Persona Dimension
+*From starting with AI to starting with a specific human outcome*
 
-Primary = directly relevant at this stage. Secondary = relevant only if the adopter's situation surfaces it. Dormant = not typically relevant; engage only if the adopter raises it unprompted.
+#### A. Problem and Persona
+- What is the specific problem or pain point being addressed?
+- Who specifically experiences this problem?
+- In what context, location, language, or circumstance do they experience it?
+- Who is currently excluded or underserved, and why?
+- What evidence shows that this is a meaningful and persistent problem?
 
-### Persona
+#### B. Current Journey and Friction
+- How is this need addressed today?
+- Which people, channels, systems, and institutions are involved in the current journey?
+- Where does the current approach fail, slow down, become unaffordable, or exclude people?
+- What do users currently do when the formal system does not work?
+- Is AI addressing the actual bottleneck, or merely adding another layer to an already broken process?
 
-| Sub-category | Explore | Define | Pilot | Scale |
-|---|---|---|---|---|
-| A. Problem and Persona | Primary | Secondary | Dormant | Secondary |
-| B. Current Journey and Friction | Primary | Secondary | Dormant | Dormant |
-| C. Outcome and Success | Secondary | Primary | Primary | Primary |
-| D. Scope, Inclusion, and Trust | Secondary | Primary | Primary | Primary |
+#### C. Outcome and Success
+- If the intervention works, what will be different in the persona's life, decision, or experience?
+- What measurable outcome will demonstrate that the problem has been addressed?
+- What is the scale of the affected population and the expected depth of impact?
+- How quickly must the outcome occur for it to be valuable?
+- What leading indicators would show that the solution is moving toward the intended outcome?
 
-### Solution
+#### D. Scope, Inclusion, and Trust
+- What is the system expected to do, and what is explicitly outside its scope?
+- What questions, decisions, or situations must be refused or escalated?
+- Which languages, accessibility needs, and edge-user groups must be supported?
+- What would make the persona trust, use, or reject the solution?
+- Are new user segments appearing that the original design did not anticipate?
+- Does the solution strengthen the persona's agency and capability, or create new dependency?
 
-| Sub-category | Explore | Define | Pilot | Scale |
-|---|---|---|---|---|
-| A. AI Fit and Comparative Advantage | Primary | Secondary | Dormant | Dormant |
-| B. UX, Channel, and Integration | Secondary | Primary | Primary | Secondary |
-| C. Model, Architecture, and Infrastructure | Secondary | Primary | Primary | Primary |
-| D. Data and Knowledge Readiness | Secondary | Primary | Primary | Primary |
-| E. Performance, Reliability, and Scale | Dormant | Secondary | Primary | Primary |
+### 2. Technology Dimension
+*From choosing a model to designing a reliable and adaptable system*
 
-### Institution
+#### A. AI Fit and Comparative Advantage
+- What capability is required: language understanding, speech, vision, prediction, recommendation, generation, or autonomous action?
+- Why is AI appropriate for this problem?
+- What was the pre-AI approach?
+- What outcome can AI improve that could not be improved sufficiently through process redesign, digitisation, rules, or conventional software?
+- What evidence would show that AI is materially moving the needle?
 
-| Sub-category | Explore | Define | Pilot | Scale |
-|---|---|---|---|---|
-| A. Mandate, Ownership, and Decision Rights | Primary | Primary | Secondary | Secondary |
-| B. Workforce and Change | Secondary | Primary | Primary | Primary |
-| C. Governance, Safety, and Redress | Dormant | Primary | Primary | Secondary |
-| D. Accountability, Liability, and Compliance | Dormant | Secondary | Secondary | Primary |
-| E. Data Stewardship | Dormant | Primary | Secondary | Primary |
-| F. Operating Model and Sustainability | Secondary | Primary | Secondary | Primary |
-| G. Institutionalisation and Continuous Improvement | Dormant | Dormant | Secondary | Primary |
+#### B. User Experience, Channel, and Integration
+- Through what channel will the persona encounter the solution: phone, app, messaging, assisted interface, or an existing institutional system?
+- Why is that channel appropriate for this persona?
+- Which existing systems, databases, workflows, and APIs must it integrate with?
+- What happens when an upstream system, data source, or external service is unavailable?
+- Where does a human enter, review, or take over the journey?
+- How will the experience communicate uncertainty, delay, refusal, or failure to the user?
 
-### Ecosystem
+#### C. Model, Architecture, and Infrastructure
+- What level of model capability is adequate for the problem?
+- What constraints determine the model choice: quality, language support, latency, cost, privacy, or sovereignty?
+- What are the choices of compute, hosting, and deployment environment?
+- Which architecture decisions would be difficult or expensive to reverse?
+- Which components must remain modular and replaceable?
+- What is the vendor posture, and how will lock-in be avoided or managed?
+- What must remain within the institution, and what may travel to an external model or service?
 
-| Sub-category | Explore | Define | Pilot | Scale |
-|---|---|---|---|---|
-| A. Partner Architecture and Roles | Secondary | Primary | Secondary | Secondary |
-| B. External Data and Infrastructure Dependencies | Secondary | Primary | Secondary | Primary |
-| C. Delivery, Distribution, and Trust | Dormant | Secondary | Secondary | Secondary |
-| D. Coordination, Procurement, and Incentives | Dormant | Secondary | Secondary | Secondary |
-| E. Resilience, Portability, and Contingencies | Dormant | Dormant | Primary | Primary |
-| F. Ecosystem Learning and Diffusion | Dormant | Dormant | Secondary | Primary |
+#### D. Data and Knowledge Readiness
+- What data and institutional knowledge does the system require?
+- Does each source exist in a usable, machine-readable form?
+- How current, complete, and representative must each source be?
+- How will stale, conflicting, incomplete, or incorrect data be detected?
+- Who maintains the technical pipeline that keeps the data available and current?
+- What data is collected from users, and is all of it necessary?
+- What data stays with the institution, and what is shared with models, vendors, or partners?
 
-**Using it for generation:** Check raw content against the relevant cell's insight form before tagging a unit — not by how the content sounds, but by whether it actually contains the insight form's components. Cross-check the Primary sub-categories: a dimension×stage cell can have units in it and still miss the stage's real concern if none of those units satisfy a Primary sub-category.
+#### E. Performance, Reliability, and Scale
+- What does "good enough" performance mean for this particular use case?
+- How will quality be evaluated before and during deployment?
+- Which failures are model failures, data failures, integration failures, scope failures, or experience failures?
+- What are the latency, availability, and cost-per-interaction requirements?
+- Which component is currently causing the most pain, and can it be replaced independently?
+- How does performance change across languages, user groups, environments, and scale?
+- How will the system be monitored, evaluated, and improved after launch?
 
-**Using it for adopter guidance:** The core question per dimension×stage is the agent's opening probe with a live adopter. If a Primary sub-category for their current stage is unaddressed, that's what the agent asks about next — surfacing relevant corpus units as it goes.
+### 3. Institution Dimension
+*From sponsoring a project to owning a sustainable service*
+
+#### A. Mandate, Ownership, and Decision Rights
+- Which institution has the mandate to deploy and stand behind the solution?
+- Who inside the institution must personally want this to succeed?
+- Who is the named institutional owner?
+- Who approves what the system is permitted to say or do?
+- Which decisions require administrative, policy, legal, procurement, or technical approval?
+- Has the institution formally authorised its knowledge, data, workflows, and public authority to be used in this way?
+- Who has the authority to pause, change, or discontinue the service?
+
+#### B. Workforce and Change
+- Which frontline and institutional roles will be affected?
+- How will their work, authority, incentives, and responsibilities change?
+- Do workers see the system as support, surveillance, additional work, or replacement?
+- Who must test and approve the system before it reaches users?
+- What capability-building is needed before, during, and after deployment?
+- Are workers using the system as intended, or creating workarounds?
+- Does the system leave people more capable, or more dependent?
+- If the original project team or senior sponsor leaves, does the institution retain the capability?
+
+#### C. Governance, Safety, and Redress
+- What decisions may the AI make, recommend, or support?
+- Which decisions must always remain with a human?
+- What are the known risks to users, institutions, and affected third parties?
+- What safeguards, tests, approval gates, and monitoring mechanisms are required?
+- Who monitors incidents and responds when failures occur?
+- What is the escalation and redress mechanism for users?
+- What records must be retained for auditability?
+- How will the institution learn from incidents without disowning the service after the first public failure?
+
+#### D. Accountability, Liability, and Compliance
+- Who is answerable when the system produces a harmful, incorrect, or inappropriate outcome?
+- Who carries legal, regulatory, contractual, and reputational liability?
+- What legal basis permits the collection, processing, and use of data?
+- Which privacy, consent, accessibility, sectoral, and procurement obligations apply?
+- How are responsibilities divided between the institution, vendors, and implementation partners?
+- What assurance, documentation, and audit evidence must be maintained?
+- Who signs off that the service is compliant before launch and after material changes?
+
+#### E. Data Stewardship
+- Who has the authority to permit the use of institutional data and knowledge?
+- Who is accountable for the accuracy and continued maintenance of each internal source?
+- What access, consent, licensing, residency, retention, and deletion rules apply?
+- Who can update, correct, withdraw, or override institutional information?
+- How will disputes between sources or departments be resolved?
+- Is the AI layer presenting institutional knowledge, or unintentionally becoming the new source of truth?
+
+#### F. Operating Model and Sustainability
+- Who pays for design, setup, integration, and initial deployment?
+- Who pays in year two and beyond?
+- What is the actual cost per interaction, transaction, or beneficiary?
+- Who operates the service day to day?
+- Who handles failures, user support, vendor management, and escalation?
+- Who updates internal data, approves model changes, and maintains institutional integrations?
+- What staffing and capabilities must remain permanently within the institution?
+- Is there a recurring budget line, or does the deployment still depend on project funding?
+- What must be true for the institution to commit to long-term operation?
+
+#### G. Institutionalisation and Continuous Improvement
+- Has the solution become an institutional service, or is it still treated as an external project?
+- Is there a named owner, permanent team, budget, service standard, and governance mechanism?
+- Can the service survive a leadership change, staff transfer, vendor change, or funding transition?
+- How will user feedback, incidents, performance evidence, and policy changes lead to service improvements?
+- What signals show that the institution is adopting the service rather than merely hosting a pilot?
+- How will the institution periodically reassess whether the solution remains necessary, safe, and effective?
+
+### 4. Ecosystem Dimension
+*From procuring inputs to coordinating a network of capabilities*
+
+No population-scale AI deployment is delivered by one organisation alone. The Ecosystem Dimension examines the actors, capabilities, dependencies, agreements, and trust relationships that sit outside the deploying institution but are necessary for the service to work.
+
+#### A. Partner Architecture and Roles
+- Which external partners are required across technology, domain expertise, data, implementation, financing, research, and last-mile delivery?
+- What precise role, output, and outcome is each partner responsible for?
+- Which capabilities cannot be provided by the deploying institution itself?
+- Are all critical dependencies and unnamed roles visible before building begins?
+- Who is responsible for integrating the work of different partners into one functioning service?
+- Which relationships are transactional vendor relationships, and which require long-term collaboration?
+
+#### B. External Data and Infrastructure Dependencies
+- Which data sources, platforms, registries, models, networks, or infrastructure sit outside the deploying institution?
+- Who owns, maintains, and is accountable for each external source or service?
+- What permissions, contracts, APIs, standards, and service-level agreements are required?
+- How quickly must external sources be updated, and what happens when they become stale or unavailable?
+- How will conflicts between external sources and institutional sources be resolved?
+- What external dependencies are currently informal and need to become durable agreements before scale?
+
+#### C. Delivery, Distribution, and Trust
+- Who takes the solution to the end user?
+- Which actors already have the user's trust and access?
+- Which partners provide assisted access, local language support, human escalation, or grievance resolution?
+- Which organisation represents the service in the eyes of the user?
+- How will feedback from frontline and community partners reach the institution and technology teams?
+- Can the delivery network reach the groups most likely to be excluded?
+
+#### D. Coordination, Procurement, and Incentives
+- Who has the convening authority to resolve cross-organisational dependencies?
+- What governance forum brings the institution and partners together to make decisions?
+- Are partner incentives aligned with user outcomes and long-term service quality?
+- What procurement and contracting arrangements support experimentation without creating permanent lock-in?
+- How will changes in scope, cost, performance, or responsibility be negotiated?
+- Who manages cross-partner performance and holds each actor to its commitments?
+
+#### E. Resilience, Portability, and Contingencies
+- Which partner, vendor, data source, or infrastructure provider is mission-critical?
+- What happens if a critical partner underperforms, changes terms, or exits?
+- Which partners, components, or capabilities require alternatives or contingency plans?
+- Can data, workflows, knowledge, and service history be transferred to another provider?
+- Which dependencies can be modularised, diversified, or brought in-house over time?
+- What would have to be rebuilt if a major partner changed at Pilot or Scale?
+
+#### F. Ecosystem Learning and Diffusion
+- What assets, decisions, standards, failure modes, and lessons can the next adopter reuse?
+- What knowledge should remain proprietary, and what should be shared as ecosystem infrastructure?
+- Under what conditions will the approach transfer to another institution, sector, geography, or population?
+- Where will local trust, policy, data, language, or delivery conditions require adaptation?
+- Who is responsible for documenting and sharing what the ecosystem has learned?
+- How will the deployment contribute back to the wider AI diffusion ecosystem and enable the next adopter to start where this one stopped?
+
 
 ## The pathway document — output structure
 
@@ -155,8 +291,17 @@ A pathway document is not a case study. A case study documents what was built. A
 | 6 | Retrieval guide | Helps the next adopter find what's relevant fast | Organised by adopter intent (e.g. "I need to avoid vendor lock-in at Define stage") → points to relevant units and toolkit assets. |
 | | Source Trace appendix (contributor-only — never adopter-facing) | Traces what was used to build the pathway, for future reconciliation | Table keyed by source file → which Sections/fields/units it covers, and whether it's primary or confirms-only |
 
-**Worked example — a single micro-innovation unit (Failure and Fix type):**
+## The five unit types
 
+| Type | Definition | What makes it reusable |
+|---|---|---|
+| Strategic Decision | A framing, governance, or design decision that shaped what got built. Usually invisible in the final product. | The condition tag — when does this apply, when doesn't it? |
+| Tactical Decision | A stack, sequence, cost, or implementation decision specific enough to reuse. | A before→after: what changed because of this decision. |
+| Failure and Fix | Something that broke, the fix, and what the fix revealed about the system. | The fix reveals the structural insight — not the failure alone. |
+
+**Tag every unit:** Dimension + Sub-category + Stage + Type + Condition tag.
+
+**Worked example — a single micro-innovation unit (Failure and Fix type):**
 - **Failure:** Direct hardwiring of the AI layer to the ICAR database — a backend change required an AI-layer rebuild.
 - **Fix:** Separated the AI layer from the data layer using a standardised API gateway. The AI system retrieves data but does not own it.
 - **Insight:** At scale with multiple data sources, this is the difference between a maintainable system and a fragile one.
@@ -185,7 +330,6 @@ The Source Trace appendix is contributor-only — never surfaced in any adopter-
 | [filename/doc, as-of date] | [Sections/fields/unit ranges populated from it] | [Primary source / confirms only / superseded by newer file, etc.] |
 
 Rules:
-
 - Key by raw source file, not by content item — scales better than a per-unit or per-field row.
 - "Covers" should reference actual Section numbers and unit ranges (e.g., "Pathway Identity — all fields; Units 1–20; Toolkits table; Problem→Solution patterns"), not vague descriptions.
 - When a file is derivative of another (a summary, an earlier draft), say so explicitly and mark it "confirms, doesn't add" rather than listing it as an independent source for the same content.
