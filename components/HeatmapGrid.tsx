@@ -1,8 +1,19 @@
-import { DIMENSIONS, DIMENSION_COLORS, STAGES, cellKey, type GridState } from '@/lib/dimensions';
+import { DIMENSIONS, DIMENSION_COLORS, STAGES, cellKey, type GridState, type Stage } from '@/lib/dimensions';
 
 interface Props {
   grid: GridState;
 }
+
+// Plain-language central question per stage, matching content/framework.md's
+// own "Central question" column — kept here as a small, stable UI string set
+// rather than importing the wiki-loader path into a client component just
+// for four sentences.
+const STAGE_QUESTIONS: Record<Stage, string> = {
+  Explore: 'Is AI appropriate here, and what would it take?',
+  Define: 'What has to be true before building?',
+  Pilot: 'What breaks with real users and real institutional conditions?',
+  Scale: 'Can the institution own, sustain, and keep improving it?',
+};
 
 // The full 4×4 grid, styled after 100pathways.com's own dimension × stage
 // table (colored accent bar + dimension name, stage names as column
@@ -16,55 +27,90 @@ interface Props {
 // to actually read a note — not shown inline or on hover.
 export default function HeatmapGrid({ grid }: Props) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-navy/10 bg-white">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-navy/10">
-            <th className="w-28 px-3 py-3 text-left" />
-            {STAGES.map((s) => (
-              <th
-                key={s}
-                className="px-3 py-3 text-left font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-navy"
-              >
-                {s}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {DIMENSIONS.map((d) => (
-            <tr key={d.code} className="border-b border-navy/10 last:border-b-0">
-              <td className="px-3 py-3 align-top" style={{ borderLeft: `4px solid ${DIMENSION_COLORS[d.code]}` }}>
-                <span className="font-serif text-base italic" style={{ color: DIMENSION_COLORS[d.code] }}>
-                  {d.name}
-                </span>
-              </td>
-              {STAGES.map((s) => {
-                const cell = grid[cellKey(d.code, s)];
-                const hasContent = Boolean(cell?.note);
-                return (
-                  <td
-                    key={s}
-                    className="max-w-[220px] px-3 py-3 align-top text-sm leading-relaxed"
-                    style={{ background: hasContent ? `${DIMENSION_COLORS[d.code]}0d` : undefined }}
-                    // A defensive safety net alongside the prompt's own
-                    // note-brevity instruction — if a note ever runs long
-                    // anyway, the full text is still one hover away rather
-                    // than silently blowing out the row height.
-                    title={cell?.note || undefined}
-                  >
-                    {hasContent ? (
-                      <span className="line-clamp-4 text-ink">{cell!.note}</span>
-                    ) : (
-                      <span className="text-ink-soft/60 italic">Not yet discussed</span>
-                    )}
-                  </td>
-                );
-              })}
+    <div className="flex flex-col gap-4">
+      <div className="overflow-x-auto rounded-xl border border-navy/10 bg-white">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-navy/10">
+              <th className="w-28 px-3 py-3 text-left" />
+              {STAGES.map((s) => (
+                <th
+                  key={s}
+                  className="px-3 py-3 text-left font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-navy"
+                >
+                  {s}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {DIMENSIONS.map((d) => (
+              <tr key={d.code} className="border-b border-navy/10 last:border-b-0">
+                <td className="px-3 py-3 align-top" style={{ borderLeft: `4px solid ${DIMENSION_COLORS[d.code]}` }}>
+                  <span className="font-serif text-base italic" style={{ color: DIMENSION_COLORS[d.code] }}>
+                    {d.name}
+                  </span>
+                </td>
+                {STAGES.map((s) => {
+                  const cell = grid[cellKey(d.code, s)];
+                  const hasContent = Boolean(cell?.note);
+                  return (
+                    <td
+                      key={s}
+                      className="max-w-[220px] px-3 py-3 align-top text-sm leading-relaxed"
+                      style={{ background: hasContent ? `${DIMENSION_COLORS[d.code]}0d` : undefined }}
+                      // A defensive safety net alongside the prompt's own
+                      // note-brevity instruction — if a note ever runs long
+                      // anyway, the full text is still one hover away rather
+                      // than silently blowing out the row height.
+                      title={cell?.note || undefined}
+                    >
+                      {hasContent ? (
+                        <span className="line-clamp-4 text-ink">{cell!.note}</span>
+                      ) : (
+                        <span className="text-ink-soft/60 italic">Not yet discussed</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="rounded-xl border border-navy/10 bg-paper-dim/60 p-4 text-xs leading-relaxed text-ink-soft">
+        <p className="mb-3">
+          Four dimensions (rows) × four stages (columns) — each cell shows what&rsquo;s actually been established about
+          this project so far, from the conversation. A blank cell just means it hasn&rsquo;t come up yet, not that
+          something&rsquo;s missing.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-navy">Dimensions</p>
+            <ul className="flex flex-col gap-1">
+              {DIMENSIONS.map((d) => (
+                <li key={d.code}>
+                  <span className="font-medium" style={{ color: DIMENSION_COLORS[d.code] }}>
+                    {d.name}
+                  </span>{' '}
+                  — {d.centralQuestion}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-navy">Stages</p>
+            <ul className="flex flex-col gap-1">
+              {STAGES.map((s) => (
+                <li key={s}>
+                  <span className="font-medium text-navy">{s}</span> — {STAGE_QUESTIONS[s]}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
