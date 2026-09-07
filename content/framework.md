@@ -285,7 +285,7 @@ A pathway document is not a case study. A case study documents what was built. A
 | 2 | Effort details | Details of cost, time and effort | 1. Cost anchor — Setup + run-rate cost order of magnitude, as-of date. 2. Build effort — Time, team size, partner count to reach current stage |
 | | Downstream Adoptions | Known downstream adopters / reuse record | Who has since built on this pathway, and how much faster — pathway-level metadata, not a tagged unit |
 | 2 | The 4×4 grid | Shows where knowledge is dense and where gaps remain | Coverage map: 4 dimensions × 4 stages, density symbols (●●● / ●● / ● / ○). Empty/thin cells checked against Primary sub-categories, not raw count. |
-| 3 | Micro-innovations | The core reusable content | Tagged units organised by dimension, then stage. Each unit: decision, alternative considered, reason for decision, condition tag (applies when / fails when), before→after outcome. |
+| 3 | Micro-innovations | The core reusable content | Tagged units organised by dimension, then stage. Each unit: decision, alternative considered, reason for decision, condition tag (applies when / fails when), context of the decision in the adoption, before→after outcome. |
 | 4 | Toolkits and playbooks | Reusable artefacts and process knowledge | Technical templates, governance frameworks, testing protocols, prompt patterns, vendor criteria — each tagged with the purpose and conditions for reuse. |
 | 5 | Problem→solution patterns | Maps recurring problems to known fixes | Problem → root cause → solution → result → condition. Built from Failure-and-Fix units and other clear problem→fix patterns across deployments. |
 | 6 | Retrieval guide | Helps the next adopter find what's relevant fast | Organised by adopter intent (e.g. "I need to avoid vendor lock-in at Define stage") → points to relevant units and toolkit assets. |
@@ -302,11 +302,10 @@ A pathway document is not a case study. A case study documents what was built. A
 **Tag every unit:** Dimension + Sub-category + Stage + Type + Condition tag.
 
 **Worked example — a single micro-innovation unit (Failure and Fix type):**
-- **Failure:** Direct hardwiring of the AI layer to the ICAR database — a backend change required an AI-layer rebuild.
+- **Failure:** Due to direct hardwiring of the AI layer to the ICAR database, a backend change required an AI-layer rebuild.
 - **Fix:** Separated the AI layer from the data layer using a standardised API gateway. The AI system retrieves data but does not own it.
 - **Insight:** At scale with multiple data sources, this is the difference between a maintainable system and a fragile one.
 - **Condition — applies when:** Multiple data sources with different owners and update cadences; government deployment where data accountability must remain with named departments.
-- **Condition — fails when:** Single, stable, internally-owned data source with no requirement for departmental accountability separation.
 - **Before → After:** Before: data errors required rebuilding the bot prompt architecture. After: data errors are fixed by the data owner without touching the AI layer.
 
 ## Extraction discipline — applying to raw material
