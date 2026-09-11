@@ -15,7 +15,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 const TEXT_EXTENSIONS = ['pdf', 'txt', 'md', 'docx', 'xlsx', 'xls', 'pptx'];
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 
-const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
+const MAX_DOCUMENT_BYTES = 100 * 1024 * 1024;
 // Anthropic's per-image base64 payload limit.
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -98,7 +98,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
     throw new Error('This file type is sent as an image, not read as text.');
   }
   if (file.size > MAX_DOCUMENT_BYTES) {
-    throw new Error('File is too large — please upload something under 20MB.');
+    throw new Error('File is too large — please upload something under 100MB.');
   }
   switch (ext) {
     case 'pdf':
