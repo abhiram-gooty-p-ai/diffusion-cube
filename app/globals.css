@@ -2,7 +2,7 @@
 
 :root {
   --background: #faf9f6;
-  --foreground: #1b1b42;
+  --foreground: #363538;
 }
 
 @theme inline {
@@ -25,7 +25,9 @@
   --color-blue: #0099ff;
   --color-blue-soft: rgba(0, 153, 255, 0.12);
   --color-paper: #faf9f6;
-  --color-paper-dim: #f2f2f2;
+  --color-paper-dim: #f2f0eb;
+  --color-surface: #ffffff;
+  --color-border: rgba(27, 27, 66, 0.1);
   --color-ink: #363538;
   --color-ink-soft: rgba(54, 53, 56, 0.6);
 }
@@ -34,6 +36,24 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: var(--color-yellow-soft);
+  color: var(--color-navy);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-coral);
+  outline-offset: 2px;
 }
 
 @keyframes fade-in-up {
