@@ -558,6 +558,10 @@ Your entire response must be the document itself (Sections 0-6 + Source Trace ap
 }
 
 // On-demand "Analysis Doc" — the full standing document. Not a chat turn.
+// It intentionally uses the same Sections 0–6 shape as a Contributor pathway
+// document, but is an analysis of the adopter's own conversation rather than
+// a publishable contribution. The contributor-only Source Trace appendix is
+// therefore excluded here.
 export function analysisDocSystemPrompt(
   wikiContent: string,
   frameworkContent: string,
@@ -565,9 +569,11 @@ export function analysisDocSystemPrompt(
   meta: CompanionMeta,
   generatedAt: string
 ): string {
-  const title = `${meta.name || 'Untitled Adoption'} — Analysis Doc`;
+  const title = meta.name || 'Untitled Adoption';
 
-  return `You are generating an Analysis Doc for an AI adoption being worked through in the 100 Pathways Adoption Companion. You are given the full conversation, the user's current 4×4 grid, and the pathway corpus for grounding.
+  return `You are generating an Analysis Doc for an AI adoption being worked through in the 100 Pathways Adoption Companion. Format it as a pathway document using Sections 0–6, matching the structure used for Contributor pathway outputs. This is still an analysis of the user's own adoption, not a submission for publication.
+
+You are given the full conversation, the user's current 4×4 grid, and the pathway corpus for grounding.
 
 ## Pathway corpus (for grounding "Related Pathway Experience" only)
 
@@ -584,41 +590,52 @@ ${generatedAt}
 CORE RULES
 
 1. Never fabricate. Every claim about the adoption must be traceable to the conversation or uploaded documents. If unsure whether something was established, treat it as not established.
-2. This document DESCRIBES standing — it never prescribes sequence. Report what's established and what's open; do not tell the user which stage to enter or what to do first. A "Suggested strengthening" item must tie to something the user actually raised, phrased as an option, never as an ordered plan.
+2. This document DESCRIBES standing — it never prescribes sequence. Report what's established and what's open; do not tell the user which stage to enter or what to do first. Any strengthening item must tie to something the user actually raised, phrased as an option, never as an ordered plan.
 3. Pathway references must be real, from the corpus, named, and specific — with condition tags where the corpus gives them. Paraphrase; never quote verbatim. If nothing is genuinely relevant, omit rather than force. Never draw on or surface a pathway document's Source Trace appendix (contributor-only).
 4. Simple English throughout. Short sentences. No jargon and no classification machinery ("sub-category B," "density 2," "insight form," "the framework") — the dimension and stage names themselves are public 100 Pathways vocabulary and fine to use.
 5. Anything the framework surfaces as not-yet-settled is written as a **question to consider or a decision to take** — never as a deficiency, a gap in their work, or something they are missing. "Who owns this once the pilot ends?" is right; "Institutional ownership is missing" is not.
 6. Micro-innovations drawn from other adoptions are presented as **suggested choices based on lived experience**, never as recommendations — the reader judges whether each fits their context. If nothing relevant exists for a section, say so plainly rather than filling it.
 
-OUTPUT FORMAT (exact structure):
+OUTPUT FORMAT (exact structure — Sections 0–6, nothing else):
 
 ## ${title}
 
 *${[meta.sector, meta.geography].filter(Boolean).join(' · ') || '[sector · geography if known]'}*
 *Generated ${generatedAt} — reflects the conversation up to this point*
 
-### Where This Adoption Stands
+### Section 0 — Reading guide
 
-[2–4 sentences summary of: what's being worked on, for whom, and the solution.
-1-2 lines for each Dimension — what is covered, not covered. Descriptive only.]
+[A concise description of what this document covers and how to read it. Do not mention the Framework or this prompt.]
 
-### Decisions Discussed
+### Section 1 — Pathway identity
 
-[Up to 5 bullets, drawn from what the conversation surfaced.]
+[Use the pathway identity structure: deployment/use case, sector, geography, stage reached, contributors/roles if established, dimensions covered, scale achieved, cost anchor, build effort, known downstream adopters, scope, and does-not-transfer-when. Use "Not documented in the source" when the conversation does not establish a field.]
 
-### What transfers from existing know-how
+### Section 2 — Coverage and gaps
 
-[One bullet per genuinely relevant pathway insight, tied to something the user actually raised and accepted. Format: "On [topic the user raised]: [named pathway] — [paraphrased insight, with its applies-when / fails-when condition if the corpus gives one]. One to weigh against your own context, not a fixed answer." Relevance means same sector and same use-case category; where a pathway is only adjacent, say so in the bullet. If nothing in the corpus is genuinely relevant, write exactly: "No pathway in the corpus matches this sector and use case."]
+[Give the four-dimension × four-stage coverage grid using the standard density symbols, based only on evidence established in the conversation. Then list up to 8 concrete open questions or decisions, prioritised for the current stage. Never call these deficiencies or things the user is missing.]
 
-### Questions and Decisions to Consider
+### Section 3 — Micro-innovations
 
-[Up to 5 bullets, drawn from what the conversation surfaced against the framework at this adoption's current stage. Each one written as a question to consider or a decision to take. Weight toward what matters most at the current stage. If none have genuinely surfaced yet, write "None surfaced yet."]
+[Organise the user's documented decisions, failures and fixes, playbooks, and toolkit assets by dimension, ordered Explore → Define → Pilot → Scale. Use plain sequential unit numbers. For each unit include the same tag and content fields as the Contributor pathway structure. Only include reusable or concrete material actually established in the conversation; do not manufacture units to fill empty cells.]
+
+### Section 4 — Toolkits and playbooks
+
+[A table of the Section 3 Toolkit Asset and Playbook units, cross-referenced by unit number, with a one-line reuse condition. Omit the section's entries if none are established, but retain the heading and state that none have been documented yet.]
+
+### Section 5 — Problem→solution patterns
+
+[Omit this section. Failure-and-Fix units in Section 3 cover this material in full.]
+
+### Section 6 — Retrieval guide
+
+[A flat list of realistic questions a future adopter might type, each mapped to the relevant Section 3 unit number(s). Cover the dimensions represented in the conversation.]
 
 If the conversation has not yet produced enough content for a meaningful document, output only:
 
 "Not enough of the conversation has happened yet to generate a useful summary. Keep going, and generate this once a few things have been discussed."
 
-Your entire response must be the document itself (or the fallback line above) — no preamble, no meta-commentary.`;
+Your entire response must be the document itself (or the fallback line above) — no preamble, no meta-commentary. Do not include a Source Trace appendix: this Analyse document is not a contributor submission and must not expose provenance material.`;
 }
 
 // On-demand "Plan Document" — short, executive-ready, four sections.
