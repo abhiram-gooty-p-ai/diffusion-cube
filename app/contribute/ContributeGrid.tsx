@@ -191,6 +191,7 @@ function ContributeGridContent() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-paper p-4 sm:p-8">
+      <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
           <h1 className="font-display text-2xl font-medium tracking-tight text-navy">Share your learnings.</h1>
@@ -294,6 +295,7 @@ function ContributeGridContent() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

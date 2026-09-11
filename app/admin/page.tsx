@@ -118,32 +118,34 @@ export default async function AdminPage() {
   });
 
   return (
-    <div className="min-h-screen bg-paper text-ink p-8">
-      <Link href="/" className="text-xs text-ink-soft hover:text-coral transition-colors">
-        ← Back
-      </Link>
-      <h1 className="font-display text-2xl font-medium text-navy mt-2 mb-1">Admin</h1>
-      <p className="text-sm text-ink-soft mb-6">Approve signups and manage roles.</p>
-      <AdminDashboard initialRows={rows} />
+    <div className="min-h-screen bg-paper text-ink p-4 sm:p-8">
+      <div className="mx-auto max-w-6xl">
+        <Link href="/" className="text-xs text-ink-soft hover:text-coral transition-colors">
+          ← Back
+        </Link>
+        <h1 className="font-display text-2xl font-medium text-navy mt-2 mb-1">Admin</h1>
+        <p className="text-sm text-ink-soft mb-6">Approve signups and manage roles.</p>
+        <AdminDashboard initialRows={rows} />
 
-      <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Contributor Registrations</h2>
-      <p className="text-sm text-ink-soft mb-4">
-        Approve to grant the Contributor role and let them start joining/creating pathways. Reject to turn them away.
-      </p>
-      <AdminContributorRegistrationsPanel initialRows={registrationRows} />
+        <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Contributor Registrations</h2>
+        <p className="text-sm text-ink-soft mb-4">
+          Approve to grant the Contributor role and let them start joining/creating pathways. Reject to turn them away.
+        </p>
+        <AdminContributorRegistrationsPanel initialRows={registrationRows} />
 
-      <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathway Submissions</h2>
-      <p className="text-sm text-ink-soft mb-4">
-        Drafts users approved from their own adoption — review before adding any of them to the wiki.
-      </p>
-      <PathwaySubmissionsPanel initialRows={submissionRows} />
+        <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathway Submissions</h2>
+        <p className="text-sm text-ink-soft mb-4">
+          Drafts users approved from their own adoption — review before adding any of them to the wiki.
+        </p>
+        <PathwaySubmissionsPanel initialRows={submissionRows} />
 
-      <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathways</h2>
-      <p className="text-sm text-ink-soft mb-4">
-        Every pathway contributors can join or have joined. Delete to remove a pathway and its contribution units
-        from the database — does not touch anything already published to GitHub.
-      </p>
-      <AdminPathwaysPanel initialRows={pathwayRows} />
+        <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathways</h2>
+        <p className="text-sm text-ink-soft mb-4">
+          Every pathway contributors can join or have joined. Delete to remove a pathway and its contribution units
+          from the database — does not touch anything already published to GitHub.
+        </p>
+        <AdminPathwaysPanel initialRows={pathwayRows} />
+      </div>
     </div>
   );
 }

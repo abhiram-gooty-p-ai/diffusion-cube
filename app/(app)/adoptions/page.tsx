@@ -112,6 +112,7 @@ function AdoptionsPageContent() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-paper p-4 sm:p-8">
+      <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-medium tracking-tight text-navy">Your adoptions</h1>
@@ -185,6 +186,7 @@ function AdoptionsPageContent() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
