@@ -156,6 +156,19 @@ export default function ExploreLibrary({
     void streamReply(next, options?.pathway?.id, options?.pathway ?? null);
   }
 
+  // Starts a library-wide conversation without selecting a single pathway.
+  // The API uses the overview prompt in this mode, so the assistant can help
+  // the user orient across multiple adoptions before narrowing to one.
+  function startLibraryConversation(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setSelected(null);
+    setMessages([]);
+    setCurrentConversationId(null);
+    setView('chat');
+    sendMessage(trimmed, { pathway: null, historyOverride: [] });
+  }
+
   // Opening a pathway shows only the assistant's kickoff overview — no
   // "Tell me about X" user bubble — matching the original library exactly:
   // an empty message history plus pathwayId elicits the fixed kickoff turn
@@ -186,7 +199,7 @@ export default function ExploreLibrary({
   return (
     <div className="animate-fade-in flex-1 overflow-y-auto bg-paper">
       <section className="mx-auto flex max-w-6xl flex-col items-center px-6 pt-12 pb-10 text-center sm:pt-16 sm:pb-14">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">Diffusion Library</p>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">Explore</p>
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-medium leading-[1.1] tracking-tight text-navy sm:text-5xl">
           Every deployment adds new evidence.{' '}
           <span className="font-serif italic text-coral">Every adopter</span> begins further ahead.
@@ -195,6 +208,26 @@ export default function ExploreLibrary({
           A use case shows what worked in one place. A pathway captures what can travel to the next — and what has to
           be adapted. Browse the deployments below.
         </p>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            startLibraryConversation(draft);
+          }}
+          className="glow-input mt-8 flex w-full max-w-2xl items-end gap-3 rounded-2xl border border-navy/10 bg-white p-2 text-left shadow-sm"
+        >
+          <ComposerTextarea
+            value={draft}
+            onChange={setDraft}
+            onSubmit={() => startLibraryConversation(draft)}
+            placeholder="Ask about what multiple adoptions have learned…"
+            className="min-h-11 flex-1 resize-none bg-transparent px-4 py-2.5 text-[15px] outline-none placeholder:text-ink-soft"
+            minHeight={24}
+            maxHeight={120}
+          />
+          <SendButton disabled={!draft.trim() || isThinking} size="lg" />
+        </form>
+        <p className="mt-3 text-xs text-ink-soft">Start with a question, then follow the thread into a specific pathway.</p>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-24">

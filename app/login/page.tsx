@@ -183,6 +183,32 @@ function LoginForm() {
 
             <button
               type="button"
+              onClick={async () => {
+                if (!email.trim()) {
+                  setError('Enter your email first, then choose forgot password.');
+                  return;
+                }
+                setLoading(true);
+                setError(null);
+                const supabase = createClient();
+                const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+                  redirectTo: `${window.location.origin}/login/reset-password`,
+                });
+                setLoading(false);
+                setError(
+                  resetError
+                    ? resetError.message
+                    : 'If an account exists for this email, a password reset link has been sent.'
+                );
+              }}
+              disabled={loading}
+              className="text-xs text-ink-soft hover:text-coral transition-colors disabled:opacity-60"
+            >
+              Forgot password?
+            </button>
+
+            <button
+              type="button"
               onClick={() => { setMode('signup'); setError(null); }}
               className="text-xs text-ink-soft hover:text-coral transition-colors"
             >
