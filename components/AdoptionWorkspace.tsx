@@ -576,26 +576,33 @@ export default function AdoptionWorkspace({
           <div className="flex flex-shrink-0 items-center gap-2">
             <button
               onClick={() => setFilesOpen(true)}
-              className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral md:hidden"
+              className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
             >
               📎 Files
             </button>
-            {flow === 'explorer' && (
-              <button
-                onClick={() => setGridOpen(true)}
-                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
-              >
-                ▦ Grid
-              </button>
-            )}
+            <button
+              onClick={() => setGridOpen(true)}
+              className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
+            >
+              ▦ Status
+            </button>
             {flow === 'contributor' && (
-              <button
-                onClick={openPathwayDocument}
-                disabled={!pathwayDocMarkdown}
-                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
-              >
-                View Pathway Document
-              </button>
+              pathwayDoc.paneOpen ? (
+                <button
+                  onClick={closePathwayDocument}
+                  className="rounded-lg border border-coral/30 bg-coral-soft px-3 py-1.5 text-xs font-medium text-coral transition hover:border-coral"
+                >
+                  ← Conversation
+                </button>
+              ) : (
+                <button
+                  onClick={openPathwayDocument}
+                  disabled={!pathwayDocMarkdown}
+                  className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
+                >
+                  View Pathway Document
+                </button>
+              )
             )}
             {/* Once generated, either Explorer document stays reachable for
                 the rest of the conversation — that persistence is the point
@@ -662,26 +669,12 @@ export default function AdoptionWorkspace({
         )}
       </div>
 
-      {/* Chat + files (+ the pathway document pane, alongside chat rather than over it) */}
+      {/* Contributor mode deliberately has one primary work surface at a
+          time. The conversation and pathway document no longer compete for
+          width; the header button switches between them. */}
       <div className="relative flex flex-1 overflow-hidden">
-        <div className={`min-w-0 flex-1 ${pathwayDoc.paneOpen ? 'lg:max-w-[420px] lg:flex-shrink-0' : ''}`}>
-          <ChatPanel
-            messages={displayMessages}
-            onSend={handleUserSend}
-            onAttachFiles={handleAttachFiles}
-            onRemoveAttachment={removeAttachment}
-            pendingAttachments={pendingAttachments}
-            loading={loading}
-            placeholder="Ask, share, or think out loud…"
-            onOpenPathwayDocument={flow === 'contributor' ? openPathwayDocument : undefined}
-            onOpenExplorerDocument={flow === 'explorer' ? openExplorerDocument : undefined}
-            pathwayLookup={pathwayLookup}
-            hideAccuracyDisclaimer={flow === 'contributor'}
-          />
-        </div>
-
-        {pathwayDoc.paneOpen && (
-          <div className="fixed inset-0 z-50 bg-paper lg:static lg:z-auto lg:min-w-0 lg:flex-1 lg:border-l lg:border-navy/10">
+        {flow === 'contributor' && pathwayDoc.paneOpen ? (
+          <div className="flex min-w-0 flex-1 flex-col bg-paper">
             <PathwayDocumentPane
               markdown={pathwayDocMarkdown}
               loading={pathwayDoc.loading}
@@ -696,40 +689,28 @@ export default function AdoptionWorkspace({
               onClose={closePathwayDocument}
             />
           </div>
-        )}
-
-        {!pathwayDoc.paneOpen && (
-          <div className="group relative hidden h-full flex-shrink-0 md:block">
-            {/* Slim edge tab — always in-flow, doesn't steal chat width. The
-                full panel below is absolutely positioned and only reveals on
-                hover, so files stay out of the way until actually needed.
-                inset-y-0 (rather than top-0 + h-full) anchors both edges
-                directly to this wrapper's height, so it reliably fills the
-                full column instead of depending on percentage-height
-                resolving through an absolutely positioned descendant. The
-                grid lives behind its own header button + modal instead (see
-                gridOpen below) — a hover sidebar was too cramped to read a
-                real note in comfortably. */}
-            <div className="flex h-full w-8 cursor-default items-center justify-center border-l border-navy/10 text-ink-soft transition group-hover:border-coral/40 group-hover:text-coral">
-              <span aria-hidden className="rotate-180 font-mono text-[10px] uppercase tracking-[0.2em] [writing-mode:vertical-lr]">
-                Files
-              </span>
-            </div>
-            <div className="invisible absolute inset-y-0 right-0 z-30 w-[280px] overflow-y-auto border-l border-navy/10 bg-paper p-3 opacity-0 shadow-lg transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
-              <AttachmentsPanel
-                attachments={pendingAttachments}
-                uploadedFileNames={extractUploadedFileNames(conversation.messages)}
-                onAttachFiles={handleAttachFiles}
-                onRemoveAttachment={removeAttachment}
-              />
-            </div>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <ChatPanel
+              messages={displayMessages}
+              onSend={handleUserSend}
+              onAttachFiles={handleAttachFiles}
+              onRemoveAttachment={removeAttachment}
+              pendingAttachments={pendingAttachments}
+              loading={loading}
+              placeholder="Ask, share, or think out loud…"
+              onOpenPathwayDocument={flow === 'contributor' ? openPathwayDocument : undefined}
+              onOpenExplorerDocument={flow === 'explorer' ? openExplorerDocument : undefined}
+              pathwayLookup={pathwayLookup}
+              hideAccuracyDisclaimer={flow === 'contributor'}
+            />
           </div>
         )}
 
         {filesOpen && (
-          <div className="fixed inset-0 z-40 flex items-end bg-navy/40 md:hidden" onClick={() => setFilesOpen(false)}>
+          <div className="fixed inset-0 z-40 flex items-end bg-navy/40 p-0 md:items-center md:justify-center md:p-4" onClick={() => setFilesOpen(false)}>
             <div
-              className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-4"
+              className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-4 md:max-w-md md:rounded-2xl md:shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-2 flex justify-end">
@@ -751,10 +732,8 @@ export default function AdoptionWorkspace({
           </div>
         )}
 
-        {/* The coverage grid, opened on demand from the "Grid" header button
-            rather than shown persistently or on hover — a real note reads
-            far more comfortably in a centered modal with room to breathe
-            than it ever did in a slim sidebar. */}
+        {/* Project status is opened on demand so the grid and its explanatory
+            content never compete with the conversation or document pane. */}
         {gridOpen && (
           <div
             className="fixed inset-0 z-40 flex items-center justify-center bg-navy/40 p-4"
@@ -765,7 +744,10 @@ export default function AdoptionWorkspace({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between">
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Coverage grid</p>
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Project status</p>
+                  <p className="mt-1 text-xs text-ink-soft">Coverage across the four dimensions and stages.</p>
+                </div>
                 <button
                   onClick={() => setGridOpen(false)}
                   aria-label="Close"
