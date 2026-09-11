@@ -20,6 +20,7 @@ import {
   type ExplorerIntent,
 } from '@/lib/explorer-intents';
 import type { DocType } from '@/lib/design-documents';
+import { EMPTY_GRID } from '@/lib/dimensions';
 
 // The fixed opening line a brand-new Contributor conversation shows before
 // any row exists — the whole point of this flow is document-first, so it
@@ -157,6 +158,7 @@ export default function AdoptionWorkspace({
   const [isDragging, setIsDragging] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [gridOpen, setGridOpen] = useState(false);
+  const [contributorPanel, setContributorPanel] = useState<'conversation' | 'document' | 'grid'>('conversation');
   const [headerExpanded, setHeaderExpanded] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
@@ -202,6 +204,16 @@ export default function AdoptionWorkspace({
 
   const explorerDocMarkdown =
     (explorerDoc.open === 'analysis' ? explorerDoc.analysis?.content : explorerDoc.summary?.content) ?? '';
+
+  function openContributorDocument() {
+    openPathwayDocument();
+    setContributorPanel('document');
+  }
+
+  function openContributorConversation() {
+    closePathwayDocument();
+    setContributorPanel('conversation');
+  }
 
   // The opening line is a deterministic function of flow/intent, never
   // persisted to `messages` (see preChat above — the Messages API requires
@@ -265,6 +277,19 @@ export default function AdoptionWorkspace({
           : null;
 
   if (preChat) {
+    const preChatFlow = preChat.flow;
+    const preChatIntent = preChat.intent;
+    const hasBlockingAttachment = pendingAttachments.some((a) => a.state !== 'ready');
+    const hasReadyAttachment = pendingAttachments.some((a) => a.state === 'ready');
+    const canStart = !loading && !hasBlockingAttachment && (welcomeInput.trim().length > 0 || hasReadyAttachment);
+
+    function handleStart() {
+      if (!canStart) return;
+      const text = welcomeInput.trim();
+      setWelcomeInput('');
+      void handleUserSend(text, preChatFlow, preChatIntent);
+    }
+
     return (
       <div
         className="relative flex flex-1 flex-col overflow-hidden bg-paper"
@@ -279,7 +304,7 @@ export default function AdoptionWorkspace({
           </div>
         )}
 
-        <div className="border-b border-navy/10 p-4">
+        {preChat.flow === 'contributor' && <div className="border-b border-navy/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {preChat.onBackToMenu ? (
               <button type="button" onClick={preChat.onBackToMenu} className={BACK_CONTROL_CLASS}>
@@ -293,26 +318,38 @@ export default function AdoptionWorkspace({
             <div className="flex flex-shrink-0 items-center gap-2">
               <button
                 onClick={() => setFilesOpen(true)}
-                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral md:hidden"
+                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
               >
                 📎 Files
               </button>
-              {preChat.flow === 'contributor' && (
+              {preChat.flow === 'contributor' && contributorPanel !== 'conversation' ? (
                 <button
-                  onClick={openPathwayDocument}
+                  onClick={openContributorConversation}
+                  className="rounded-lg border border-coral/30 bg-coral-soft px-3 py-1.5 text-xs font-medium text-coral transition hover:border-coral"
+                >
+                  ← Conversation
+                </button>
+              ) : preChat.flow === 'contributor' ? (
+                <button
+                  onClick={openContributorDocument}
                   disabled={!pathwayDocMarkdown}
                   className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
                 >
                   View Pathway Document
                 </button>
+              ) : null}
+              {preChat.flow === 'contributor' && (
+                <button
+                  onClick={() => setContributorPanel('grid')}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:border-coral hover:text-coral ${
+                    contributorPanel === 'grid' ? 'border-coral bg-coral-soft text-coral' : 'border-navy/15 text-ink-soft'
+                  }`}
+                >
+                  ▦ Grid
+                </button>
               )}
             </div>
           </div>
-          {preChat.flow === 'explorer' && (
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-              Analyse your own adoption
-            </p>
-          )}
           {preChat.flow === 'contributor' && pathwayPreview?.title && (
             <>
               <h2 className="mt-2 font-display text-lg font-medium tracking-tight text-navy">{pathwayPreview.title}</h2>
@@ -324,25 +361,11 @@ export default function AdoptionWorkspace({
               )}
             </>
           )}
-        </div>
+        </div>}
 
         <div className="relative flex flex-1 overflow-hidden">
-          <div className={`min-w-0 flex-1 ${pathwayDoc.paneOpen ? 'lg:max-w-[420px] lg:flex-shrink-0' : ''}`}>
-            <ChatPanel
-              messages={[preChat.opening]}
-              onSend={(text) => handleUserSend(text, preChat.flow, preChat.intent)}
-              onAttachFiles={(files) => handleAttachFiles(files, preChat.flow, preChat.intent)}
-              onRemoveAttachment={removeAttachment}
-              pendingAttachments={pendingAttachments}
-              loading={loading}
-              placeholder="Ask, share, or think out loud…"
-              pathwayLookup={pathwayLookup}
-              hideAccuracyDisclaimer={preChat.flow === 'contributor'}
-            />
-          </div>
-
-          {pathwayDoc.paneOpen && (
-            <div className="fixed inset-0 z-50 bg-paper lg:static lg:z-auto lg:min-w-0 lg:flex-1 lg:border-l lg:border-navy/10">
+          {preChat.flow === 'contributor' && contributorPanel === 'document' && pathwayDoc.paneOpen ? (
+            <div className="flex min-w-0 flex-1 flex-col bg-paper">
               <PathwayDocumentPane
                 markdown={pathwayDocMarkdown}
                 loading={pathwayDoc.loading}
@@ -354,31 +377,121 @@ export default function AdoptionWorkspace({
                 selectedVersionNumber={pathwayDoc.selectedVersionNumber}
                 latestVersionNumber={pathwayDoc.versionNumber}
                 onSelectVersion={selectPathwayDocVersion}
-                onClose={closePathwayDocument}
+                onClose={openContributorConversation}
+              />
+            </div>
+          ) : preChat.flow === 'contributor' && contributorPanel === 'grid' ? (
+            <div className="min-w-0 flex-1 overflow-y-auto bg-paper p-4 sm:p-6">
+              <div className="mx-auto max-w-4xl">
+                <div className="mb-4">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Coverage grid</p>
+                  <h2 className="mt-1 font-display text-xl font-medium text-navy">Contribution status</h2>
+                  <p className="mt-1 text-sm text-ink-soft">
+                    The grid will fill as you share documents and discuss the deployment with the Cube.
+                  </p>
+                </div>
+                <HeatmapGrid grid={EMPTY_GRID} />
+              </div>
+            </div>
+          ) : preChat.flow === 'explorer' ? (
+            <div
+              className="relative flex min-w-0 flex-1 items-center justify-center overflow-y-auto bg-paper p-5 sm:p-8"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleStart();
+                }
+              }}
+            >
+              <div className="w-full max-w-2xl animate-fade-in-up text-center">
+                <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">Analyse your own adoption</p>
+                <h1 className="mt-4 font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl">
+                  What brings you to the <span className="font-serif italic text-coral">Cube</span>?
+                </h1>
+                <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-soft">{WHAT_THE_CUBE_DOES}</p>
+
+                {pendingAttachments.length > 0 && (
+                  <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-1 text-left">
+                    {pendingAttachments.map((a) => (
+                      <div
+                        key={a.id}
+                        className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs ${
+                          a.state === 'error' ? 'border-coral/40 bg-coral-soft text-coral' : 'border-navy/15 bg-white text-ink-soft'
+                        }`}
+                      >
+                        <span className="truncate">
+                          {a.state === 'reading' ? '⏳' : a.state === 'error' ? '⚠️' : '📎'} {a.name}
+                          {a.state === 'error' && a.error ? ` — ${a.error}` : ''}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(a.id)}
+                          disabled={a.state === 'reading'}
+                          className="flex-shrink-0 text-ink-soft transition hover:text-navy disabled:opacity-30"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="glow-input mx-auto mt-6 flex max-w-2xl items-end gap-2 rounded-2xl border border-navy/10 bg-white p-2 text-left">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp"
+                    className="hidden"
+                    onChange={handleWelcomeFileChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 text-ink-soft transition hover:text-navy"
+                    aria-label="Attach files"
+                  >
+                    📎
+                  </button>
+                  <textarea
+                    className="min-h-12 flex-1 resize-none bg-transparent py-2 text-sm text-ink placeholder-ink-soft focus:outline-none"
+                    rows={2}
+                    value={welcomeInput}
+                    onChange={(e) => setWelcomeInput(e.target.value)}
+                    placeholder="Describe your adoption, ask a question, or attach a document…"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleStart}
+                    disabled={!canStart}
+                    className="rounded-xl bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
+                  >
+                    Start
+                  </button>
+                </div>
+                <p className="mt-3 text-xs text-ink-soft">You can upload documents after starting too.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1">
+              <ChatPanel
+                messages={[preChat.opening]}
+                onSend={(text) => handleUserSend(text, preChat.flow, preChat.intent)}
+                onAttachFiles={(files) => handleAttachFiles(files, preChat.flow, preChat.intent)}
+                onRemoveAttachment={removeAttachment}
+                pendingAttachments={pendingAttachments}
+                loading={loading}
+                placeholder="Ask, share, or think out loud…"
+                pathwayLookup={pathwayLookup}
+                hideAccuracyDisclaimer={preChat.flow === 'contributor'}
               />
             </div>
           )}
 
-          {!pathwayDoc.paneOpen && (
-            <div className="group relative hidden h-full flex-shrink-0 md:block">
-              <div className="flex h-full w-8 cursor-default items-center justify-center border-l border-navy/10 text-ink-soft transition group-hover:border-coral/40 group-hover:text-coral">
-                <span aria-hidden className="rotate-180 font-mono text-[10px] uppercase tracking-[0.2em] [writing-mode:vertical-lr]">
-                  Files
-                </span>
-              </div>
-              <div className="invisible absolute inset-y-0 right-0 z-30 w-[280px] overflow-y-auto border-l border-navy/10 bg-paper p-3 opacity-0 shadow-lg transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
-                <AttachmentsPanel
-                  attachments={pendingAttachments}
-                  onAttachFiles={(files) => handleAttachFiles(files, preChat.flow, preChat.intent)}
-                  onRemoveAttachment={removeAttachment}
-                />
-              </div>
-            </div>
-          )}
-
           {filesOpen && (
-            <div className="fixed inset-0 z-40 flex items-end bg-navy/40 md:hidden" onClick={() => setFilesOpen(false)}>
-              <div className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="fixed inset-0 z-40 flex items-end bg-navy/40 p-0 md:items-center md:justify-center md:p-4" onClick={() => setFilesOpen(false)}>
+              <div className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-4 md:max-w-md md:rounded-2xl md:shadow-xl" onClick={(e) => e.stopPropagation()}>
                 <div className="mb-2 flex justify-end">
                   <button
                     onClick={() => setFilesOpen(false)}
@@ -581,22 +694,22 @@ export default function AdoptionWorkspace({
               📎 Files
             </button>
             <button
-              onClick={() => setGridOpen(true)}
+              onClick={() => (flow === 'contributor' ? setContributorPanel('grid') : setGridOpen(true))}
               className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
             >
-              ▦ Status
+              ▦ Grid
             </button>
             {flow === 'contributor' && (
-              pathwayDoc.paneOpen ? (
+              contributorPanel === 'document' ? (
                 <button
-                  onClick={closePathwayDocument}
+                  onClick={openContributorConversation}
                   className="rounded-lg border border-coral/30 bg-coral-soft px-3 py-1.5 text-xs font-medium text-coral transition hover:border-coral"
                 >
                   ← Conversation
                 </button>
               ) : (
                 <button
-                  onClick={openPathwayDocument}
+                  onClick={openContributorDocument}
                   disabled={!pathwayDocMarkdown}
                   className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
                 >
@@ -673,7 +786,7 @@ export default function AdoptionWorkspace({
           time. The conversation and pathway document no longer compete for
           width; the header button switches between them. */}
       <div className="relative flex flex-1 overflow-hidden">
-        {flow === 'contributor' && pathwayDoc.paneOpen ? (
+        {flow === 'contributor' && contributorPanel === 'document' ? (
           <div className="flex min-w-0 flex-1 flex-col bg-paper">
             <PathwayDocumentPane
               markdown={pathwayDocMarkdown}
@@ -686,8 +799,19 @@ export default function AdoptionWorkspace({
               selectedVersionNumber={pathwayDoc.selectedVersionNumber}
               latestVersionNumber={pathwayDoc.versionNumber}
               onSelectVersion={selectPathwayDocVersion}
-              onClose={closePathwayDocument}
+              onClose={openContributorConversation}
             />
+          </div>
+        ) : flow === 'contributor' && contributorPanel === 'grid' ? (
+          <div className="min-w-0 flex-1 overflow-y-auto bg-paper p-4 sm:p-6">
+            <div className="mx-auto max-w-4xl">
+              <div className="mb-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Coverage grid</p>
+                <h2 className="mt-1 font-display text-xl font-medium text-navy">What this contribution has established</h2>
+                <p className="mt-1 text-sm text-ink-soft">Use the grid to see where the pathway is strong and where the conversation still needs evidence.</p>
+              </div>
+              <HeatmapGrid grid={conversation.grid} />
+            </div>
           </div>
         ) : (
           <div className="min-w-0 flex-1">
@@ -699,7 +823,7 @@ export default function AdoptionWorkspace({
               pendingAttachments={pendingAttachments}
               loading={loading}
               placeholder="Ask, share, or think out loud…"
-              onOpenPathwayDocument={flow === 'contributor' ? openPathwayDocument : undefined}
+              onOpenPathwayDocument={flow === 'contributor' ? openContributorDocument : undefined}
               onOpenExplorerDocument={flow === 'explorer' ? openExplorerDocument : undefined}
               pathwayLookup={pathwayLookup}
               hideAccuracyDisclaimer={flow === 'contributor'}
@@ -734,7 +858,7 @@ export default function AdoptionWorkspace({
 
         {/* Project status is opened on demand so the grid and its explanatory
             content never compete with the conversation or document pane. */}
-        {gridOpen && (
+        {flow !== 'contributor' && gridOpen && (
           <div
             className="fixed inset-0 z-40 flex items-center justify-center bg-navy/40 p-4"
             onClick={() => setGridOpen(false)}

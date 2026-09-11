@@ -52,7 +52,7 @@ select {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-coral);
+  outline: 2px solid rgba(27, 27, 66, 0.42);
   outline-offset: 2px;
 }
 
@@ -123,8 +123,9 @@ select {
 
 .glow-input:focus-within {
   animation-play-state: paused;
-  box-shadow:
-    0 0 0 1px rgba(255, 101, 67, 0.28),
-    0 6px 36px rgba(255, 101, 67, 0.24),
-    0 2px 58px rgba(0, 153, 255, 0.18);
+  box-shadow: none;
+}
+
+.glow-input textarea:focus-visible {
+  outline: none;
 }
