@@ -20,6 +20,9 @@ export type LibraryPathway = {
   accent: Accent;
   /** Short, impact-driven hook shown on the tile — not the full context. */
   hook: string;
+  /** Sector this pathway belongs to (Agriculture, Livelihoods, etc.). Absent for cross-cutting pathways. */
+  sector?: string;
+  /** Horizontal technology / approach tags — no sector values. */
   tags: string[];
 };
 
@@ -32,7 +35,8 @@ export const libraryPathways: LibraryPathway[] = [
     stage: 'Scale',
     accent: 'coral',
     hook: '342,000 farmers dial one number — and now get an answer 180x cheaper than it cost a year ago.',
-    tags: ['Voice AI', 'Agriculture', 'Government'],
+    sector: 'Agriculture',
+    tags: ['Voice AI', 'Government'],
   },
   {
     id: 'bhili-language-enablement',
@@ -42,7 +46,7 @@ export const libraryPathways: LibraryPathway[] = [
     stage: 'Pilot',
     accent: 'yellow',
     hook: 'A tribal language with zero digital footprint learned to talk back to its own speakers — in about 100 days.',
-    tags: ['Voice AI', 'Language', 'Tribal Inclusion'],
+    tags: ['Voice AI', 'Tribal Inclusion'],
   },
   {
     id: 'blue-dots',
@@ -52,7 +56,8 @@ export const libraryPathways: LibraryPathway[] = [
     stage: 'Scale',
     accent: 'blue',
     hook: '₹500 to find a job the old way. ₹10 and a 3-minute phone call the new way.',
-    tags: ['Livelihoods', 'Discovery', 'District Economy'],
+    sector: 'Livelihoods',
+    tags: ['Discovery', 'District Economy'],
   },
   {
     id: 'ceew-climate-intelligence',
@@ -62,7 +67,8 @@ export const libraryPathways: LibraryPathway[] = [
     stage: 'Pilot',
     accent: 'navy',
     hook: 'An early-warning system that forecasts dengue outbreaks weeks before the first case shows up.',
-    tags: ['Climate', 'Public Health', 'Policy'],
+    sector: 'Public Health',
+    tags: ['Climate', 'Policy'],
   },
   {
     id: 'data-dhara',
@@ -72,7 +78,8 @@ export const libraryPathways: LibraryPathway[] = [
     stage: 'Define',
     accent: 'coral',
     hook: "A PDF is not data — it's a picture of data. This pathway teaches government records to talk to each other.",
-    tags: ['Data Infrastructure', 'Governance'],
+    sector: 'Governance',
+    tags: ['Data Infrastructure'],
   },
   {
     id: 'voice-ai-for-inclusion',
@@ -97,3 +104,11 @@ export const libraryPathways: LibraryPathway[] = [
 ];
 
 export const libraryStages: Stage[] = ['Explore', 'Define', 'Pilot', 'Scale'];
+
+export const librarySectors: string[] = Array.from(
+  new Set(libraryPathways.map((p) => p.sector).filter((s): s is string => !!s))
+);
+
+export const libraryTags: string[] = Array.from(
+  new Set(libraryPathways.flatMap((p) => p.tags))
+).sort();

@@ -22,55 +22,42 @@ import {
 import type { DocType } from '@/lib/design-documents';
 import { EMPTY_GRID } from '@/lib/dimensions';
 
-// The fixed opening line a brand-new Contributor conversation shows before
-// any row exists — the whole point of this flow is document-first, so it
-// asks for documents immediately instead of a marketing hero. Never
-// persisted; it's replaced the moment a real conversation exists.
 const CONTRIBUTOR_OPENING_MESSAGE: Message = {
   role: 'assistant',
   content: "Please share your deployment related documents (pdf, docx). I'll read through them and put together a draft pathway for you to check.",
 };
 
-// Strengthen (fixedFlow==='explorer', i.e. /strengthen specifically — not
-// the picker-based /adoptions "start new" path) skips the 4-intent menu
-// entirely and opens straight into chat with this line, same text as the
-// access-gate page a signed-out visitor saw first (see STRENGTHEN_INTRO's
-// comment) so logging in doesn't feel like a context switch. Defaults to the
-// 'guidance' intent under the hood — the broadest of the four, since there's
-// no explicit picker here to ask.
 const STRENGTHEN_OPENING_MESSAGE: Message = {
   role: 'assistant',
   content: STRENGTHEN_INTRO,
 };
 
-const BACK_CONTROL_CLASS = 'text-xs font-medium text-ink-soft transition hover:text-coral';
+const BACK_CONTROL_CLASS =
+  'inline-flex items-center gap-1.5 text-sm font-medium text-navy transition hover:gap-2.5 hover:text-coral';
 
-// The Explorer flow's way back to the intent menu, used while no row exists
-// yet and passed in as `backLabel` by /strengthen for the rest of the
-// conversation. Callers where "back" means something else (the /adoptions
-// grid) keep the default '← Back'.
 export const PICK_INTENT_LABEL = '← Pick a different starting point';
 
-// A Link to /contribute is a no-op when already on that route (the App
-// Router doesn't remount on a same-URL navigation) — onBack lets the actual
-// list-owning page reset its own local `selection` state instead.
 function BackControl({ onBack }: { onBack?: () => void }) {
+  const inner = (
+    <>
+      <span aria-hidden className="transition-transform">←</span> Back
+    </>
+  );
   return onBack ? (
     <button type="button" onClick={onBack} className={BACK_CONTROL_CLASS}>
-      ← Back
+      {inner}
     </button>
   ) : (
     <Link href="/contribute" className={BACK_CONTROL_CLASS}>
-      ← Back
+      {inner}
     </Link>
   );
 }
 
-// What the two Explorer documents are called wherever they're surfaced — the
-// header buttons, the modal, and the exported PDF's filename. The Analysis
-// Document is the primary output and the Executive Summary is deliberately
-// the smaller companion piece, so they're never labelled interchangeably.
-const EXPLORER_DOC_LABELS: Record<DocType, { title: string; filenameSuffix: string; loadingLabel: string }> = {
+const EXPLORER_DOC_LABELS: Record<
+  DocType,
+  { title: string; filenameSuffix: string; loadingLabel: string }
+> = {
   analysis: {
     title: 'Analysis Document',
     filenameSuffix: 'analysis',
@@ -81,31 +68,21 @@ const EXPLORER_DOC_LABELS: Record<DocType, { title: string; filenameSuffix: stri
     filenameSuffix: 'executive-summary',
     loadingLabel: 'Putting your executive summary together…',
   },
-  // 'draft' is Contributor-only and never opened as an explorer doc modal.
   draft: { title: '', filenameSuffix: '', loadingLabel: '' },
 };
 
+// What the right panel is showing. 'none' means closed.
+type RightPanelTab = 'none' | 'grid' | 'document' | 'analysis' | 'summary';
+
 interface Props {
   initial: AdoptionConversation | null;
-  // Set from a dedicated entry point (/strengthen or /contribute) — the
-  // welcome screen shows a single Start button bound to this flow instead
-  // of a picker. Falls back to canStrengthen/canContribute below if omitted.
   fixedFlow?: AdoptionFlow;
-  // Contributor-only: the pathway this workspace is linked to, chosen via
-  // PathwaySelector before the workspace opens.
   pathwayId?: string;
   canStrengthen?: boolean;
   canContribute?: boolean;
   onCreated?: (c: AdoptionConversation) => void;
   onChange?: (c: AdoptionConversation) => void;
-  // Contributor-only "← Back" control in the header — the caller owns
-  // whatever list view it should return to (ContributeGrid's own grid,
-  // /adoptions' grid if opened from there). Falls back to a real navigation
-  // to /contribute when omitted, since a Link to the page you're already on
-  // is a no-op in the App Router — it never remounts local `selection` state.
   onBack?: () => void;
-  // What that control says in the Explorer flow, since "back" means different
-  // things per caller: the intent menu on /strengthen, the grid on /adoptions.
   backLabel?: string;
 }
 
@@ -147,19 +124,20 @@ export default function AdoptionWorkspace({
     closeExplorerDocument,
   } = useAdoptionConversation({ initial, pathwayId, onCreated, onChange });
 
-  // Resolved once, at the top level, so both the welcome screen's file/drop
-  // handlers and its Start button use the exact same flow — a prior bug had
-  // this computed only inside the JSX below, which the file-upload path
-  // (drag-drop and the attach button) never saw, so uploads silently created
-  // the row with an empty flow regardless of /strengthen vs /contribute.
-  const defaultFlow: AdoptionFlow = fixedFlow ?? (canStrengthen ? 'explorer' : canContribute ? 'contributor' : '');
+  const defaultFlow: AdoptionFlow =
+    fixedFlow ?? (canStrengthen ? 'explorer' : canContribute ? 'contributor' : '');
 
   const [welcomeInput, setWelcomeInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
-  const [gridOpen, setGridOpen] = useState(false);
-  const [contributorPanel, setContributorPanel] = useState<'conversation' | 'document' | 'grid'>('conversation');
   const [headerExpanded, setHeaderExpanded] = useState(true);
+
+  // Resizable right panel — shared across all workspace states.
+  const [rightPanel, setRightPanel] = useState<RightPanelTab>('none');
+  const [panelWidth, setPanelWidth] = useState(42); // percent of split container
+  const [panelDragging, setPanelDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
@@ -176,64 +154,84 @@ export default function AdoptionWorkspace({
       .catch(() => {});
   }, []);
 
-  // Which flow is currently in play — used by file-attach handlers.
+  // Drag-to-resize: track mouse while dragging and clamp to 25–75%.
+  useEffect(() => {
+    if (!panelDragging) return;
+    function onMove(e: MouseEvent) {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const rightPct = Math.round(((rect.right - e.clientX) / rect.width) * 100);
+      setPanelWidth(Math.min(75, Math.max(25, rightPct)));
+    }
+    function onUp() {
+      setPanelDragging(false);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [panelDragging]);
+
+  // Auto-open panel when an explorer document is generated.
+  useEffect(() => {
+    if (explorerDoc.open === 'analysis') setRightPanel('analysis');
+    else if (explorerDoc.open === 'plan') setRightPanel('summary');
+  }, [explorerDoc.open]);
+
+  // Auto-open panel when the contributor's pathway document is first generated.
+  useEffect(() => {
+    if (pathwayDoc.paneOpen) setRightPanel((prev) => (prev === 'none' ? 'document' : prev));
+  }, [pathwayDoc.paneOpen]);
+
   const activeIntent: ExplorerIntent = conversation?.meta.intent ?? 'open';
 
-  // A specific older version picked from the pane's dropdown wins first;
-  // otherwise the latest own draft; otherwise fall back to the pathway's
-  // already-published document, so a contributor who hasn't drafted
-  // anything in this chat yet can still view what another contributor
-  // published.
   const selectedPathwayDocVersion =
     pathwayDoc.selectedVersionNumber !== null
       ? pathwayDoc.versions.find((v) => v.version_number === pathwayDoc.selectedVersionNumber)
       : undefined;
-  const pathwayDocMarkdown = selectedPathwayDocVersion?.content ?? pathwayDoc.content ?? pathwayDoc.pathwayPublishedContent ?? '';
-  const pathwayDocPublishedSlug = pathwayDoc.publishedSlug ?? pathwayDoc.pathwayPublishedSlug;
-  // "Published" means the content CURRENTLY SHOWN is exactly what's live —
-  // not just "this pathway has been published at some point." Any
-  // unpublished edit (a new generate/revise, or browsing an older version
-  // via the dropdown) shows as "Draft" again, even after a prior publish.
+  const pathwayDocMarkdown =
+    selectedPathwayDocVersion?.content ??
+    pathwayDoc.content ??
+    pathwayDoc.pathwayPublishedContent ??
+    '';
+  const pathwayDocPublishedSlug =
+    pathwayDoc.publishedSlug ?? pathwayDoc.pathwayPublishedSlug;
   const pathwayDocIsPublished =
-    !!pathwayDoc.pathwayPublishedContent && pathwayDocMarkdown === pathwayDoc.pathwayPublishedContent;
-  // Deep-links back to this specific chat (not just the Contribute grid) —
-  // conversation.id may not exist yet if nothing has been sent in this chat.
+    !!pathwayDoc.pathwayPublishedContent &&
+    pathwayDocMarkdown === pathwayDoc.pathwayPublishedContent;
   const pathwayDocLiveHref = pathwayDocPublishedSlug
     ? `/wiki/${pathwayDocPublishedSlug}?from=contribute${conversation ? `&designId=${conversation.id}` : ''}`
     : null;
 
+  // Which explorer doc content to show in the panel.
+  const explorerDocType: DocType | null =
+    rightPanel === 'analysis' ? 'analysis' : rightPanel === 'summary' ? 'plan' : null;
   const explorerDocMarkdown =
-    (explorerDoc.open === 'analysis' ? explorerDoc.analysis?.content : explorerDoc.summary?.content) ?? '';
+    rightPanel === 'analysis'
+      ? (explorerDoc.analysis?.content ?? '')
+      : rightPanel === 'summary'
+        ? (explorerDoc.summary?.content ?? '')
+        : '';
 
-  function openContributorDocument() {
-    openPathwayDocument();
-    setContributorPanel('document');
+  function openRightPanel(tab: Exclude<RightPanelTab, 'none'>) {
+    setRightPanel(tab);
+    if (tab === 'analysis') openExplorerDocument('analysis');
+    if (tab === 'summary') openExplorerDocument('plan');
+    if (tab === 'document') openPathwayDocument();
   }
 
-  function openContributorConversation() {
-    closePathwayDocument();
-    setContributorPanel('conversation');
+  function closeRightPanel() {
+    if (rightPanel === 'analysis' || rightPanel === 'summary') closeExplorerDocument();
+    if (rightPanel === 'document') closePathwayDocument();
+    setRightPanel('none');
   }
 
-  // The opening line is a deterministic function of flow/intent, never
-  // persisted to `messages` (see preChat above — the Messages API requires
-  // history to start on a user turn). Once a row exists it has to be
-  // re-derived and prepended for display here as well, or it disappears the
-  // moment the user's first real message lands and `conversation` stops
-  // being null.
-  const conversationOpeningMessage: Message | null = conversation
-    ? conversation.meta.flow === 'contributor'
-      ? CONTRIBUTOR_OPENING_MESSAGE
-      : conversation.meta.flow === 'explorer'
-        ? STRENGTHEN_OPENING_MESSAGE
-        : null
-    : null;
-
-  const displayMessages = conversation
-    ? conversationOpeningMessage
-      ? [conversationOpeningMessage, ...conversation.messages]
-      : conversation.messages
-    : [];
+  function handleDividerMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    setPanelDragging(true);
+  }
 
   function handleWelcomeFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -262,26 +260,116 @@ export default function AdoptionWorkspace({
     if (files.length) handleAttachFiles(files, defaultFlow, activeIntent);
   }
 
-  // Both flows can open straight into a chat before any row exists: the
-  // Contributor's document-first entry point (no marketing hero) and the
-  // Explorer's auto-detect flow. The opening line is client-constructed and
-  // never persisted — the row is created lazily by the first real send,
-  // carrying the flow and intent ('open' for Explorer, to be auto-detected).
-  const preChat: { opening: Message; flow: AdoptionFlow; intent: ExplorerIntent; onBackToMenu?: () => void } | null =
-    conversation
-      ? null
-      : fixedFlow === 'contributor'
-        ? { opening: CONTRIBUTOR_OPENING_MESSAGE, flow: 'contributor', intent: '' }
-        : fixedFlow === 'explorer'
-          ? { opening: STRENGTHEN_OPENING_MESSAGE, flow: 'explorer', intent: 'open' }
-          : null;
+  const preChat: {
+    opening: Message;
+    flow: AdoptionFlow;
+    intent: ExplorerIntent;
+    onBackToMenu?: () => void;
+  } | null = conversation
+    ? null
+    : fixedFlow === 'contributor'
+      ? { opening: CONTRIBUTOR_OPENING_MESSAGE, flow: 'contributor', intent: '' }
+      : fixedFlow === 'explorer'
+        ? { opening: STRENGTHEN_OPENING_MESSAGE, flow: 'explorer', intent: 'open' }
+        : null;
 
-  if (preChat) {
+  // Shared right panel content — no tabs, just a × close button at top.
+  // The workspace header buttons (Grid / View Document / Analysis / Summary)
+  // switch content; the panel itself doesn't need a secondary nav.
+  function renderRightPanel(grid: typeof EMPTY_GRID) {
+    if (rightPanel === 'none') return null;
+    return (
+      <>
+        {/* Drag handle / resize divider */}
+        <div
+          className="group relative z-10 w-1 shrink-0 cursor-col-resize bg-navy/10 transition-colors hover:bg-coral/30 active:bg-coral/50"
+          onMouseDown={handleDividerMouseDown}
+        >
+          {/* Wider invisible hit area */}
+          <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
+        </div>
+
+        {/* Right panel */}
+        <div
+          className="flex shrink-0 flex-col overflow-hidden border-l border-navy/10 bg-paper"
+          style={{ width: `${panelWidth}%` }}
+        >
+          {/* Minimal header: close button — only for 'grid', which has no dedicated header.
+              'document', 'analysis', 'summary' panels all have their own full headers. */}
+          {rightPanel === 'grid' && (
+            <div className="flex shrink-0 items-center justify-end border-b border-navy/10 px-3 py-2">
+              <button
+                onClick={closeRightPanel}
+                aria-label="Close panel"
+                className="rounded px-1.5 py-0.5 text-lg leading-none text-ink-soft transition hover:bg-navy/8 hover:text-navy"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* Panel content */}
+          {rightPanel === 'grid' && (
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="mb-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
+                  Coverage grid
+                </p>
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  Coverage across the four dimensions and stages.
+                </p>
+              </div>
+              <HeatmapGrid grid={grid} />
+            </div>
+          )}
+
+          {rightPanel === 'document' && (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <PathwayDocumentPane
+                markdown={pathwayDocMarkdown}
+                loading={pathwayDoc.loading}
+                error={pathwayDoc.error}
+                onPublish={publishPathwayDocument}
+                liveHref={pathwayDocLiveHref}
+                isPublished={pathwayDocIsPublished}
+                versions={pathwayDoc.versions}
+                selectedVersionNumber={pathwayDoc.selectedVersionNumber}
+                latestVersionNumber={pathwayDoc.versionNumber}
+                onSelectVersion={selectPathwayDocVersion}
+                onClose={closeRightPanel}
+                deploymentName={conversation?.meta.name}
+              />
+            </div>
+          )}
+
+          {(rightPanel === 'analysis' || rightPanel === 'summary') && explorerDocType && (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <AdoptionPlanModal
+                mode="panel"
+                title={EXPLORER_DOC_LABELS[explorerDocType].title}
+                markdown={explorerDocMarkdown}
+                loading={explorerDoc.generating === explorerDocType}
+                error={explorerDoc.error}
+                deploymentName={conversation?.meta.name ?? ''}
+                onClose={closeRightPanel}
+                filenameSuffix={EXPLORER_DOC_LABELS[explorerDocType].filenameSuffix}
+                loadingLabel={EXPLORER_DOC_LABELS[explorerDocType].loadingLabel}
+              />
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // ── preChat: explorer welcome hero (full-width, no side panel) ─────────────
+  if (preChat?.flow === 'explorer') {
     const preChatFlow = preChat.flow;
     const preChatIntent = preChat.intent;
     const hasBlockingAttachment = pendingAttachments.some((a) => a.state !== 'ready');
     const hasReadyAttachment = pendingAttachments.some((a) => a.state === 'ready');
-    const canStart = !loading && !hasBlockingAttachment && (welcomeInput.trim().length > 0 || hasReadyAttachment);
+    const canStart =
+      !loading && !hasBlockingAttachment && (welcomeInput.trim().length > 0 || hasReadyAttachment);
 
     function handleStart() {
       if (!canStart) return;
@@ -303,195 +391,204 @@ export default function AdoptionWorkspace({
             <p className="text-sm font-medium text-ink-soft">Drop files to share them</p>
           </div>
         )}
+        <div
+          className="relative flex min-w-0 flex-1 items-center justify-center overflow-y-auto bg-paper p-5 sm:p-8"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleStart();
+            }
+          }}
+        >
+          <div className="w-full max-w-2xl animate-fade-in-up text-center">
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">
+              Analyse your own adoption
+            </p>
+            <h1 className="mt-4 font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl">
+              What brings you to the{' '}
+              <span className="font-serif italic text-coral">Cube</span>?
+            </h1>
+            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-soft">
+              {WHAT_THE_CUBE_DOES}
+            </p>
 
-        {preChat.flow === 'contributor' && <div className="border-b border-navy/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            {preChat.onBackToMenu ? (
-              <button type="button" onClick={preChat.onBackToMenu} className={BACK_CONTROL_CLASS}>
-                {PICK_INTENT_LABEL}
-              </button>
-            ) : preChat.flow === 'contributor' ? (
-              <BackControl onBack={onBack} />
-            ) : (
-              <span />
-            )}
-            <div className="flex flex-shrink-0 items-center gap-2">
-              <button
-                onClick={() => setFilesOpen(true)}
-                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
-              >
-                📎 Files
-              </button>
-              {preChat.flow === 'contributor' && contributorPanel !== 'conversation' ? (
-                <button
-                  onClick={openContributorConversation}
-                  className="rounded-lg border border-coral/30 bg-coral-soft px-3 py-1.5 text-xs font-medium text-coral transition hover:border-coral"
-                >
-                  ← Conversation
-                </button>
-              ) : preChat.flow === 'contributor' ? (
-                <button
-                  onClick={openContributorDocument}
-                  disabled={!pathwayDocMarkdown}
-                  className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
-                >
-                  View Pathway Document
-                </button>
-              ) : null}
-              {preChat.flow === 'contributor' && (
-                <button
-                  onClick={() => setContributorPanel('grid')}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:border-coral hover:text-coral ${
-                    contributorPanel === 'grid' ? 'border-coral bg-coral-soft text-coral' : 'border-navy/15 text-ink-soft'
-                  }`}
-                >
-                  ▦ Grid
-                </button>
-              )}
-            </div>
-          </div>
-          {preChat.flow === 'contributor' && pathwayPreview?.title && (
-            <>
-              <h2 className="mt-2 font-display text-lg font-medium tracking-tight text-navy">{pathwayPreview.title}</h2>
-              {pathwayPreview.sector && (
-                <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">{pathwayPreview.sector}</p>
-              )}
-              {pathwayPreview.description && (
-                <p className="mt-2 text-sm leading-relaxed text-ink">{pathwayPreview.description}</p>
-              )}
-            </>
-          )}
-        </div>}
-
-        <div className="relative flex flex-1 overflow-hidden">
-          {preChat.flow === 'contributor' && contributorPanel === 'document' && pathwayDoc.paneOpen ? (
-            <div className="flex min-w-0 flex-1 flex-col bg-paper">
-              <PathwayDocumentPane
-                markdown={pathwayDocMarkdown}
-                loading={pathwayDoc.loading}
-                error={pathwayDoc.error}
-                onPublish={publishPathwayDocument}
-                liveHref={pathwayDocLiveHref}
-                isPublished={pathwayDocIsPublished}
-                versions={pathwayDoc.versions}
-                selectedVersionNumber={pathwayDoc.selectedVersionNumber}
-                latestVersionNumber={pathwayDoc.versionNumber}
-                onSelectVersion={selectPathwayDocVersion}
-                onClose={openContributorConversation}
-              />
-            </div>
-          ) : preChat.flow === 'contributor' && contributorPanel === 'grid' ? (
-            <div className="min-w-0 flex-1 overflow-y-auto bg-paper p-4 sm:p-6">
-              <div className="mx-auto max-w-4xl">
-                <div className="mb-4">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Coverage grid</p>
-                  <h2 className="mt-1 font-display text-xl font-medium text-navy">Contribution status</h2>
-                  <p className="mt-1 text-sm text-ink-soft">
-                    The grid will fill as you share documents and discuss the deployment with the Cube.
-                  </p>
-                </div>
-                <HeatmapGrid grid={EMPTY_GRID} />
-              </div>
-            </div>
-          ) : preChat.flow === 'explorer' ? (
-            <div
-              className="relative flex min-w-0 flex-1 items-center justify-center overflow-y-auto bg-paper p-5 sm:p-8"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleStart();
-                }
-              }}
-            >
-              <div className="w-full max-w-2xl animate-fade-in-up text-center">
-                <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">Analyse your own adoption</p>
-                <h1 className="mt-4 font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl">
-                  What brings you to the <span className="font-serif italic text-coral">Cube</span>?
-                </h1>
-                <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink-soft">{WHAT_THE_CUBE_DOES}</p>
-
-                {pendingAttachments.length > 0 && (
-                  <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-1 text-left">
-                    {pendingAttachments.map((a) => (
-                      <div
-                        key={a.id}
-                        className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs ${
-                          a.state === 'error' ? 'border-coral/40 bg-coral-soft text-coral' : 'border-navy/15 bg-white text-ink-soft'
-                        }`}
-                      >
-                        <span className="truncate">
-                          {a.state === 'reading' ? '⏳' : a.state === 'error' ? '⚠️' : '📎'} {a.name}
-                          {a.state === 'error' && a.error ? ` — ${a.error}` : ''}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeAttachment(a.id)}
-                          disabled={a.state === 'reading'}
-                          className="flex-shrink-0 text-ink-soft transition hover:text-navy disabled:opacity-30"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+            {pendingAttachments.length > 0 && (
+              <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-1 text-left">
+                {pendingAttachments.map((a) => (
+                  <div
+                    key={a.id}
+                    className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs ${
+                      a.state === 'error'
+                        ? 'border-coral/40 bg-coral-soft text-coral'
+                        : 'border-navy/15 bg-white text-ink-soft'
+                    }`}
+                  >
+                    <span className="truncate">
+                      {a.state === 'reading' ? '⏳' : a.state === 'error' ? '⚠️' : '📎'} {a.name}
+                      {a.state === 'error' && a.error ? ` — ${a.error}` : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(a.id)}
+                      disabled={a.state === 'reading'}
+                      className="flex-shrink-0 text-ink-soft transition hover:text-navy disabled:opacity-30"
+                    >
+                      ✕
+                    </button>
                   </div>
-                )}
+                ))}
+              </div>
+            )}
 
-                <div className="glow-input mx-auto mt-6 flex max-w-2xl items-end gap-2 rounded-2xl border border-navy/10 bg-white p-2 text-left">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp"
-                    className="hidden"
-                    onChange={handleWelcomeFileChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-ink-soft transition hover:text-navy"
-                    aria-label="Attach files"
-                  >
-                    📎
-                  </button>
-                  <textarea
-                    className="min-h-12 flex-1 resize-none bg-transparent py-2 text-sm text-ink placeholder-ink-soft focus:outline-none"
-                    rows={2}
-                    value={welcomeInput}
-                    onChange={(e) => setWelcomeInput(e.target.value)}
-                    placeholder="Describe your adoption, ask a question, or attach a document…"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleStart}
-                    disabled={!canStart}
-                    className="rounded-xl bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
-                  >
-                    Start
-                  </button>
+            <div className="glow-input mx-auto mt-6 flex max-w-2xl items-end gap-2 rounded-2xl border border-navy/10 bg-white p-2 text-left">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp"
+                className="hidden"
+                onChange={handleWelcomeFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-ink-soft transition hover:text-navy"
+                aria-label="Attach files"
+              >
+                📎
+              </button>
+              <textarea
+                className="min-h-12 flex-1 resize-none bg-transparent py-2 text-sm text-ink placeholder-ink-soft focus:outline-none"
+                rows={2}
+                value={welcomeInput}
+                onChange={(e) => setWelcomeInput(e.target.value)}
+                placeholder="Describe your adoption, ask a question, or attach a document…"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={!canStart}
+                className="rounded-xl bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
+              >
+                Start
+              </button>
+            </div>
+            <p className="mt-3 text-xs text-ink-soft">You can upload documents after starting too.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── preChat: contributor — header + chat + optional grid side panel ─────────
+  if (preChat?.flow === 'contributor') {
+    const preChatFlow = preChat.flow;
+    const preChatIntent = preChat.intent;
+
+    return (
+      <div
+        className="relative flex flex-1 overflow-hidden bg-paper"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {isDragging && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-4 border-dashed border-coral bg-paper/90">
+            <p className="text-sm font-medium text-ink-soft">Drop files to share them</p>
+          </div>
+        )}
+
+        {/* Split container — header lives inside the left column */}
+        <div
+          ref={containerRef}
+          className={`flex flex-1 overflow-hidden ${panelDragging ? 'cursor-col-resize select-none' : ''}`}
+        >
+          {/* Left: header + chat */}
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="shrink-0 border-b border-navy/10 py-3">
+              <div className="mx-auto max-w-5xl px-4 sm:px-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {preChat.onBackToMenu ? (
+                    <button
+                      type="button"
+                      onClick={preChat.onBackToMenu}
+                      className={BACK_CONTROL_CLASS}
+                    >
+                      {PICK_INTENT_LABEL}
+                    </button>
+                  ) : (
+                    <BackControl onBack={onBack} />
+                  )}
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <button
+                      onClick={() => setFilesOpen(true)}
+                      className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
+                    >
+                      📎 Files
+                    </button>
+                    <button
+                      onClick={() =>
+                        rightPanel === 'grid' ? closeRightPanel() : openRightPanel('grid')
+                      }
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:border-coral hover:text-coral ${
+                        rightPanel === 'grid'
+                          ? 'border-coral bg-coral-soft text-coral'
+                          : 'border-navy/15 text-ink-soft'
+                      }`}
+                    >
+                      ▦ Grid
+                    </button>
+                  </div>
                 </div>
-                <p className="mt-3 text-xs text-ink-soft">You can upload documents after starting too.</p>
+                {pathwayPreview?.title && (
+                  <>
+                    <h2 className="mt-2 font-display text-lg font-medium tracking-tight text-navy">
+                      {pathwayPreview.title}
+                    </h2>
+                    {pathwayPreview.sector && (
+                      <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">
+                        {pathwayPreview.sector}
+                      </p>
+                    )}
+                    {pathwayPreview.description && (
+                      <p className="mt-2 max-h-20 overflow-y-auto text-sm leading-relaxed text-ink">
+                        {pathwayPreview.description}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="min-w-0 flex-1">
+
+            {/* min-h-0 + flex-1 so ChatPanel's h-full resolves to remaining space, not full column height */}
+            <div className="min-h-0 flex-1 overflow-hidden">
               <ChatPanel
                 messages={[preChat.opening]}
-                onSend={(text) => handleUserSend(text, preChat.flow, preChat.intent)}
-                onAttachFiles={(files) => handleAttachFiles(files, preChat.flow, preChat.intent)}
+                onSend={(text) => handleUserSend(text, preChatFlow, preChatIntent)}
+                onAttachFiles={(files) => handleAttachFiles(files, preChatFlow, preChatIntent)}
                 onRemoveAttachment={removeAttachment}
                 pendingAttachments={pendingAttachments}
                 loading={loading}
                 placeholder="Ask, share, or think out loud…"
                 pathwayLookup={pathwayLookup}
-                hideAccuracyDisclaimer={preChat.flow === 'contributor'}
+                hideAccuracyDisclaimer
               />
             </div>
-          )}
+          </div>
+
+          {renderRightPanel(EMPTY_GRID)}
 
           {filesOpen && (
-            <div className="fixed inset-0 z-40 flex items-end bg-navy/40 p-0 md:items-center md:justify-center md:p-4" onClick={() => setFilesOpen(false)}>
-              <div className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-4 md:max-w-md md:rounded-2xl md:shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="fixed inset-0 z-40 flex items-end bg-navy/40 p-0 md:items-center md:justify-center md:p-4"
+              onClick={() => setFilesOpen(false)}
+            >
+              <div
+                className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-4 md:max-w-md md:rounded-2xl md:shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="mb-2 flex justify-end">
                   <button
                     onClick={() => setFilesOpen(false)}
@@ -503,7 +600,7 @@ export default function AdoptionWorkspace({
                 </div>
                 <AttachmentsPanel
                   attachments={pendingAttachments}
-                  onAttachFiles={(files) => handleAttachFiles(files, preChat.flow, preChat.intent)}
+                  onAttachFiles={(files) => handleAttachFiles(files, preChatFlow, preChatIntent)}
                   onRemoveAttachment={removeAttachment}
                 />
               </div>
@@ -514,10 +611,14 @@ export default function AdoptionWorkspace({
     );
   }
 
+  // ── No conversation yet (generic welcome / role-picker screen) ──────────────
   if (!conversation) {
     const hasBlockingAttachment = pendingAttachments.some((a) => a.state !== 'ready');
     const hasReadyAttachment = pendingAttachments.some((a) => a.state === 'ready');
-    const canSend = !loading && !hasBlockingAttachment && (welcomeInput.trim().length > 0 || hasReadyAttachment);
+    const canSend =
+      !loading &&
+      !hasBlockingAttachment &&
+      (welcomeInput.trim().length > 0 || hasReadyAttachment);
 
     function handleWelcomeSend(flow: AdoptionFlow, intent: ExplorerIntent = '') {
       if (!canSend) return;
@@ -535,7 +636,7 @@ export default function AdoptionWorkspace({
 
     return (
       <div
-        className="relative flex-1 flex flex-col items-center justify-center bg-paper p-4 sm:p-8"
+        className="relative flex flex-1 flex-col items-center justify-center bg-paper p-4 sm:p-8"
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -551,16 +652,16 @@ export default function AdoptionWorkspace({
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">
             {fixedFlow === 'contributor' ? 'Contribute a Pathway' : 'Diffusion Cube'}
           </p>
-          <h1
-            className="font-display mt-4 text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl"
-          >
+          <h1 className="font-display mt-4 text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl">
             {fixedFlow === 'contributor' ? (
               <>
-                Turn your deployment into a <span className="font-serif italic text-coral">pathway</span>
+                Turn your deployment into a{' '}
+                <span className="font-serif italic text-coral">pathway</span>
               </>
             ) : (
               <>
-                What brings you to the <span className="font-serif italic text-coral">Cube</span>?
+                What brings you to the{' '}
+                <span className="font-serif italic text-coral">Cube</span>?
               </>
             )}
           </h1>
@@ -627,7 +728,9 @@ export default function AdoptionWorkspace({
               />
               {fixedFlow && (
                 <button
-                  onClick={() => handleWelcomeSend(fixedFlow, fixedFlow === 'explorer' ? 'open' : '')}
+                  onClick={() =>
+                    handleWelcomeSend(fixedFlow, fixedFlow === 'explorer' ? 'open' : '')
+                  }
                   disabled={!canSend}
                   className="rounded-xl bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
                 >
@@ -663,158 +766,178 @@ export default function AdoptionWorkspace({
     );
   }
 
+  // ── Active conversation ─────────────────────────────────────────────────────
   const flow = conversation.meta.flow;
   const intentDef = getExplorerIntent(conversation.meta.intent);
-  // Browsing the corpus or working one specific issue isn't about a
-  // deployment of the user's own, so those two intents keep the header they
-  // started with — the way back plus the intent chip — instead of naming an
-  // adoption that was never described. An Explorer row from before intents
-  // existed has no intentDef and keeps the old header.
-  const showDeploymentHeader = flow !== 'explorer' || !intentDef || intentDef.tracksDeployment;
+  const showDeploymentHeader =
+    flow !== 'explorer' || !intentDef || intentDef.tracksDeployment;
+
+  const conversationOpeningMessage: Message | null =
+    conversation.meta.flow === 'contributor'
+      ? CONTRIBUTOR_OPENING_MESSAGE
+      : conversation.meta.flow === 'explorer'
+        ? STRENGTHEN_OPENING_MESSAGE
+        : null;
+
+  const displayMessages = conversationOpeningMessage
+    ? [conversationOpeningMessage, ...conversation.messages]
+    : conversation.messages;
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden bg-paper">
-      {/* Workspace header: title, sector/geography/stage, summary, dimension chips */}
-      <div className="border-b border-navy/10 p-4">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          {flow === 'contributor' ? (
-            <BackControl onBack={onBack} />
-          ) : flow === 'explorer' && onBack ? (
-            <button type="button" onClick={onBack} className={BACK_CONTROL_CLASS}>
-              {backLabel}
-            </button>
-          ) : (
-            <span />
-          )}
-          <div className="flex flex-shrink-0 items-center gap-2">
-            <button
-              onClick={() => setFilesOpen(true)}
-              className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
-            >
-              📎 Files
-            </button>
-            <button
-              onClick={() => (flow === 'contributor' ? setContributorPanel('grid') : setGridOpen(true))}
-              className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
-            >
-              ▦ Grid
-            </button>
-            {flow === 'contributor' && (
-              contributorPanel === 'document' ? (
-                <button
-                  onClick={openContributorConversation}
-                  className="rounded-lg border border-coral/30 bg-coral-soft px-3 py-1.5 text-xs font-medium text-coral transition hover:border-coral"
-                >
-                  ← Conversation
-                </button>
-              ) : (
-                <button
-                  onClick={openContributorDocument}
-                  disabled={!pathwayDocMarkdown}
-                  className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft"
-                >
-                  View Pathway Document
-                </button>
-              )
-            )}
-            {/* Once generated, either Explorer document stays reachable for
-                the rest of the conversation — that persistence is the point
-                of storing them in design_documents rather than leaving them
-                as chat text. */}
-            {flow === 'explorer' && explorerDoc.analysis && (
-              <button
-                onClick={() => openExplorerDocument('analysis')}
-                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
-              >
-                Analysis Document
-              </button>
-            )}
-            {flow === 'explorer' && explorerDoc.summary && (
-              <button
-                onClick={() => openExplorerDocument('plan')}
-                className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
-              >
-                Executive Summary
-              </button>
-            )}
-          </div>
+    <div
+      className="relative flex flex-1 overflow-hidden bg-paper"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-4 border-dashed border-coral bg-paper/90">
+          <p className="text-sm font-medium text-ink-soft">Drop files to share them</p>
         </div>
+      )}
 
-        {flow === 'explorer' && (
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">
-            {'Analyse your own adoption'}
-          </p>
-        )}
-        {showDeploymentHeader && (
-          <>
-            <button
-              onClick={() => setHeaderExpanded((v) => !v)}
-              className="mt-0.5 flex items-center gap-1.5 text-left"
-              aria-expanded={headerExpanded}
-            >
-              <h2 className="font-display text-lg font-medium tracking-tight text-navy">
-                {conversation.meta.name || 'New adoption'}
-              </h2>
-              <span
-                className={`text-ink-soft transition-transform ${headerExpanded ? 'rotate-180' : ''}`}
-                aria-hidden
-              >
-                ▾
-              </span>
-            </button>
-            {headerExpanded && (
-              <>
-                {[conversation.meta.sector, conversation.meta.geography, conversation.meta.stage].some(Boolean) && (
-                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">
-                    {[conversation.meta.sector, conversation.meta.geography, conversation.meta.stage]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
+      {/* Split container: left column (header + chat) + right panel */}
+      <div
+        ref={containerRef}
+        className={`flex flex-1 overflow-hidden ${panelDragging ? 'cursor-col-resize select-none' : ''}`}
+      >
+        {/* ── Left column: workspace header + chat ── */}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {/* Workspace header lives inside the left column so it resizes
+              with the chat when the panel opens — keeps title aligned. */}
+          <div className="shrink-0 border-b border-navy/10 py-3">
+            <div className="mx-auto max-w-5xl px-4 sm:px-6">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                {flow === 'contributor' ? (
+                  <BackControl onBack={onBack} />
+                ) : flow === 'explorer' && onBack ? (
+                  <button type="button" onClick={onBack} className={BACK_CONTROL_CLASS}>
+                    <span aria-hidden className="transition-transform">←</span>{' '}
+                    {backLabel.replace(/^←\s*/, '')}
+                  </button>
+                ) : (
+                  <span />
                 )}
-                {conversation.meta.summary && (
-                  <p className="mt-2 max-h-24 overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-ink">
-                    {conversation.meta.summary}
-                  </p>
-                )}
-              </>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Contributor mode deliberately has one primary work surface at a
-          time. The conversation and pathway document no longer compete for
-          width; the header button switches between them. */}
-      <div className="relative flex flex-1 overflow-hidden">
-        {flow === 'contributor' && contributorPanel === 'document' ? (
-          <div className="flex min-w-0 flex-1 flex-col bg-paper">
-            <PathwayDocumentPane
-              markdown={pathwayDocMarkdown}
-              loading={pathwayDoc.loading}
-              error={pathwayDoc.error}
-              onPublish={publishPathwayDocument}
-              liveHref={pathwayDocLiveHref}
-              isPublished={pathwayDocIsPublished}
-              versions={pathwayDoc.versions}
-              selectedVersionNumber={pathwayDoc.selectedVersionNumber}
-              latestVersionNumber={pathwayDoc.versionNumber}
-              onSelectVersion={selectPathwayDocVersion}
-              onClose={openContributorConversation}
-            />
-          </div>
-        ) : flow === 'contributor' && contributorPanel === 'grid' ? (
-          <div className="min-w-0 flex-1 overflow-y-auto bg-paper p-4 sm:p-6">
-            <div className="mx-auto max-w-4xl">
-              <div className="mb-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Coverage grid</p>
-                <h2 className="mt-1 font-display text-xl font-medium text-navy">What this contribution has established</h2>
-                <p className="mt-1 text-sm text-ink-soft">Use the grid to see where the pathway is strong and where the conversation still needs evidence.</p>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => setFilesOpen(true)}
+                    className="rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral"
+                  >
+                    📎 Files
+                  </button>
+                  <button
+                    onClick={() =>
+                      rightPanel === 'grid' ? closeRightPanel() : openRightPanel('grid')
+                    }
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:border-coral hover:text-coral ${
+                      rightPanel === 'grid'
+                        ? 'border-coral bg-coral-soft text-coral'
+                        : 'border-navy/15 text-ink-soft'
+                    }`}
+                  >
+                    ▦ Grid
+                  </button>
+                  {flow === 'contributor' && (
+                    <button
+                      onClick={() =>
+                        rightPanel === 'document'
+                          ? closeRightPanel()
+                          : openRightPanel('document')
+                      }
+                      disabled={!pathwayDocMarkdown}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:border-coral hover:text-coral disabled:opacity-40 disabled:hover:border-navy/15 disabled:hover:text-ink-soft ${
+                        rightPanel === 'document'
+                          ? 'border-coral bg-coral-soft text-coral'
+                          : 'border-navy/15 text-ink-soft'
+                      }`}
+                    >
+                      View Document
+                    </button>
+                  )}
+                  {flow === 'explorer' && explorerDoc.analysis && (
+                    <button
+                      onClick={() =>
+                        rightPanel === 'analysis'
+                          ? closeRightPanel()
+                          : openRightPanel('analysis')
+                      }
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:border-coral hover:text-coral ${
+                        rightPanel === 'analysis'
+                          ? 'border-coral bg-coral-soft text-coral'
+                          : 'border-navy/15 text-ink-soft'
+                      }`}
+                    >
+                      Analysis Document
+                    </button>
+                  )}
+                  {flow === 'explorer' && explorerDoc.summary && (
+                    <button
+                      onClick={() =>
+                        rightPanel === 'summary'
+                          ? closeRightPanel()
+                          : openRightPanel('summary')
+                      }
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:border-coral hover:text-coral ${
+                        rightPanel === 'summary'
+                          ? 'border-coral bg-coral-soft text-coral'
+                          : 'border-navy/15 text-ink-soft'
+                      }`}
+                    >
+                      Executive Summary
+                    </button>
+                  )}
+                </div>
               </div>
-              <HeatmapGrid grid={conversation.grid} />
+
+              {showDeploymentHeader && (
+                <>
+                  <button
+                    onClick={() => setHeaderExpanded((v) => !v)}
+                    className="mt-0.5 flex items-center gap-1.5 text-left"
+                    aria-expanded={headerExpanded}
+                  >
+                    <h2 className="font-display text-lg font-medium tracking-tight text-navy">
+                      {conversation.meta.name || 'New adoption'}
+                    </h2>
+                    <span
+                      className={`text-ink-soft transition-transform ${headerExpanded ? 'rotate-180' : ''}`}
+                      aria-hidden
+                    >
+                      ▾
+                    </span>
+                  </button>
+                  {headerExpanded && (
+                    <>
+                      {[
+                        conversation.meta.sector,
+                        conversation.meta.geography,
+                        conversation.meta.stage,
+                      ].some(Boolean) && (
+                        <p className="mt-0.5 text-xs font-medium text-coral">
+                          {[
+                            conversation.meta.sector,
+                            conversation.meta.geography,
+                            conversation.meta.stage,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      )}
+                      {conversation.meta.summary && (
+                        <p className="mt-2 max-h-24 overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-ink">
+                          {conversation.meta.summary}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="min-w-0 flex-1">
+
+          {/* Chat — min-h-0 + flex-1 so ChatPanel's h-full resolves to remaining space after header */}
+          <div className="min-h-0 flex-1 overflow-hidden">
             <ChatPanel
               messages={displayMessages}
               onSend={handleUserSend}
@@ -823,16 +946,31 @@ export default function AdoptionWorkspace({
               pendingAttachments={pendingAttachments}
               loading={loading}
               placeholder="Ask, share, or think out loud…"
-              onOpenPathwayDocument={flow === 'contributor' ? openContributorDocument : undefined}
-              onOpenExplorerDocument={flow === 'explorer' ? openExplorerDocument : undefined}
+              onOpenPathwayDocument={
+                flow === 'contributor' ? () => openRightPanel('document') : undefined
+              }
+              onOpenExplorerDocument={
+                flow === 'explorer'
+                  ? (type: DocType) => {
+                      openExplorerDocument(type);
+                      setRightPanel(type === 'analysis' ? 'analysis' : 'summary');
+                    }
+                  : undefined
+              }
               pathwayLookup={pathwayLookup}
               hideAccuracyDisclaimer={flow === 'contributor'}
             />
           </div>
-        )}
+        </div>
+
+        {/* ── Right panel (full height, resizable) ── */}
+        {renderRightPanel(conversation.grid)}
 
         {filesOpen && (
-          <div className="fixed inset-0 z-40 flex items-end bg-navy/40 p-0 md:items-center md:justify-center md:p-4" onClick={() => setFilesOpen(false)}>
+          <div
+            className="fixed inset-0 z-40 flex items-end bg-navy/40 p-0 md:items-center md:justify-center md:p-4"
+            onClick={() => setFilesOpen(false)}
+          >
             <div
               className="max-h-[70vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-4 md:max-w-md md:rounded-2xl md:shadow-xl"
               onClick={(e) => e.stopPropagation()}
@@ -855,52 +993,7 @@ export default function AdoptionWorkspace({
             </div>
           </div>
         )}
-
-        {/* Project status is opened on demand so the grid and its explanatory
-            content never compete with the conversation or document pane. */}
-        {flow !== 'contributor' && gridOpen && (
-          <div
-            className="fixed inset-0 z-40 flex items-center justify-center bg-navy/40 p-4"
-            onClick={() => setGridOpen(false)}
-          >
-            <div
-              className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-paper p-4 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-coral">Project status</p>
-                  <p className="mt-1 text-xs text-ink-soft">Coverage across the four dimensions and stages.</p>
-                </div>
-                <button
-                  onClick={() => setGridOpen(false)}
-                  aria-label="Close"
-                  className="px-1 text-lg leading-none text-ink-soft transition hover:text-navy"
-                >
-                  ×
-                </button>
-              </div>
-              <HeatmapGrid grid={conversation.grid} />
-            </div>
-          </div>
-        )}
       </div>
-
-      {/* The Explorer flow's stored documents. Opened automatically the
-          moment one is generated, and reopenable from the header buttons or
-          the chat card for the rest of the conversation. */}
-      {explorerDoc.open && (
-        <AdoptionPlanModal
-          title={EXPLORER_DOC_LABELS[explorerDoc.open].title}
-          markdown={explorerDocMarkdown}
-          loading={explorerDoc.generating === explorerDoc.open}
-          error={explorerDoc.error}
-          deploymentName={conversation.meta.name}
-          onClose={closeExplorerDocument}
-          filenameSuffix={EXPLORER_DOC_LABELS[explorerDoc.open].filenameSuffix}
-          loadingLabel={EXPLORER_DOC_LABELS[explorerDoc.open].loadingLabel}
-        />
-      )}
     </div>
   );
 }

@@ -9,7 +9,20 @@ export type PlanBlock =
   | { type: 'italic'; text: string }
   | { type: 'bullets'; items: string[] }
   | { type: 'numbered'; items: string[] }
-  | { type: 'paragraph'; text: string };
+  | { type: 'paragraph'; text: string }
+  | { type: 'table'; headers: string[]; rows: string[][] };
+
+function isTableRow(line: string): boolean {
+  return line.includes('|') && line.split('|').length >= 3;
+}
+
+function isTableSeparator(line: string): boolean {
+  return /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(line);
+}
+
+function splitTableRow(line: string): string[] {
+  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+}
 
 function isBlockStart(line: string): boolean {
   return (
@@ -19,7 +32,8 @@ function isBlockStart(line: string): boolean {
     line.startsWith('● ') ||
     /^\d+\.\s/.test(line) ||
     (line.startsWith('*') && line.endsWith('*') && !line.startsWith('**')) ||
-    /^([-*_])\1{2,}$/.test(line)
+    /^([-*_])\1{2,}$/.test(line) ||
+    isTableRow(line)
   );
 }
 
@@ -81,6 +95,19 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
         }
       }
       blocks.push({ type: 'numbered', items });
+      continue;
+    }
+
+    // Pipe table: header row with | separator on next line.
+    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1].trim())) {
+      const headers = splitTableRow(line);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && isTableRow(lines[i].trim())) {
+        rows.push(splitTableRow(lines[i]));
+        i++;
+      }
+      blocks.push({ type: 'table', headers, rows });
       continue;
     }
 

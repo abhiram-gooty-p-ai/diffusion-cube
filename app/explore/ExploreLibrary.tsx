@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { libraryPathways, libraryStages, type Accent, type LibraryPathway, type Stage } from '@/lib/library-pathways';
+import { libraryPathways, librarySectors, libraryStages, libraryTags, type Accent, type LibraryPathway, type Stage } from '@/lib/library-pathways';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type View = 'library' | 'chat';
@@ -52,7 +52,12 @@ export default function ExploreLibrary({
   // Explorations" link) — resolved server-side in app/explore/page.tsx.
   initialConversation?: SavedConversation | null;
 }) {
-  const [activeStage, setActiveStage] = useState<Stage | 'All'>('All');
+  const [filterStages, setFilterStages] = useState<Set<Stage>>(new Set());
+  const [filterSectors, setFilterSectors] = useState<Set<string>>(new Set());
+  const [filterTags, setFilterTags] = useState<Set<string>>(new Set());
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const filterBtnRef = useRef<HTMLButtonElement>(null);
   const [selected, setSelected] = useState<LibraryPathway | null>(
     initialConversation?.pathway_slug
       ? (libraryPathways.find((p) => p.id === initialConversation.pathway_slug) ?? null)
@@ -92,7 +97,57 @@ export default function ExploreLibrary({
     if (data) setCurrentConversationId(data.id);
   }
 
-  const filtered = activeStage === 'All' ? libraryPathways : libraryPathways.filter((p) => p.stage === activeStage);
+  const filtered = libraryPathways.filter((p) => {
+    if (filterStages.size > 0 && !filterStages.has(p.stage)) return false;
+    if (filterSectors.size > 0 && (!p.sector || !filterSectors.has(p.sector))) return false;
+    if (filterTags.size > 0 && !p.tags.some((t) => filterTags.has(t))) return false;
+    return true;
+  });
+
+  const activeFilterCount = filterStages.size + filterSectors.size + filterTags.size;
+
+  function toggleStage(stage: Stage) {
+    setFilterStages((prev) => {
+      const next = new Set(prev);
+      next.has(stage) ? next.delete(stage) : next.add(stage);
+      return next;
+    });
+  }
+  function toggleSector(sector: string) {
+    setFilterSectors((prev) => {
+      const next = new Set(prev);
+      next.has(sector) ? next.delete(sector) : next.add(sector);
+      return next;
+    });
+  }
+  function toggleTag(tag: string) {
+    setFilterTags((prev) => {
+      const next = new Set(prev);
+      next.has(tag) ? next.delete(tag) : next.add(tag);
+      return next;
+    });
+  }
+  function clearFilters() {
+    setFilterStages(new Set());
+    setFilterSectors(new Set());
+    setFilterTags(new Set());
+  }
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (
+        popoverOpen &&
+        popoverRef.current &&
+        filterBtnRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        !filterBtnRef.current.contains(e.target as Node)
+      ) {
+        setPopoverOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [popoverOpen]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -233,11 +288,131 @@ export default function ExploreLibrary({
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-coral">Browse the library</p>
 
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          <FilterChip label="All" active={activeStage === 'All'} onClick={() => setActiveStage('All')} />
-          {libraryStages.map((stage) => (
-            <FilterChip key={stage} label={stage} active={activeStage === stage} onClick={() => setActiveStage(stage)} />
-          ))}
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <button
+                ref={filterBtnRef}
+                type="button"
+                onClick={() => setPopoverOpen((o) => !o)}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                  activeFilterCount > 0
+                    ? 'border-navy bg-navy text-paper'
+                    : 'border-navy/15 bg-white text-navy hover:border-navy/40'
+                }`}
+              >
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M1 3h13M3 7.5h9M5.5 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-coral text-[10px] font-semibold text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {popoverOpen && (
+                <div
+                  ref={popoverRef}
+                  className="absolute left-0 top-[calc(100%+8px)] z-20 w-72 rounded-2xl border border-navy/10 bg-white p-4 shadow-lg"
+                >
+                  <div className="mb-3">
+                    <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">Stage</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {libraryStages.map((stage) => (
+                        <button
+                          key={stage}
+                          type="button"
+                          onClick={() => toggleStage(stage)}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                            filterStages.has(stage)
+                              ? 'border-navy bg-navy text-paper'
+                              : 'border-navy/15 bg-white text-navy hover:border-navy/40'
+                          }`}
+                        >
+                          {stage}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="my-3 border-t border-navy/8" />
+
+                  <div className="mb-3">
+                    <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">Sector</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {librarySectors.map((sector) => (
+                        <button
+                          key={sector}
+                          type="button"
+                          onClick={() => toggleSector(sector)}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                            filterSectors.has(sector)
+                              ? 'border-navy bg-navy text-paper'
+                              : 'border-navy/15 bg-white text-navy hover:border-navy/40'
+                          }`}
+                        >
+                          {sector}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="my-3 border-t border-navy/8" />
+
+                  <div>
+                    <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">Tags</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {libraryTags.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                            filterTags.has(tag)
+                              ? 'border-navy bg-navy text-paper'
+                              : 'border-navy/15 bg-white text-navy hover:border-navy/40'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {activeFilterCount > 0 && (
+                    <div className="mt-4 flex items-center justify-between border-t border-navy/8 pt-3">
+                      <button
+                        type="button"
+                        onClick={clearFilters}
+                        className="text-xs text-ink-soft transition hover:text-coral"
+                      >
+                        Clear all
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPopoverOpen(false)}
+                        className="rounded-full bg-navy px-3 py-1 text-xs font-medium text-paper transition hover:bg-coral"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {[...filterStages].map((s) => (
+              <ActiveFilterChip key={s} label={s} onRemove={() => toggleStage(s)} />
+            ))}
+            {[...filterSectors].map((s) => (
+              <ActiveFilterChip key={s} label={s} onRemove={() => toggleSector(s)} />
+            ))}
+            {[...filterTags].map((t) => (
+              <ActiveFilterChip key={t} label={t} onRemove={() => toggleTag(t)} />
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -326,7 +501,7 @@ function ChatView({
   return (
     <div className="animate-fade-in-up flex flex-1 flex-col overflow-hidden bg-paper">
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 pt-6">
+        <div className="mx-auto max-w-5xl px-6 pt-6">
           <button
             type="button"
             onClick={onBack}
@@ -365,7 +540,7 @@ function ChatView({
           )}
         </div>
 
-        <div className="mx-auto flex max-w-3xl flex-col gap-6 px-6 pb-8">
+        <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 pb-8">
           {messages.map((m, i) => (
             <div
               key={i}
@@ -392,7 +567,7 @@ function ChatView({
             e.preventDefault();
             onSend(draft);
           }}
-          className="mx-auto flex max-w-3xl items-end gap-3 rounded-2xl border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral"
+          className="mx-auto flex max-w-5xl items-end gap-3 rounded-2xl border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral"
         >
           <ComposerTextarea
             value={draft}
@@ -513,15 +688,18 @@ function SendButton({ disabled, size = 'md' }: { disabled: boolean; size?: 'md' 
   );
 }
 
-function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function ActiveFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${active ? 'border-navy bg-navy text-paper' : 'border-navy/15 bg-white text-navy hover:border-navy/40'
-        }`}
-    >
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-navy/12 bg-navy/6 px-3 py-1.5 text-sm font-medium text-navy">
       {label}
-    </button>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${label} filter`}
+        className="leading-none text-navy/40 transition hover:text-coral"
+      >
+        ×
+      </button>
+    </span>
   );
 }

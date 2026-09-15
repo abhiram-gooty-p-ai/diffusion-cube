@@ -203,8 +203,11 @@ function ContributeGridContent() {
       <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
-          <h1 className="font-display text-2xl font-medium tracking-tight text-navy">Share your learnings.</h1>
-          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-coral">Contribute</p>
+          <h1 className="mt-4 font-display text-3xl font-medium leading-[1.15] tracking-tight text-navy sm:text-4xl">
+            Share your <span className="font-serif italic text-coral">learnings.</span>
+          </h1>
+          <p className="mt-4 text-base leading-relaxed text-ink-soft">
             The Cube turns your adoption journey — the decisions, the frictions, what worked — into a pathway others
             can learn from.
           </p>

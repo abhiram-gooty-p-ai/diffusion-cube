@@ -451,7 +451,8 @@ export default function ChatPanel({
 
   return (
     <div className="flex flex-col h-full bg-paper">
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5 sm:px-6">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6 sm:px-6">
+        <div className="mx-auto max-w-5xl space-y-5">
         {messages.map((m, i) => {
           // Strip the legacy per-message grid marker here, once, so it never
           // surfaces as literal text down either render path below — the
@@ -508,10 +509,10 @@ export default function ChatPanel({
               className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`${isRich || m.generatingDoc ? 'w-full' : 'max-w-[75%]'} rounded-xl px-4 py-2.5 text-base leading-relaxed whitespace-pre-wrap ${
+                className={`${isRich || m.generatingDoc ? 'w-full' : 'max-w-[80%]'} rounded-2xl px-5 py-3 text-[15px] leading-relaxed whitespace-pre-wrap ${
                   m.role === 'user'
-                    ? 'bg-navy text-white'
-                    : 'bg-white text-ink border border-navy/10'
+                    ? 'bg-coral text-white'
+                    : 'bg-paper-dim text-ink'
                 }`}
               >
                 {m.generatingDoc ? (
@@ -541,15 +542,16 @@ export default function ChatPanel({
         })}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-white text-ink-soft border border-navy/10 rounded-xl px-4 py-2.5 text-base animate-pulse">
+            <div className="bg-paper-dim text-ink-soft rounded-2xl px-5 py-3 text-[15px] animate-pulse">
               Thinking…
             </div>
           </div>
         )}
         <div ref={bottomRef} />
+        </div>
       </div>
 
-      <div className="border-t border-navy/10 p-4 sm:px-6">
+      <div className="shrink-0 border-t border-navy/10 bg-paper/90 px-4 py-4 backdrop-blur-sm sm:px-6">
         {pendingAttachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {pendingAttachments.map((a) => (
@@ -576,6 +578,7 @@ export default function ChatPanel({
             ))}
           </div>
         )}
+        <div className="mx-auto max-w-5xl">
         <div className="flex items-end gap-3 rounded-2xl border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral">
           {onAttachFiles && (
             <>
@@ -600,7 +603,7 @@ export default function ChatPanel({
           )}
           <textarea
             ref={textareaRef}
-            className="flex-1 resize-none bg-transparent px-2 py-2.5 text-base text-ink outline-none placeholder-ink-soft overflow-y-auto"
+            className="flex-1 resize-none bg-transparent px-4 py-2.5 text-[15px] text-ink outline-none placeholder-ink-soft overflow-y-auto"
             style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -628,6 +631,7 @@ export default function ChatPanel({
         <p className="mt-2 text-center text-xs text-ink-soft">
           Cube can make mistakes. Verify important information.
         </p>
+        </div>
       </div>
 
       {sourcePopup && (

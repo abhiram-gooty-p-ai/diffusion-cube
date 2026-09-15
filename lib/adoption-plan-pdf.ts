@@ -98,6 +98,42 @@ export function downloadPlanAsPdf(markdown: string, filename: string) {
         });
         y += 6;
         break;
+      case 'table': {
+        y += 6;
+        const colCount = block.headers.length;
+        if (colCount === 0) break;
+        const colWidth = Math.floor(maxWidth / colCount);
+
+        // Header row
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        ensureSpace(14);
+        block.headers.forEach((h, ci) => {
+          // Truncate so text stays inside its column
+          const txt = flatten(h).slice(0, Math.floor(colWidth / 5));
+          doc.text(txt, marginX + ci * colWidth, y);
+        });
+        y += 4;
+        // Thin rule under headers
+        doc.setDrawColor(180, 180, 180);
+        doc.setLineWidth(0.3);
+        doc.line(marginX, y, marginX + maxWidth, y);
+        y += 8;
+
+        // Data rows
+        doc.setFont('helvetica', 'normal');
+        for (const row of block.rows) {
+          ensureSpace(13);
+          row.forEach((cell, ci) => {
+            const txt = flatten(cell).slice(0, Math.floor(colWidth / 5));
+            doc.text(txt, marginX + ci * colWidth, y);
+          });
+          y += 13;
+        }
+        y += 6;
+        break;
+      }
     }
   }
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import WikiMarkdown from '@/components/WikiMarkdown';
 import type { VersionOption } from '@/components/AdoptionPlanModal';
+import { downloadPlanAsPdf } from '@/lib/adoption-plan-pdf';
 
 interface Props {
   markdown: string;
@@ -11,22 +12,14 @@ interface Props {
   error: string | null;
   onClose: () => void;
   onPublish: (commitMessage: string) => Promise<{ ok: boolean; slug?: string; error?: string }>;
-  // Where the pathway's live document can be viewed, if it's been published
-  // at least once — null if nothing has ever gone live for this pathway.
   liveHref: string | null;
-  // Whether the markdown CURRENTLY SHOWN matches what's actually live —
-  // false whenever there are edits (a new generate/revise, or an older
-  // version picked from the dropdown) that haven't been published, even if
-  // this pathway has been published before. Drives the Draft/Published label
-  // — "published" means this exact content is live, not just "has this ever
-  // been published."
   isPublished: boolean;
-  // Full version history, newest first — hidden when there's one or none.
   versions: VersionOption[];
-  // null means "the latest" — see PathwayDocState.selectedVersionNumber.
   selectedVersionNumber: number | null;
   latestVersionNumber: number;
   onSelectVersion: (versionNumber: number) => void;
+  // Optional name used as the PDF filename prefix.
+  deploymentName?: string;
 }
 
 // A persistent side panel next to the chat — read-only preview, a version
@@ -47,9 +40,15 @@ export default function PathwayDocumentPane({
   selectedVersionNumber,
   latestVersionNumber,
   onSelectVersion,
+  deploymentName,
 }: Props) {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+
+  function handleDownloadPdf() {
+    const safeName = (deploymentName || 'pathway').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    downloadPlanAsPdf(markdown, `${safeName}-pathway.pdf`);
+  }
 
   async function handlePublish() {
     setPublishing(true);
@@ -116,7 +115,15 @@ export default function PathwayDocumentPane({
             <p className="mr-auto text-xs text-ink-soft">
               Viewing v0.{selectedVersionNumber} — publishing always uses the latest version.
             </p>
-          ) : (
+          ) : null}
+          <button
+            onClick={handleDownloadPdf}
+            disabled={loading}
+            className="flex-shrink-0 rounded-lg border border-navy/15 px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-coral hover:text-coral disabled:opacity-40"
+          >
+            Download PDF
+          </button>
+          {(selectedVersionNumber === null || selectedVersionNumber === latestVersionNumber) && (
             <button
               onClick={handlePublish}
               disabled={publishing || loading}

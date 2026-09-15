@@ -79,6 +79,7 @@ function StrengthenWorkspaceContent() {
       key={`analyse-${sessionKey}`}
       initial={initial}
       fixedFlow="explorer"
+      onBack={() => router.push('/analyse')}
       onCreated={(c) => {
         // Stamp the in-session ID immediately so the URL change below
         // doesn't trigger a re-fetch or remount of the running workspace.
