@@ -680,7 +680,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         ? `Here's my analysis of your adoption — open it to see the full picture.`
         : `Your analysis document is ready — it pulls together what we've covered so far.`;
       const followup = opts.isFirstGeneration
-        ? `\n\nWant to work on any of the specific gaps it surfaces, or see relevant learnings from other adoptions?`
+        ? `\n\nWould you like to work on any of the specific gaps it surfaces, or see relevant learnings from other adoptions?`
         : '';
       content = `${intro}\n\n${ANALYSIS_DOC_MARKER}${followup}`;
     } else {
