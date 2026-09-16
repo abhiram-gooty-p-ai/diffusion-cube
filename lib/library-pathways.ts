@@ -101,6 +101,17 @@ export const libraryPathways: LibraryPathway[] = [
     hook: "EkStep gave away Voice AI for free. Most organizations still didn't build anything. Here's why.",
     tags: ['Voice AI', 'Organizational Readiness'],
   },
+  {
+    id: 'african-voice-ai',
+    title: 'African Voice AI — Offline-First Voice for Kenya',
+    location: 'Kenya',
+    category: 'Voice AI · Agriculture',
+    stage: 'Pilot',
+    accent: 'blue',
+    hook: "	Adapting an India-built voice-AI stack (Voicera Africa) for offline-first agricultural advisory in Kenya.",
+    tags: ['Voice AI', 'Agriculture', 'Africa'],
+  },
+  
 ];
 
 export const libraryStages: Stage[] = ['Explore', 'Define', 'Pilot', 'Scale'];
