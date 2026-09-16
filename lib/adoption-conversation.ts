@@ -667,12 +667,25 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
 
   // Appends one client-constructed (never model-authored) assistant message
   // carrying the marker that renders a card reopening the stored document —
-  // the Explorer equivalent of appendPathwayDocMessage above.
-  function appendExplorerDocMessage(docType: DocType) {
-    const content =
-      docType === 'analysis'
-        ? `Your analysis document is ready — it pulls together what we've covered so far.\n\n${ANALYSIS_DOC_MARKER}`
-        : `Here's the executive summary. It's the shorter companion piece — your analysis document is still the fuller picture.\n\n${EXEC_SUMMARY_MARKER}`;
+  // the Explorer equivalent of appendPathwayDocMessage above. The first-
+  // generation variant (typically the upload-triggered auto-analysis — see
+  // the "On document uploads" rule in lib/explorer-intents.ts) frames the doc
+  // as "here's my analysis" and asks the follow-up question that steers what
+  // the user works on next; a later regeneration keeps the terser line since
+  // the follow-up would feel repetitive.
+  function appendExplorerDocMessage(docType: DocType, opts: { isFirstGeneration: boolean } = { isFirstGeneration: false }) {
+    let content: string;
+    if (docType === 'analysis') {
+      const intro = opts.isFirstGeneration
+        ? `Here's my analysis of your adoption — open it to see the full picture.`
+        : `Your analysis document is ready — it pulls together what we've covered so far.`;
+      const followup = opts.isFirstGeneration
+        ? `\n\nWant to work on any of the specific gaps it surfaces, or see relevant learnings from other adoptions?`
+        : '';
+      content = `${intro}\n\n${ANALYSIS_DOC_MARKER}${followup}`;
+    } else {
+      content = `Here's the executive summary. It's the shorter companion piece — your analysis document is still the fuller picture.\n\n${EXEC_SUMMARY_MARKER}`;
+    }
 
     update((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', content }] }));
     if (conversationRef.current) void persist(conversationRef.current);
@@ -688,12 +701,21 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       action.type === 'analysis' ? 'analysis' : action.type === 'executive-summary' ? 'plan' : null;
     if (!docType) return;
 
-    // Opened first, not last, so the modal carries the generation's own
-    // loading state and surfaces a failure instead of it disappearing into
-    // explorerDoc.error with nothing rendering it.
-    openExplorerDocument(docType);
+    // A first-time generation (no prior row in explorerDoc for this docType)
+    // gets the "here's my analysis" framing plus the "gaps vs learnings"
+    // follow-up in the client card; a regeneration keeps the terser line. See
+    // appendExplorerDocMessage.
+    const stateKey = docType === 'analysis' ? 'analysis' : 'summary';
+    const isFirstGeneration = !explorerDocRef.current[stateKey];
+
+    // No auto-open — matches the Contributor pathway pane, which stays closed
+    // until the user clicks its chat card. The chat's own "Thinking…"
+    // indicator already covers the generation wait, and auto-popping a modal
+    // on a turn the user didn't explicitly ask for one is more disruptive
+    // than useful. A generation failure surfaces via explorerDoc.error the
+    // next time the user opens the modal from the card.
     const row = await generateExplorerDocument(docType);
-    if (row) appendExplorerDocMessage(docType);
+    if (row) appendExplorerDocMessage(docType, { isFirstGeneration });
   }
 
   // Reacts to the Contributor companion's pathwayAction — see

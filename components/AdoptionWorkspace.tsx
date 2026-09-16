@@ -571,6 +571,7 @@ export default function AdoptionWorkspace({
                 onRemoveAttachment={removeAttachment}
                 pendingAttachments={pendingAttachments}
                 loading={loading}
+                generatingDoc={pathwayDoc.loading || explorerDoc.generating !== null}
                 placeholder="Ask, share, or think out loud…"
                 pathwayLookup={pathwayLookup}
                 hideAccuracyDisclaimer
@@ -945,6 +946,7 @@ export default function AdoptionWorkspace({
               onRemoveAttachment={removeAttachment}
               pendingAttachments={pendingAttachments}
               loading={loading}
+              generatingDoc={pathwayDoc.loading || explorerDoc.generating !== null}
               placeholder="Ask, share, or think out loud…"
               onOpenPathwayDocument={
                 flow === 'contributor' ? () => openRightPanel('document') : undefined

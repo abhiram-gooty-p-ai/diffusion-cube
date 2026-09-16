@@ -355,6 +355,11 @@ interface Props {
   // the composer — the visual cue that something was actually staged.
   pendingAttachments?: PendingAttachment[];
   loading: boolean;
+  // When true, the loading indicator says "Generating document…" instead of
+  // "Thinking…" — set by the parent while a pathway draft or explorer
+  // document generation is in flight (both take noticeably longer than a
+  // normal chat turn, so the more specific label is worth showing).
+  generatingDoc?: boolean;
   placeholder?: string;
   // Only needed by Contributor-flow callers, to render a PathwayDocCard
   // wherever a message contains PATHWAY_DOC_MARKER — Explorer callers omit
@@ -397,6 +402,7 @@ export default function ChatPanel({
   onSend,
   pendingAttachments = [],
   loading,
+  generatingDoc = false,
   placeholder,
   onOpenPathwayDocument,
   onOpenExplorerDocument,
@@ -543,7 +549,7 @@ export default function ChatPanel({
         {loading && (
           <div className="flex justify-start">
             <div className="bg-paper-dim text-ink-soft rounded-2xl px-5 py-3 text-[15px] animate-pulse">
-              Thinking…
+              {generatingDoc ? 'Generating document…' : 'Thinking…'}
             </div>
           </div>
         )}
