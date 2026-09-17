@@ -585,10 +585,17 @@ function ChatView({
   );
 }
 
-/** Renders **bold** markers as <strong> — the only inline markdown supported here. */
+/** Renders the small markdown subset used by library replies: bold and links. */
 function renderBold(text: string) {
-  const segments = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
-  return segments.map((segment, i) =>
+  const segments = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^)]+\))/g).filter(Boolean);
+  return segments.map((segment, i) => {
+    const link = segment.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
+    if (link) return (
+      <a key={i} href={link[2]} target="_blank" rel="noopener noreferrer" className="text-coral underline decoration-coral/40 underline-offset-2 hover:decoration-coral">
+        {link[1]}
+      </a>
+    );
+    return (
     segment.startsWith('**') && segment.endsWith('**') ? (
       <strong key={i} className="font-semibold">
         {segment.slice(2, -2)}
@@ -596,7 +603,8 @@ function renderBold(text: string) {
     ) : (
       <span key={i}>{segment}</span>
     )
-  );
+    );
+  });
 }
 
 function MessageText({ content }: { content: string }) {
