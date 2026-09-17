@@ -43,7 +43,10 @@ export function adopterPrefix(user: { id: string; name?: string | null; email?: 
   const displayName = user.name?.trim() || user.email?.split('@')[0] || 'adopter';
   // The readable name satisfies the folder requirement; the immutable user ID
   // prevents a renamed or duplicate adopter from sharing a namespace.
-  return `${folderPart(displayName)}-${user.id}`;
+  // Keep all app-managed objects under adopters/ — this is the prefix the
+  // dedicated IAM policy is intentionally limited to. The readable hierarchy
+  // below it remains Owner / Adoption / resources.
+  return `adopters/${folderPart(displayName)}-${user.id}`;
 }
 
 export function adoptionResourcePrefix(prefix: string, adoptionName: string, designId: string): string {
