@@ -4,6 +4,7 @@ import { useState } from 'react';
 import WikiMarkdown from '@/components/WikiMarkdown';
 import type { VersionOption } from '@/components/AdoptionPlanModal';
 import { downloadPlanAsPdf } from '@/lib/adoption-plan-pdf';
+import { stripFrontmatter } from '@/lib/strip-frontmatter';
 
 interface Props {
   markdown: string;
@@ -99,7 +100,7 @@ export default function PathwayDocumentPane({
       <div className="flex-1 overflow-y-auto p-6">
         {error && <p className="text-sm text-coral">{error}</p>}
         {!error && !markdown && loading && <p className="animate-pulse text-sm text-ink-soft">Drafting your pathway page…</p>}
-        {!error && markdown && <WikiMarkdown markdown={markdown.replace(/^---\n[\s\S]*?\n---\n?/, '')} />}
+        {!error && markdown && <WikiMarkdown markdown={stripFrontmatter(markdown)} />}
       </div>
 
       {!error && markdown && (

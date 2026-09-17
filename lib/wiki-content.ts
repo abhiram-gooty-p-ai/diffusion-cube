@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { createClient } from '@/lib/supabase/server';
+import { stripFrontmatter } from '@/lib/strip-frontmatter';
 
 // Reads the same in-repo corpus lib/wiki-loader.ts injects into prompts, but
 // for on-demand browsing in the app UI — separate concerns: wiki-loader.ts
@@ -134,9 +135,6 @@ function stripProvenanceAppendix(markdown: string): string {
   return markdown.slice(0, match.index).trim();
 }
 
-function stripFrontmatter(markdown: string): string {
-  return markdown.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
-}
 
 export interface WikiPathwayContent {
   title: string;
