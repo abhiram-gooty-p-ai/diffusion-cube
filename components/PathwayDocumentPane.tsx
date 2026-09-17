@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import WikiMarkdown from '@/components/WikiMarkdown';
+import PathwayFrontmatterBlock from '@/components/PathwayFrontmatterBlock';
 import type { VersionOption } from '@/components/AdoptionPlanModal';
 import { downloadPlanAsPdf } from '@/lib/adoption-plan-pdf';
-import { stripFrontmatter } from '@/lib/strip-frontmatter';
+import { stripFrontmatter, parseFrontmatter } from '@/lib/strip-frontmatter';
 
 interface Props {
   markdown: string;
@@ -44,6 +45,7 @@ export default function PathwayDocumentPane({
 }: Props) {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const fm = markdown ? parseFrontmatter(markdown) : null;
 
   function handleDownloadPdf() {
     const safeName = (deploymentName || 'pathway').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
@@ -100,7 +102,12 @@ export default function PathwayDocumentPane({
       <div className="flex-1 overflow-y-auto p-6">
         {error && <p className="text-sm text-coral">{error}</p>}
         {!error && !markdown && loading && <p className="animate-pulse text-sm text-ink-soft">Drafting your pathway page…</p>}
-        {!error && markdown && <WikiMarkdown markdown={stripFrontmatter(markdown)} />}
+        {!error && markdown && (
+          <>
+            {fm && <PathwayFrontmatterBlock fm={fm} />}
+            <WikiMarkdown markdown={stripFrontmatter(markdown)} />
+          </>
+        )}
       </div>
 
       {!error && markdown && (

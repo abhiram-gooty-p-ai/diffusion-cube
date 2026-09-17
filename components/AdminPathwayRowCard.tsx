@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import WikiMarkdown from '@/components/WikiMarkdown';
+import PathwayFrontmatterBlock from '@/components/PathwayFrontmatterBlock';
 import { createClient } from '@/lib/supabase/client';
-import { stripFrontmatter } from '@/lib/strip-frontmatter';
+import { stripFrontmatter, parseFrontmatter } from '@/lib/strip-frontmatter';
 import type { AdminPathwayRow } from '@/components/AdminPathwaysPanel';
 
 interface Props {
@@ -102,9 +103,15 @@ export default function AdminPathwayRowCard({ row, isPending, onPublish, onRemov
           {!docLoading && !docContent && (
             <p className="text-sm text-ink-soft italic">No assembled document yet.</p>
           )}
-          {!docLoading && docContent && (
-            <WikiMarkdown markdown={stripFrontmatter(docContent)} />
-          )}
+          {!docLoading && docContent && (() => {
+            const fm = parseFrontmatter(docContent);
+            return (
+              <>
+                {fm && <PathwayFrontmatterBlock fm={fm} />}
+                <WikiMarkdown markdown={stripFrontmatter(docContent)} />
+              </>
+            );
+          })()}
         </div>
       )}
     </div>
