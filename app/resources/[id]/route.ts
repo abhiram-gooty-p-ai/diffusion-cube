@@ -14,14 +14,19 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const admin = createAdminClient();
   const { data: resource } = await admin
     .from('pathway_resources')
-    .select('title, external_url, adoption_files(object_key, file_name, content_type)')
+    .select('title, external_url, object_key, content_type, adoption_files(object_key, file_name, content_type)')
     .eq('id', id)
     .eq('visibility', 'published')
     .maybeSingle();
   if (!resource) return NextResponse.json({ error: 'Resource not found.' }, { status: 404 });
   if (resource.external_url) return NextResponse.redirect(resource.external_url, 302);
 
-  const file = resource.adoption_files as unknown as { object_key: string; file_name: string; content_type: string } | null;
+  const attachedFile = resource.adoption_files as unknown as { object_key: string; file_name: string; content_type: string } | null;
+  const file = attachedFile ?? (resource.object_key ? {
+    object_key: resource.object_key,
+    file_name: resource.title,
+    content_type: resource.content_type || 'application/octet-stream',
+  } : null);
   const config = getS3FileConfig();
   const s3 = getS3FileClient();
   if (!file || !config || !s3) return NextResponse.json({ error: 'Resource is temporarily unavailable.' }, { status: 503 });
