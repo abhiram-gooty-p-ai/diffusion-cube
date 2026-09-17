@@ -386,6 +386,9 @@ interface Props {
   // Lets the composer's own attachment chips (above) be dismissed inline —
   // omit to render the chips without a remove control.
   onRemoveAttachment?: (id: string) => void;
+  // Contributor uploads are an explicit publishing action, unlike Analyse
+  // attachments, which are only read in the current conversation.
+  attachmentHint?: string;
   // Slug → pathway info lookup for rendering source attribution below
   // assistant messages that cite pathway content. Fetched once by the parent
   // (AdoptionWorkspace) and passed down so ChatPanel stays stateless.
@@ -419,6 +422,7 @@ export default function ChatPanel({
   onOpenExplorerDocument,
   onAttachFiles,
   onRemoveAttachment,
+  attachmentHint,
   pathwayLookup,
   hideAccuracyDisclaimer,
 }: Props) {
@@ -619,6 +623,7 @@ export default function ChatPanel({
           </div>
         )}
         <div className="mx-auto max-w-5xl">
+        {attachmentHint && <p className="mb-1.5 text-xs text-ink-soft">{attachmentHint}</p>}
         <div className="flex items-end gap-3 rounded-2xl border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral">
           {onAttachFiles && (
             <>

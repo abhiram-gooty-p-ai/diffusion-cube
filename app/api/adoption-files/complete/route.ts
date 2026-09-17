@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     fileName?: string;
     contentType?: string;
     sizeBytes?: number;
+    pathwayId?: string;
   } | null;
   if (!body?.designId || !body.key || !body.fileName || typeof body.sizeBytes !== 'number' || !Number.isSafeInteger(body.sizeBytes) || body.sizeBytes < 1) {
     return NextResponse.json({ error: 'Invalid file completion request.' }, { status: 400 });
@@ -36,6 +37,13 @@ export async function POST(request: Request) {
 
   const { data: design } = await supabase.from('designs').select('id').eq('id', body.designId).maybeSingle();
   if (!design) return NextResponse.json({ error: 'Adoption workspace not found.' }, { status: 404 });
+
+  // Only a contributor's explicit, pathway-linked upload is reusable. Analyse
+  // attachments are read for the conversation but never persisted to S3.
+  if (!body.pathwayId) return NextResponse.json({ error: 'A pathway is required for reusable material.' }, { status: 400 });
+  const { data: membership } = await supabase.from('pathway_contributors')
+    .select('user_id').eq('pathway_id', body.pathwayId).eq('user_id', user.id).maybeSingle();
+  if (!membership) return NextResponse.json({ error: 'Not a contributor to this pathway.' }, { status: 403 });
 
   const name = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : null;
   const expectedPrefix = `${adopterPrefix({ id: user.id, name, email: user.email })}/adoptions/${design.id}/`;
@@ -72,6 +80,14 @@ export async function POST(request: Request) {
     .select('id, file_name, content_type, size_bytes, created_at')
     .single();
   if (error || !file) return NextResponse.json({ error: error?.message ?? 'Could not save file details.' }, { status: 500 });
+
+  const { error: resourceError } = await supabase.from('pathway_resources').insert({
+    pathway_id: body.pathwayId,
+    adoption_file_id: file.id,
+    title: file.file_name,
+    created_by: user.id,
+  });
+  if (resourceError) return NextResponse.json({ error: resourceError.message }, { status: 500 });
 
   return NextResponse.json({
     id: file.id,

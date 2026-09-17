@@ -9,12 +9,26 @@ interface Props {
   uploadedFileNames?: string[];
   onAttachFiles: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
+  resourceOnly?: boolean;
+  onAddResourceLink?: (title: string, url: string) => Promise<void>;
 }
 
-export default function AttachmentsPanel({ attachments, uploadedFiles = [], uploadedFileNames = [], onAttachFiles, onRemoveAttachment }: Props) {
+export default function AttachmentsPanel({ attachments, uploadedFiles = [], uploadedFileNames = [], onAttachFiles, onRemoveAttachment, resourceOnly = false, onAddResourceLink }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
+  const [resourceTitle, setResourceTitle] = useState('');
+  const [resourceUrl, setResourceUrl] = useState('');
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [savingLink, setSavingLink] = useState(false);
+
+  async function addLink() {
+    if (!onAddResourceLink || !resourceTitle.trim() || !resourceUrl.trim()) return;
+    setSavingLink(true); setLinkError(null);
+    try { await onAddResourceLink(resourceTitle, resourceUrl); setResourceTitle(''); setResourceUrl(''); }
+    catch (error) { setLinkError(error instanceof Error ? error.message : 'Could not add this link.'); }
+    finally { setSavingLink(false); }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -68,8 +82,20 @@ export default function AttachmentsPanel({ attachments, uploadedFiles = [], uplo
           className="hidden"
           onChange={handleFileChange}
         />
-        <p className="text-xs text-ink-soft">📎 Attach files, or drag and drop</p>
+        <p className="text-xs text-ink-soft">📎 {resourceOnly ? 'Add open-source resource files only' : 'Attach files, or drag and drop'}</p>
       </div>
+
+      {resourceOnly && <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">These files will be stored as reusable pathway resources when you send them. Do not attach private or restricted material.</p>}
+
+      {resourceOnly && onAddResourceLink && (
+        <div className="mt-4 border-t border-navy/10 pt-3">
+          <p className="text-xs font-medium text-navy">Add an open-source link</p>
+          <input value={resourceTitle} onChange={(e) => setResourceTitle(e.target.value)} placeholder="Resource title" className="mt-2 w-full rounded-lg border border-navy/15 bg-white px-2.5 py-2 text-xs outline-none focus:border-navy" />
+          <input value={resourceUrl} onChange={(e) => setResourceUrl(e.target.value)} placeholder="https://…" type="url" className="mt-2 w-full rounded-lg border border-navy/15 bg-white px-2.5 py-2 text-xs outline-none focus:border-navy" />
+          {linkError && <p className="mt-1 text-[11px] text-coral">{linkError}</p>}
+          <button type="button" onClick={addLink} disabled={savingLink || !resourceTitle.trim() || !resourceUrl.trim()} className="mt-2 rounded-lg border border-navy/15 px-2.5 py-1.5 text-xs text-ink-soft hover:border-coral hover:text-coral disabled:opacity-40">{savingLink ? 'Adding…' : 'Add link'}</button>
+        </div>
+      )}
 
       {attachments.length > 0 && (
         <div className="flex flex-col gap-1 mt-3">

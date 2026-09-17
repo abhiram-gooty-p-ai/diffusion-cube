@@ -22,8 +22,9 @@ export async function POST(request: Request) {
     fileName?: string;
     contentType?: string;
     sizeBytes?: number;
+    pathwayId?: string;
   } | null;
-  if (!body?.designId || !body.fileName || typeof body.sizeBytes !== 'number' || !Number.isSafeInteger(body.sizeBytes) || body.sizeBytes < 1) {
+  if (!body?.designId || !body.pathwayId || !body.fileName || typeof body.sizeBytes !== 'number' || !Number.isSafeInteger(body.sizeBytes) || body.sizeBytes < 1) {
     return NextResponse.json({ error: 'Invalid file upload request.' }, { status: 400 });
   }
   const sizeBytes = body.sizeBytes;
@@ -37,6 +38,9 @@ export async function POST(request: Request) {
   // RLS makes this succeed only for the caller's own adoption workspace.
   const { data: design } = await supabase.from('designs').select('id').eq('id', body.designId).maybeSingle();
   if (!design) return NextResponse.json({ error: 'Adoption workspace not found.' }, { status: 404 });
+  const { data: membership } = await supabase.from('pathway_contributors')
+    .select('user_id').eq('pathway_id', body.pathwayId).eq('user_id', user.id).maybeSingle();
+  if (!membership) return NextResponse.json({ error: 'Not a contributor to this pathway.' }, { status: 403 });
 
   const name = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : null;
   const prefix = adopterPrefix({ id: user.id, name, email: user.email });

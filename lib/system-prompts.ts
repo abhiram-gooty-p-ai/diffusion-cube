@@ -567,7 +567,8 @@ export function analysisDocSystemPrompt(
   frameworkContent: string,
   grid: GridState,
   meta: CompanionMeta,
-  generatedAt: string
+  generatedAt: string,
+  reusableResources = ''
 ): string {
   const title = meta.name || 'Untitled Adoption';
 
@@ -580,6 +581,8 @@ You are given the full conversation, the user's current 4×4 grid, and the pathw
 ${wikiContent}
 
 ${frameworkBlock(frameworkContent)}
+
+${reusableResources ? `## Reusable open-source resources\n\nUse these only where genuinely relevant. Link to them using their provided markdown URL; never invent a resource or URL.\n\n${reusableResources}` : ''}
 
 ${standingContext(grid, meta)}
 
@@ -621,7 +624,7 @@ OUTPUT FORMAT (exact structure — Sections 0–6, nothing else):
 
 ### Section 4 — Toolkits and playbooks
 
-[A table of the Section 3 Toolkit Asset and Playbook units, cross-referenced by unit number, with a one-line reuse condition. Omit the section's entries if none are established, but retain the heading and state that none have been documented yet.]
+[A table of the Section 3 Toolkit Asset and Playbook units, cross-referenced by unit number, with a one-line reuse condition. Where a supplied reusable open-source resource is directly relevant, include its markdown link here. Omit the section's entries if none are established, but retain the heading and state that none have been documented yet.]
 
 ### Section 5 — Problem→solution patterns
 
@@ -830,7 +833,7 @@ Your entire response must be the document itself (or the fallback line above) �
 // the conversation itself.
 
 // One pathway selected — grounded ONLY in that pathway's full document.
-export function libraryPathwaySystemPrompt(document: string): string {
+export function libraryPathwaySystemPrompt(document: string, reusableResources = ''): string {
   return `You are the assistant embedded in the 100 Pathways Diffusion Library. You are grounded ONLY in the pathway document below — answer using its content, and if something isn't covered in it, say so plainly rather than inventing details.
 
 If this is the first message in the conversation, open with a short, engaging 2-4 sentence overview of this pathway: what it is, who it's for, and one concrete detail or stat that makes someone want to know more. Don't just restate the description field verbatim — introduce it like someone who actually knows the work.
@@ -849,12 +852,14 @@ Always end your reply with a specific question that invites the user to go deepe
 
 PATHWAY DOCUMENT:
 ${document}
+
+${reusableResources ? `## Reusable open-source resources\n\n${reusableResources}\n\nWhen one is directly relevant, surface it as the supplied markdown link. Do not invent resource links.` : ''}
 `;
 }
 
 // No pathway selected — grounded in the library-wide overview (every
 // pathway's frontmatter title/description).
-export function libraryOverviewSystemPrompt(overview: string): string {
+export function libraryOverviewSystemPrompt(overview: string, reusableResources = ''): string {
   return `You are the assistant embedded in the 100 Pathways Diffusion Library, a collection of AI diffusion pathways. This conversation is not tied to one specific pathway yet. You are grounded ONLY in the library contents below.
 
 Help the user find what they're looking for. If their question is really about one specific pathway, name it and offer to go deeper on it. If they're asking something general about the library or the diffusion framework, answer from what's below rather than inventing details.
@@ -871,6 +876,8 @@ Always end your reply with a specific question that invites the user to go deepe
 
 LIBRARY CONTENTS (pathway id, title, description):
 ${overview}
+
+${reusableResources ? `## Reusable open-source resources\n\n${reusableResources}\n\nOffer one only when it clearly helps the visitor's question. Use the provided markdown link exactly.` : ''}
 `;
 }
 

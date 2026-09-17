@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/server';
 import { hasAnyRole, hasRole } from '@/lib/roles';
 import { EMPTY_GRID } from '@/lib/dimensions';
 import { parseGridUpdate } from '@/lib/grid-update';
+import { publishedResourcesMarkdown } from '@/lib/pathway-resources';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
   let systemPrompt: string;
   let apiMessages = messages;
   const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+  const reusableResources = await publishedResourcesMarkdown(new URL(req.url).origin);
 
   // The Library (/explore) is a fully separate entity — its own corpus
   // (content/library-wiki/pathways/), ported as-is from the standalone
@@ -88,9 +90,9 @@ export async function POST(req: Request) {
     if (typeof pathwayId === 'string' && pathwayId) {
       const document = await readLibraryPathwayDocument(pathwayId);
       if (!document) return Response.json({ error: 'Unknown pathway.' }, { status: 404 });
-      systemPrompt = libraryPathwaySystemPrompt(document);
+      systemPrompt = libraryPathwaySystemPrompt(document, reusableResources);
     } else {
-      systemPrompt = libraryOverviewSystemPrompt(await buildLibraryOverview());
+      systemPrompt = libraryOverviewSystemPrompt(await buildLibraryOverview(), reusableResources);
     }
     // Mirrors the original backend: an empty history means "just opened a
     // pathway," so the model gets a fixed kickoff turn instead — never shown
@@ -128,7 +130,7 @@ export async function POST(req: Request) {
   ]);
 
   if (mode === 'analysis-doc') {
-    systemPrompt = analysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt);
+    systemPrompt = analysisDocSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, generatedAt, reusableResources);
   } else if (mode === 'executive-summary') {
     systemPrompt = executiveSummarySystemPrompt(
       wikiContent,
@@ -169,7 +171,7 @@ export async function POST(req: Request) {
       typeof existingPublishedDoc === 'string' ? existingPublishedDoc : null
     );
   } else {
-    systemPrompt = explorerSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, resourcesContent);
+    systemPrompt = explorerSystemPrompt(wikiContent, frameworkContent, grid ?? EMPTY_GRID, meta ?? {}, [resourcesContent, reusableResources].filter(Boolean).join('\n\n'));
   }
 
   const stream = await anthropic.messages.stream({

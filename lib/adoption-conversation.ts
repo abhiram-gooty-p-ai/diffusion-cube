@@ -1014,10 +1014,10 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     }
   }
 
-  // The original file is uploaded only when the user sends it, not while it
-  // is merely staged. This preserves the existing "attach, then decide"
-  // interaction and keeps abandoned selections off S3.
-  async function storeAttachment(designId: string, attachment: StagedAttachment): Promise<StoredAttachment | null> {
+  // Only Contributor uploads are durable resources. Analyse uploads remain in
+  // the current conversation only: we must never quietly retain a user's
+  // private working material just because it helped answer a question.
+  async function storeOpenSourceResource(designId: string, pathwayId: string, attachment: StagedAttachment): Promise<StoredAttachment | null> {
     if (!attachment.file) throw new Error(`Could not read ${attachment.name} for storage.`);
 
     setPendingAttachments((attachments) =>
@@ -1033,6 +1033,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         fileName: attachment.file.name,
         contentType,
         sizeBytes: attachment.file.size,
+        pathwayId,
       }),
     });
     const presign = await presignResponse.json().catch(() => ({}));
@@ -1056,6 +1057,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         fileName: attachment.file.name,
         contentType: presign.contentType,
         sizeBytes: attachment.file.size,
+        pathwayId,
       }),
     });
     const completed = await completeResponse.json().catch(() => ({}));
@@ -1072,9 +1074,14 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       if (readyAttachments.length > 0) {
         let storedAttachments: StoredAttachment[] = [];
         try {
-          setLoading(true);
-          const stored = await Promise.all(readyAttachments.map((attachment) => storeAttachment(c.id, attachment)));
-          storedAttachments = stored.filter((attachment): attachment is StoredAttachment => attachment !== null);
+          // The Contribute UI labels this action as an open-source resource
+          // upload. Every other flow only extracts the file locally for this
+          // turn and never sends its original bytes to S3.
+          if (activeFlow === 'contributor' && c.meta.pathwayId) {
+            setLoading(true);
+            const stored = await Promise.all(readyAttachments.map((attachment) => storeOpenSourceResource(c.id, c.meta.pathwayId, attachment)));
+            storedAttachments = stored.filter((attachment): attachment is StoredAttachment => attachment !== null);
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Could not save this file.';
           const readyIds = new Set(readyAttachments.map((attachment) => attachment.id));
@@ -1183,6 +1190,16 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     setPendingAttachments((s) => s.filter((a) => a.id !== attachmentId));
   }
 
+  async function addOpenSourceResourceLink(title: string, url: string) {
+    const pathwayId = conversationRef.current?.meta.pathwayId;
+    if (!pathwayId) throw new Error('Choose a pathway before adding a resource link.');
+    const response = await fetch('/api/pathway-resources', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pathwayId, title, url }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error ?? 'Could not add this link.');
+  }
+
   return {
     conversation,
     loading,
@@ -1190,6 +1207,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     handleUserSend,
     handleAttachFiles,
     removeAttachment,
+    addOpenSourceResourceLink,
     pathwayDoc,
     pathwayPreview,
     openPathwayDocument,
