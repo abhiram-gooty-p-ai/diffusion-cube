@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EMPTY_GRID, type GridState } from '@/lib/dimensions';
-import { Message } from '@/components/ChatPanel';
+import { Message, type StoredAttachment } from '@/components/ChatPanel';
 import { createClient } from '@/lib/supabase/client';
-import { extractTextFromFile, fileToImageBlock, getFileExtension, isImageFile } from '@/lib/extract-text';
+import { extractTextFromFile, fileToImageBlock } from '@/lib/extract-text';
+import { getUploadExtension, isUploadImage, mimeTypeForUpload } from '@/lib/file-upload';
 import {
   parseGridUpdate,
   stripGridUpdate,
@@ -126,11 +127,18 @@ export function extractUploadedFileNames(messages: Message[]): string[] {
   const names: string[] = [];
   for (const m of messages) {
     if (!m.displayContent) continue;
+    const storedNames = new Set((m.attachments ?? []).map((attachment) => attachment.name));
     for (const match of m.displayContent.matchAll(UPLOAD_LINE)) {
-      names.push(match[1]);
+      // Older messages only have a display line. Newer ones have a durable
+      // file record too, which the Files panel renders as the clickable link.
+      if (!storedNames.has(match[1])) names.push(match[1]);
     }
   }
   return names;
+}
+
+export function extractUploadedFiles(messages: Message[]): StoredAttachment[] {
+  return messages.flatMap((message) => message.attachments ?? []);
 }
 
 // A staged attachment carries its extracted payload once processed, so it can
@@ -138,11 +146,12 @@ export function extractUploadedFileNames(messages: Message[]): string[] {
 export interface StagedAttachment {
   id: string;
   name: string;
-  state: 'reading' | 'ready' | 'error';
+  state: 'reading' | 'ready' | 'uploading' | 'error';
   error?: string;
   kind?: 'image' | 'text';
   text?: string;
   image?: { mediaType: string; base64: string };
+  file?: File;
 }
 
 export interface AdoptionConversation {
@@ -1005,6 +1014,55 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     }
   }
 
+  // The original file is uploaded only when the user sends it, not while it
+  // is merely staged. This preserves the existing "attach, then decide"
+  // interaction and keeps abandoned selections off S3.
+  async function storeAttachment(designId: string, attachment: StagedAttachment): Promise<StoredAttachment | null> {
+    if (!attachment.file) throw new Error(`Could not read ${attachment.name} for storage.`);
+
+    setPendingAttachments((attachments) =>
+      attachments.map((item) => (item.id === attachment.id ? { ...item, state: 'uploading', error: undefined } : item))
+    );
+
+    const contentType = mimeTypeForUpload(attachment.file.name, attachment.file.type);
+    const presignResponse = await fetch('/api/adoption-files/presign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        designId,
+        fileName: attachment.file.name,
+        contentType,
+        sizeBytes: attachment.file.size,
+      }),
+    });
+    const presign = await presignResponse.json().catch(() => ({}));
+    // Local development remains usable until the bucket variables are added.
+    // The attachment's extracted content still follows the existing chat path.
+    if (presignResponse.status === 503 && presign.code === 'STORAGE_NOT_CONFIGURED') return null;
+    if (!presignResponse.ok) throw new Error(presign.error ?? `Could not prepare ${attachment.name} for storage.`);
+
+    const form = new FormData();
+    for (const [name, value] of Object.entries(presign.upload.fields as Record<string, string>)) form.append(name, value);
+    form.append('file', attachment.file);
+    const uploadResponse = await fetch(presign.upload.url as string, { method: 'POST', body: form });
+    if (!uploadResponse.ok) throw new Error(`Could not upload ${attachment.name}.`);
+
+    const completeResponse = await fetch('/api/adoption-files/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        designId,
+        key: presign.key,
+        fileName: attachment.file.name,
+        contentType: presign.contentType,
+        sizeBytes: attachment.file.size,
+      }),
+    });
+    const completed = await completeResponse.json().catch(() => ({}));
+    if (!completeResponse.ok) throw new Error(completed.error ?? `Could not save ${attachment.name}.`);
+    return completed as StoredAttachment;
+  }
+
   const handleUserSend = useCallback(
     async (text: string, flow: AdoptionFlow = '', intent: ExplorerIntent = '') => {
       const readyAttachments = pendingAttachments.filter((a) => a.state === 'ready');
@@ -1012,6 +1070,23 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       const activeFlow = c.meta.flow;
 
       if (readyAttachments.length > 0) {
+        let storedAttachments: StoredAttachment[] = [];
+        try {
+          setLoading(true);
+          const stored = await Promise.all(readyAttachments.map((attachment) => storeAttachment(c.id, attachment)));
+          storedAttachments = stored.filter((attachment): attachment is StoredAttachment => attachment !== null);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Could not save this file.';
+          const readyIds = new Set(readyAttachments.map((attachment) => attachment.id));
+          setPendingAttachments((attachments) =>
+            attachments.map((attachment) =>
+              readyIds.has(attachment.id) ? { ...attachment, state: 'error', error: message } : attachment
+            )
+          );
+          setLoading(false);
+          return;
+        }
+
         const images = readyAttachments.filter((a) => a.kind === 'image').map((a) => a.image!);
         const textParts = readyAttachments
           .filter((a) => a.kind === 'text')
@@ -1025,7 +1100,8 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
           ...readyAttachments.map((a) => `${a.kind === 'image' ? '🖼️' : '📄'} Uploaded **${a.name}**`),
         ];
 
-        setPendingAttachments([]);
+        const sentIds = new Set(readyAttachments.map((attachment) => attachment.id));
+        setPendingAttachments((attachments) => attachments.filter((attachment) => !sentIds.has(attachment.id)));
 
         sendMessage(
           c.id,
@@ -1035,6 +1111,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
             content,
             displayContent: displayLines.join('\n'),
             images: images.length ? images : undefined,
+            attachments: storedAttachments.length ? storedAttachments : undefined,
           },
           activeFlow,
           c.grid,
@@ -1052,7 +1129,7 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
     for (const file of files) {
       const attachmentId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-      if (!getFileExtension(file.name)) {
+      if (!getUploadExtension(file.name)) {
         setPendingAttachments((s) => [
           ...s,
           {
@@ -1065,20 +1142,20 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         continue;
       }
 
-      setPendingAttachments((s) => [...s, { id: attachmentId, name: file.name, state: 'reading' }]);
+      setPendingAttachments((s) => [...s, { id: attachmentId, name: file.name, state: 'reading', file }]);
 
       (async () => {
         try {
-          if (isImageFile(file.name)) {
+          if (isUploadImage(file.name)) {
             const image = await fileToImageBlock(file);
             setPendingAttachments((s) =>
-              s.map((a) => (a.id === attachmentId ? { ...a, state: 'ready', kind: 'image', image } : a))
+              s.map((a) => (a.id === attachmentId ? { ...a, state: 'ready', kind: 'image', image, file } : a))
             );
           } else {
             const text = await extractTextFromFile(file);
             if (!text) throw new Error('No readable text found — it may be a scanned/image PDF.');
             setPendingAttachments((s) =>
-              s.map((a) => (a.id === attachmentId ? { ...a, state: 'ready', kind: 'text', text } : a))
+              s.map((a) => (a.id === attachmentId ? { ...a, state: 'ready', kind: 'text', text, file } : a))
             );
             // Only pre-seed the grid for an upload into an already-open
             // conversation. On the welcome screen (no row yet), this used to

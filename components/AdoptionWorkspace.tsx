@@ -10,6 +10,7 @@ import AdoptionPlanModal from '@/components/AdoptionPlanModal';
 import {
   AdoptionConversation,
   AdoptionFlow,
+  extractUploadedFiles,
   extractUploadedFileNames,
   useAdoptionConversation,
 } from '@/lib/adoption-conversation';
@@ -988,6 +989,7 @@ export default function AdoptionWorkspace({
               </div>
               <AttachmentsPanel
                 attachments={pendingAttachments}
+                uploadedFiles={extractUploadedFiles(conversation.messages)}
                 uploadedFileNames={extractUploadedFileNames(conversation.messages)}
                 onAttachFiles={handleAttachFiles}
                 onRemoveAttachment={removeAttachment}

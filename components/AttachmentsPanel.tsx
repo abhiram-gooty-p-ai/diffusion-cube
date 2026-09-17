@@ -1,16 +1,17 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { PendingAttachment } from '@/components/ChatPanel';
+import { PendingAttachment, StoredAttachment } from '@/components/ChatPanel';
 
 interface Props {
   attachments: PendingAttachment[];
+  uploadedFiles?: StoredAttachment[];
   uploadedFileNames?: string[];
   onAttachFiles: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
 }
 
-export default function AttachmentsPanel({ attachments, uploadedFileNames = [], onAttachFiles, onRemoveAttachment }: Props) {
+export default function AttachmentsPanel({ attachments, uploadedFiles = [], uploadedFileNames = [], onAttachFiles, onRemoveAttachment }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
@@ -82,13 +83,13 @@ export default function AttachmentsPanel({ attachments, uploadedFileNames = [], 
               }`}
             >
               <span className="truncate">
-                {a.state === 'reading' ? '⏳' : a.state === 'error' ? '⚠️' : '📎'} {a.name}
+                {a.state === 'reading' || a.state === 'uploading' ? '⏳' : a.state === 'error' ? '⚠️' : '📎'} {a.name}
                 {a.state === 'error' && a.error ? ` — ${a.error}` : ''}
               </span>
               <button
                 type="button"
                 onClick={() => onRemoveAttachment(a.id)}
-                disabled={a.state === 'reading'}
+                disabled={a.state === 'reading' || a.state === 'uploading'}
                 className="flex-shrink-0 text-ink-soft hover:text-navy disabled:opacity-30"
               >
                 ✕
@@ -98,9 +99,21 @@ export default function AttachmentsPanel({ attachments, uploadedFileNames = [], 
         </div>
       )}
 
-      {uploadedFileNames.length > 0 && (
+      {(uploadedFiles.length > 0 || uploadedFileNames.length > 0) && (
         <div className="flex flex-col gap-1 mt-3 overflow-y-auto">
           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft/70">Shared in this chat</p>
+          {uploadedFiles.map((file) => (
+            <a
+              key={file.id}
+              href={`/api/adoption-files/${file.id}/open`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-xs rounded-lg px-2.5 py-1.5 border border-navy/10 text-ink-soft bg-paper-dim transition hover:border-coral/30 hover:text-coral"
+            >
+              <span aria-hidden>↗</span>
+              <span className="truncate">{file.name}</span>
+            </a>
+          ))}
           {uploadedFileNames.map((name, i) => (
             <div
               key={`${name}-${i}`}
