@@ -32,7 +32,7 @@ The most important reusable insight runs across every section: AI quality in fou
 | Stage reached | Scale |
 | Key dates | Not documented in the source |
 | Summary | AxL continuously measures learner proficiency, diagnoses foundational gaps, and determines the next learning experience for each child — across both reading and numeracy — rather than delivering the same content to every learner. It operates across multiple languages, devices, and school environments, with a parallel teacher-facing companion that surfaces where human intervention is most valuable. |
-| Scale / impact achieved | Not documented in the source |
+| Scale / impact achieved | Rolled out across 3 states with approximately 30,000 schools (as of September 2026) |
 | Cost anchor | Not documented in the source |
 | Build effort | Not documented in the source |
 | Known downstream adopters | Not documented in the source |
@@ -219,7 +219,7 @@ Dense cells (●●●): Persona/Explore captures the excluded learner precisely
 - **Decision:** Treat government participation as a structural requirement for scale and long-term institutionalisation — not merely as a route to reach more schools. Government systems provide legitimacy, integration with existing school infrastructure, and the institutional continuity that outlasts any individual project.
 - **Alternative considered:** Scale through implementation partners and direct school relationships; engage government when the product is proven.
 - **Why:** Scaling AI personalization to thousands of schools requires integration with the systems schools already use, trust from teachers and headmasters who answer to government, and an institutional owner who will sustain the service beyond the initial deployment team. These are not available through implementation partners alone — they require government as a co-owner, not a downstream recipient.
-- **What this looked like here:** Government participation in AxL enabled scale, legitimacy, integration, and long-term institutionalisation. The distinction between government as a distribution channel and government as a structural co-owner was identified as one of the ecosystem lessons at scale.
+- **What this looked like here:** Government participation in AxL enabled scale, legitimacy, integration, and long-term institutionalisation across 3 states and approximately 30,000 schools. The distinction between government as a distribution channel and government as a structural co-owner was identified as one of the ecosystem lessons at scale.
 - **Condition — applies when:** Any public-school AI deployment aiming for coverage beyond what a single implementation partner can reach; any deployment where teacher trust, headmaster buy-in, and curriculum alignment are required. Does not transfer to private-school or direct-to-consumer models where government legitimacy is not a dependency.
 
 ---
@@ -280,4 +280,4 @@ Dense cells (●●●): Persona/Explore captures the excluded learner precisely
 | Source file | Covers | Notes |
 |---|---|---|
 | AxL AI Diffusion Pathway (2).pdf, as of September 17, 2026 | Section 1 — all fields except scale/impact, cost anchor, build effort, and downstream adopters (not documented in source); Section 3 — Units 1–12 (all); Section 4 — full table; Section 6 — full retrieval guide; Section 2 — coverage grid and all gap statements | Primary source. Contributor's own account; not independently verified. All quantitative fields (scale, cost, effort) absent from source — recorded as "Not documented in the source" throughout. |
-| Adoption Companion conversation, as of September 17, 2026 at 3:26 PM | Section 1 — stage confirmed as Scale (contributor clarification); YAML frontmatter — all fields | Contributor's own account; not independently verified. Stage field updated from source-derived inference to contributor-confirmed. YAML frontmatter added per contributor instruction. |
+| Adoption Companion conversation, as of September 17, 2026 at 3:48 PM | Section 1 — Scale/impact achieved updated to 3 states, approximately 30,000 schools; YAML frontmatter — all fields confirmed; stage confirmed as Scale | Contributor's own account; not independently verified. Scale/impact field updated from "Not documented in the source" to contributor-confirmed figure. YAML frontmatter added per contributor instruction. |
