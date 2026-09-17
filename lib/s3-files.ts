@@ -43,10 +43,15 @@ export function adopterPrefix(user: { id: string; name?: string | null; email?: 
   const displayName = user.name?.trim() || user.email?.split('@')[0] || 'adopter';
   // The readable name satisfies the folder requirement; the immutable user ID
   // prevents a renamed or duplicate adopter from sharing a namespace.
-  return `adopters/${folderPart(displayName)}-${user.id}`;
+  return `${folderPart(displayName)}-${user.id}`;
 }
 
-export function adoptionFileKey(prefix: string, designId: string, safeFileName: string): string {
-  const date = new Date().toISOString().slice(0, 10);
-  return `${prefix}/adoptions/${designId}/${date}/${crypto.randomUUID()}-${safeFileName}`;
+export function adoptionResourcePrefix(prefix: string, adoptionName: string, designId: string): string {
+  // Human-readable folders first, with immutable IDs preventing collisions:
+  // AdoptionOwnerName/adoption/resources/<file>.
+  return `${prefix}/${folderPart(adoptionName)}-${designId}/resources`;
+}
+
+export function adoptionFileKey(prefix: string, adoptionName: string, designId: string, safeFileName: string): string {
+  return `${adoptionResourcePrefix(prefix, adoptionName, designId)}/${crypto.randomUUID()}-${safeFileName}`;
 }

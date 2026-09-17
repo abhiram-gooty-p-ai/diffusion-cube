@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   }
 
   // RLS makes this succeed only for the caller's own adoption workspace.
-  const { data: design } = await supabase.from('designs').select('id').eq('id', body.designId).maybeSingle();
+  const { data: design } = await supabase.from('designs').select('id, meta').eq('id', body.designId).maybeSingle();
   if (!design) return NextResponse.json({ error: 'Adoption workspace not found.' }, { status: 404 });
   const { data: membership } = await supabase.from('pathway_contributors')
     .select('user_id').eq('pathway_id', body.pathwayId).eq('user_id', user.id).maybeSingle();
@@ -44,7 +44,10 @@ export async function POST(request: Request) {
 
   const name = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : null;
   const prefix = adopterPrefix({ id: user.id, name, email: user.email });
-  const key = adoptionFileKey(prefix, design.id, safeUploadFileName(body.fileName));
+  const adoptionName = typeof (design.meta as { name?: unknown } | null)?.name === 'string'
+    ? (design.meta as { name: string }).name
+    : 'adoption';
+  const key = adoptionFileKey(prefix, adoptionName, design.id, safeUploadFileName(body.fileName));
   const contentType = mimeTypeForUpload(body.fileName, body.contentType);
 
   const upload = await createPresignedPost(s3, {

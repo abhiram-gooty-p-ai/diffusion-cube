@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     if (typeof pathwayId === 'string' && pathwayId) {
       const document = await readLibraryPathwayDocument(pathwayId);
       if (!document) return Response.json({ error: 'Unknown pathway.' }, { status: 404 });
-      systemPrompt = libraryPathwaySystemPrompt(document, reusableResources);
+      systemPrompt = libraryPathwaySystemPrompt(document, await publishedResourcesMarkdown(new URL(req.url).origin, pathwayId));
     } else {
       systemPrompt = libraryOverviewSystemPrompt(await buildLibraryOverview(), reusableResources);
     }
