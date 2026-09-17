@@ -83,12 +83,21 @@ export async function POST(req: Request) {
   const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
   const reusableResources = await publishedResourcesMarkdown(new URL(req.url).origin);
 
-  // The Library (/explore) is a fully separate entity — its own corpus
-  // (content/library-wiki/pathways/), ported as-is from the standalone
-  // Diffusion Library app, not the shared Analyse corpus loaded below.
+  // The Library (/explore) is a fully separate entity. Static pathways live in
+  // content/library-wiki/pathways/; published pathways from the contributor
+  // flow live in published_pathways (Supabase). Both are checked — static first,
+  // DB as fallback — so cards from either source open into a grounded chat.
   if (mode === 'library') {
     if (typeof pathwayId === 'string' && pathwayId) {
-      const document = await readLibraryPathwayDocument(pathwayId);
+      let document = await readLibraryPathwayDocument(pathwayId);
+      if (!document) {
+        const { data } = await supabase
+          .from('published_pathways')
+          .select('content')
+          .eq('slug', pathwayId)
+          .maybeSingle();
+        document = data?.content ?? null;
+      }
       if (!document) return Response.json({ error: 'Unknown pathway.' }, { status: 404 });
       systemPrompt = libraryPathwaySystemPrompt(document, await publishedResourcesMarkdown(new URL(req.url).origin, pathwayId));
     } else {

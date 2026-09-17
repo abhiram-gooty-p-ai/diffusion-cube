@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import WikiMarkdown from '@/components/WikiMarkdown';
 import type { VersionOption } from '@/components/AdoptionPlanModal';
 import { downloadPlanAsPdf } from '@/lib/adoption-plan-pdf';
@@ -12,11 +11,11 @@ interface Props {
   error: string | null;
   onClose: () => void;
   onPublish: (commitMessage: string) => Promise<{ ok: boolean; slug?: string; error?: string }>;
-  liveHref: string | null;
-  isPublished: boolean;
+  status: 'draft' | 'awaiting' | 'published';
   versions: VersionOption[];
   selectedVersionNumber: number | null;
   latestVersionNumber: number;
+  publishedVersionNumber: number | null;
   onSelectVersion: (versionNumber: number) => void;
   // Optional name used as the PDF filename prefix.
   deploymentName?: string;
@@ -34,11 +33,11 @@ export default function PathwayDocumentPane({
   error,
   onClose,
   onPublish,
-  liveHref,
-  isPublished,
+  status,
   versions,
   selectedVersionNumber,
   latestVersionNumber,
+  publishedVersionNumber,
   onSelectVersion,
   deploymentName,
 }: Props) {
@@ -67,20 +66,11 @@ export default function PathwayDocumentPane({
         <div>
           <h2 className="font-display text-sm font-medium text-navy">Pathway Document</h2>
           <p className="text-xs text-ink-soft">
-            {isPublished ? 'Published' : 'Draft'}
-            {liveHref && (
-              <>
-                {' '}
-                ·{' '}
-                <Link href={liveHref} className="text-coral hover:underline">
-                  View it live →
-                </Link>
-              </>
-            )}
+            {status === 'published' ? 'Published' : status === 'awaiting' ? 'Awaiting Review' : 'Draft'}
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
-          {versions.length > 1 && (
+          {versions.length > 0 && (
             <select
               value={selectedVersionNumber ?? latestVersionNumber}
               onChange={(e) => onSelectVersion(Number(e.target.value))}
@@ -90,8 +80,12 @@ export default function PathwayDocumentPane({
               {versions.map((v) => (
                 <option key={v.version_number} value={v.version_number}>
                   v0.{v.version_number}
-                  {v.version_number === latestVersionNumber ? ' (latest)' : ''} —{' '}
-                  {new Date(v.created_at).toLocaleString()}
+                  {v.version_number === latestVersionNumber
+                    ? ' (latest)'
+                    : v.version_number === publishedVersionNumber
+                      ? ' (published)'
+                      : ''}{' '}
+                  — {new Date(v.created_at).toLocaleString()}
                 </option>
               ))}
             </select>
@@ -105,7 +99,7 @@ export default function PathwayDocumentPane({
       <div className="flex-1 overflow-y-auto p-6">
         {error && <p className="text-sm text-coral">{error}</p>}
         {!error && !markdown && loading && <p className="animate-pulse text-sm text-ink-soft">Drafting your pathway page…</p>}
-        {!error && markdown && <WikiMarkdown markdown={markdown} />}
+        {!error && markdown && <WikiMarkdown markdown={markdown.replace(/^---\n[\s\S]*?\n---\n?/, '')} />}
       </div>
 
       {!error && markdown && (
@@ -123,13 +117,13 @@ export default function PathwayDocumentPane({
           >
             Download PDF
           </button>
-          {(selectedVersionNumber === null || selectedVersionNumber === latestVersionNumber) && (
+          {status === 'draft' && (selectedVersionNumber === null || selectedVersionNumber === latestVersionNumber) && (
             <button
               onClick={handlePublish}
               disabled={publishing || loading}
               className="flex-shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-coral disabled:opacity-40"
             >
-              {publishing ? 'Publishing…' : 'Publish'}
+              {publishing ? 'Sending…' : 'Send for Review'}
             </button>
           )}
         </div>

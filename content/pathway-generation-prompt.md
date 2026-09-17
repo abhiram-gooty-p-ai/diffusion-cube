@@ -12,6 +12,21 @@ Inputs you will attach when using this prompt:
 
 ## Your task
 
+Begin every pathway document with a YAML frontmatter block, before Section 0:
+
+```
+---
+title: <pathway title — same as Section 0's pathway name>
+description: <one sentence: what this pathway enabled and for whom>
+stage: <Explore | Define | Pilot | Scale — the deployment's current stage>
+sector: <primary sector (e.g. Health, Education, Agriculture)>
+location: <city and country of the primary deployment>
+tags: [Tag1, Tag2]
+---
+```
+
+`tags` should be two to four short labels (e.g. [Community Health, Rural, Voice AI]) that describe the pathway's use-case focus — not the sector, which has its own field. Fill every field from the source material; write "Unknown" only where the source genuinely does not state it.
+
 Read the Framework first to internalize its structure — dimensions, cross-cutting concerns, stages, unit types, insight forms, and the output structure. Use it as your classification standard and your section-by-section blueprint. Do not restate or re-derive that structure here — read it fresh from the attached Framework document every time you generate a pathway, so that any future update to the Framework is picked up automatically without this prompt needing to change.
 
 Then read all raw pathway material closely. Produce a single clean pathway markdown document, following the Framework's structure exactly as its output table lays it out:

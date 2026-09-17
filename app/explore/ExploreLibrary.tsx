@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { libraryPathways, librarySectors, libraryStages, libraryTags, type Accent, type LibraryPathway, type Stage } from '@/lib/library-pathways';
+import { libraryPathways, libraryStages, type Accent, type LibraryPathway, type Stage } from '@/lib/library-pathways';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type View = 'library' | 'chat';
@@ -45,13 +45,25 @@ const accentBadge: Record<Accent, string> = {
 
 export default function ExploreLibrary({
   signedIn = false,
+  dbPathways = [],
   initialConversation = null,
 }: {
   signedIn?: boolean;
+  // Pathways fetched server-side from published_pathways — merged with the
+  // static libraryPathways list, with DB entries taking precedence by slug.
+  dbPathways?: LibraryPathway[];
   // Set when this page was opened via ?open=<id> (a sidebar "Recent
   // Explorations" link) — resolved server-side in app/explore/page.tsx.
   initialConversation?: SavedConversation | null;
 }) {
+  // DB pathways take precedence over static ones with the same slug so a
+  // re-published pathway is always the latest version.
+  const dbSlugs = new Set(dbPathways.map((p) => p.id));
+  const allPathways = [...dbPathways, ...libraryPathways.filter((p) => !dbSlugs.has(p.id))];
+
+  const allSectors = Array.from(new Set(allPathways.map((p) => p.sector).filter((s): s is string => !!s)));
+  const allTags = Array.from(new Set(allPathways.flatMap((p) => p.tags))).sort();
+
   const [filterStages, setFilterStages] = useState<Set<Stage>>(new Set());
   const [filterSectors, setFilterSectors] = useState<Set<string>>(new Set());
   const [filterTags, setFilterTags] = useState<Set<string>>(new Set());
@@ -60,7 +72,7 @@ export default function ExploreLibrary({
   const filterBtnRef = useRef<HTMLButtonElement>(null);
   const [selected, setSelected] = useState<LibraryPathway | null>(
     initialConversation?.pathway_slug
-      ? (libraryPathways.find((p) => p.id === initialConversation.pathway_slug) ?? null)
+      ? (allPathways.find((p) => p.id === initialConversation.pathway_slug) ?? null)
       : null
   );
   const [messages, setMessages] = useState<ChatMessage[]>(initialConversation?.messages ?? []);
@@ -97,7 +109,7 @@ export default function ExploreLibrary({
     if (data) setCurrentConversationId(data.id);
   }
 
-  const filtered = libraryPathways.filter((p) => {
+  const filtered = allPathways.filter((p) => {
     if (filterStages.size > 0 && !filterStages.has(p.stage)) return false;
     if (filterSectors.size > 0 && (!p.sector || !filterSectors.has(p.sector))) return false;
     if (filterTags.size > 0 && !p.tags.some((t) => filterTags.has(t))) return false;
@@ -342,7 +354,7 @@ export default function ExploreLibrary({
                   <div className="mb-3">
                     <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">Sector</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {librarySectors.map((sector) => (
+                      {allSectors.map((sector) => (
                         <button
                           key={sector}
                           type="button"
@@ -364,7 +376,7 @@ export default function ExploreLibrary({
                   <div>
                     <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.15em] text-ink-soft">Tags</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {libraryTags.map((tag) => (
+                      {allTags.map((tag) => (
                         <button
                           key={tag}
                           type="button"

@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin, type Role } from '@/lib/roles';
 import AdminDashboard, { AdminUserRow } from '@/components/AdminDashboard';
-import PathwaySubmissionsPanel, { PathwaySubmissionRow } from '@/components/PathwaySubmissionsPanel';
 import AdminPathwaysPanel, { AdminPathwayRow } from '@/components/AdminPathwaysPanel';
 import AdminContributorRegistrationsPanel, {
   AdminContributorRegistrationRow,
@@ -24,47 +23,24 @@ export default async function AdminPage() {
   const [
     { data: usersData },
     { data: rolesData },
-    { data: submissionsData },
-    { data: publishedData },
-    { data: execSummariesData },
+    { data: publishedSlugsData },
     { data: pathwaysData },
-    { data: pathwayContributorsData },
     { data: registrationsData },
   ] = await Promise.all([
       admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
       admin.from('user_roles').select('user_id, role'),
+      admin.from('published_pathways').select('slug'),
       admin
-        .from('pathway_submissions')
-        .select('id, design_id, content, status, created_at, designs(meta)')
+        .from('pathways')
+        .select('id, slug, title, sector, created_at, review_requested')
         .order('created_at', { ascending: false }),
-      admin.from('published_pathways').select('slug, source_submission_id'),
-      // Backend-only, admin-visible-only artifact — see PathwaySubmissionsPanel
-      // and lib/system-prompts.ts's pathwaySubmissionExecutiveSummarySystemPrompt.
-      // Read here via the service-role client since RLS grants contributors no
-      // select policy on this table at all (see migration 0015).
-      admin.from('pathway_submission_exec_summaries').select('submission_id, content'),
-      admin.from('pathways').select('id, slug, title, sector, created_at').order('created_at', { ascending: false }),
-      admin.from('pathway_contributors').select('pathway_id'),
       admin
         .from('contributor_registrations')
         .select('id, poc_name, poc_email, organisation_name, pathway_role, pathway_description, access_status, created_at')
         .order('created_at', { ascending: false }),
     ]);
 
-  const slugBySubmission = new Map<string, string>();
-  for (const p of publishedData ?? []) {
-    if (p.source_submission_id) slugBySubmission.set(p.source_submission_id, p.slug);
-  }
-
-  const execSummaryBySubmission = new Map<string, string>();
-  for (const s of execSummariesData ?? []) {
-    execSummaryBySubmission.set(s.submission_id, s.content);
-  }
-
-  const contributorCountByPathway = new Map<string, number>();
-  for (const c of pathwayContributorsData ?? []) {
-    contributorCountByPathway.set(c.pathway_id, (contributorCountByPathway.get(c.pathway_id) ?? 0) + 1);
-  }
+  const publishedSlugSet = new Set((publishedSlugsData ?? []).map((p) => p.slug));
 
   const registrationRows: AdminContributorRegistrationRow[] = (registrationsData ?? []).map((r) => ({
     id: r.id,
@@ -83,7 +59,8 @@ export default async function AdminPage() {
     title: p.title,
     sector: p.sector ?? '',
     created_at: p.created_at,
-    contributorCount: contributorCountByPathway.get(p.id) ?? 0,
+    reviewRequested: p.review_requested ?? false,
+    isPublished: publishedSlugSet.has(p.slug),
   }));
 
   const rolesByUser = new Map<string, Role[]>();
@@ -103,20 +80,6 @@ export default async function AdminPage() {
     }))
     .sort((a, b) => a.roles.length - b.roles.length);
 
-  const submissionRows: PathwaySubmissionRow[] = (submissionsData ?? []).map((s) => {
-    const design = s.designs as unknown as { meta?: { name?: string } } | { meta?: { name?: string } }[] | null;
-    const meta = Array.isArray(design) ? design[0]?.meta : design?.meta;
-    return {
-      id: s.id,
-      adoptionName: meta?.name ?? '',
-      content: s.content,
-      status: s.status,
-      created_at: s.created_at,
-      slug: slugBySubmission.get(s.id),
-      executiveSummary: execSummaryBySubmission.get(s.id),
-    };
-  });
-
   return (
     <div className="min-h-screen bg-paper text-ink p-4 sm:p-8">
       <div className="mx-auto max-w-6xl">
@@ -133,16 +96,9 @@ export default async function AdminPage() {
         </p>
         <AdminContributorRegistrationsPanel initialRows={registrationRows} />
 
-        <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathway Submissions</h2>
-        <p className="text-sm text-ink-soft mb-4">
-          Drafts users approved from their own adoption — review before adding any of them to the wiki.
-        </p>
-        <PathwaySubmissionsPanel initialRows={submissionRows} />
-
         <h2 className="font-display text-lg font-medium text-navy mt-10 mb-1">Pathways</h2>
         <p className="text-sm text-ink-soft mb-4">
-          Every pathway contributors can join or have joined. Delete to remove a pathway and its contribution units
-          from the database — does not touch anything already published to GitHub.
+          Review assembled pathway documents and publish them to the Explore library and Analyse corpus.
         </p>
         <AdminPathwaysPanel initialRows={pathwayRows} />
       </div>

@@ -196,6 +196,9 @@ export interface PathwayDocState {
   // own in-progress draft (content, above) always takes precedence.
   pathwayPublishedContent: string | null;
   pathwayPublishedSlug: string | null;
+  reviewRequested: boolean;
+  assembledDesignDocId: string | null;
+  publishedDesignDocId: string | null;
   paneOpen: boolean;
   loading: boolean;
   error: string | null;
@@ -236,6 +239,9 @@ export const EMPTY_PATHWAY_DOC: PathwayDocState = {
   publishedSlug: null,
   pathwayPublishedContent: null,
   pathwayPublishedSlug: null,
+  reviewRequested: false,
+  assembledDesignDocId: null,
+  publishedDesignDocId: null,
   paneOpen: false,
   loading: false,
   error: null,
@@ -374,17 +380,20 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       const supabase = createClient();
       const { data } = await supabase
         .from('pathways')
-        .select('slug, content_cache, title, sector, description')
+        .select('slug, content_cache, title, sector, description, review_requested, assembled_design_doc_id, published_design_doc_id')
         .eq('id', pid)
         .maybeSingle();
       if (!data) return;
-      if (data.content_cache) {
-        updatePathwayDoc((prev) => ({
-          ...prev,
+      updatePathwayDoc((prev) => ({
+        ...prev,
+        reviewRequested: data.review_requested ?? false,
+        assembledDesignDocId: data.assembled_design_doc_id ?? null,
+        publishedDesignDocId: data.published_design_doc_id ?? null,
+        ...(data.content_cache ? {
           pathwayPublishedContent: data.content_cache,
           pathwayPublishedSlug: data.slug,
-        }));
-      }
+        } : {}),
+      }));
       setPathwayPreview({ title: data.title ?? '', sector: data.sector ?? '', description: data.description ?? '' });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -457,10 +466,17 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
       let existingPublishedDoc: string | null = null;
       if (pathwayId) {
         const supabase = createClient();
-        const { data } = await supabase.from('pathways').select('slug, content_cache').eq('id', pathwayId).maybeSingle();
+        const { data } = await supabase.from('pathways').select('slug, content_cache, review_requested, assembled_design_doc_id, published_design_doc_id').eq('id', pathwayId).maybeSingle();
         if (data?.content_cache) {
           existingPublishedDoc = data.content_cache;
-          updatePathwayDoc((prev) => ({ ...prev, pathwayPublishedContent: data.content_cache, pathwayPublishedSlug: data.slug }));
+          updatePathwayDoc((prev) => ({
+            ...prev,
+            pathwayPublishedContent: data.content_cache,
+            pathwayPublishedSlug: data.slug,
+            reviewRequested: data.review_requested ?? false,
+            assembledDesignDocId: data.assembled_design_doc_id ?? prev.assembledDesignDocId,
+            publishedDesignDocId: data.published_design_doc_id ?? prev.publishedDesignDocId,
+          }));
         }
       }
 
@@ -547,6 +563,8 @@ export function useAdoptionConversation({ initial, pathwayId, onCreated, onChang
         publishedSlug: data.slug ?? prev.publishedSlug,
         pathwayPublishedContent: typeof data.content === 'string' ? data.content : prev.pathwayPublishedContent,
         pathwayPublishedSlug: data.slug ?? prev.pathwayPublishedSlug,
+        reviewRequested: true,
+        assembledDesignDocId: (data.assembled_design_doc_id as string | undefined) ?? prev.versions[0]?.id ?? prev.assembledDesignDocId,
       }));
       return { ok: true, slug: data.slug };
     } catch {

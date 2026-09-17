@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   // latest explicitly rather than an arbitrary row.
   const { data: draftRow } = await admin
     .from('design_documents')
-    .select('content')
+    .select('id, content')
     .eq('design_id', designId)
     .eq('doc_type', 'draft')
     .order('version_number', { ascending: false })
@@ -87,9 +87,13 @@ export async function POST(req: NextRequest) {
     await ghWriteFile(assembledPath, content, `publish pathway: ${pathway.slug}`, existing?.sha)
 
     // Best-effort — the GitHub commit already succeeded either way.
-    await admin.from('pathways').update({ content_cache: content }).eq('id', pathwayId)
+    await admin.from('pathways').update({
+      content_cache: content,
+      review_requested: true,
+      assembled_design_doc_id: draftRow.id,
+    }).eq('id', pathwayId)
 
-    return NextResponse.json({ content, slug: pathway.slug })
+    return NextResponse.json({ content, slug: pathway.slug, assembled_design_doc_id: draftRow.id })
   } catch (err) {
     console.error('[assemble] publish failed:', err)
     return NextResponse.json({ error: 'Publish failed', detail: String(err) }, { status: 500 })

@@ -200,12 +200,23 @@ export default function AdoptionWorkspace({
     '';
   const pathwayDocPublishedSlug =
     pathwayDoc.publishedSlug ?? pathwayDoc.pathwayPublishedSlug;
-  const pathwayDocIsPublished =
-    !!pathwayDoc.pathwayPublishedContent &&
-    pathwayDocMarkdown === pathwayDoc.pathwayPublishedContent;
-  const pathwayDocLiveHref = pathwayDocPublishedSlug
-    ? `/wiki/${pathwayDocPublishedSlug}?from=contribute${conversation ? `&designId=${conversation.id}` : ''}`
-    : null;
+  const isViewingLatestVersion = pathwayDoc.selectedVersionNumber === null;
+  const latestVersionId = pathwayDoc.versions[0]?.id ?? null;
+  const isLatestAssembled = latestVersionId !== null && latestVersionId === pathwayDoc.assembledDesignDocId;
+  const isViewingPublishedVersion =
+    !isViewingLatestVersion &&
+    selectedPathwayDocVersion?.id === pathwayDoc.publishedDesignDocId;
+  const pathwayDocStatus: 'draft' | 'awaiting' | 'published' = isViewingLatestVersion
+    ? (!isLatestAssembled
+        ? 'draft'
+        : pathwayDoc.reviewRequested
+          ? 'awaiting'
+          : pathwayDoc.publishedDesignDocId && pathwayDoc.publishedDesignDocId === pathwayDoc.assembledDesignDocId
+            ? 'published'
+            : 'draft')
+    : (isViewingPublishedVersion ? 'published' : 'draft');
+  const publishedVersionDoc = pathwayDoc.versions.find((v) => v.id === pathwayDoc.publishedDesignDocId);
+  const publishedVersionNumber = publishedVersionDoc?.version_number ?? null;
 
   // Which explorer doc content to show in the panel.
   const explorerDocType: DocType | null =
@@ -332,11 +343,19 @@ export default function AdoptionWorkspace({
                 loading={pathwayDoc.loading}
                 error={pathwayDoc.error}
                 onPublish={publishPathwayDocument}
-                liveHref={pathwayDocLiveHref}
-                isPublished={pathwayDocIsPublished}
-                versions={pathwayDoc.versions}
+                status={pathwayDocStatus}
+                versions={(() => {
+                  const all = pathwayDoc.versions;
+                  if (all.length === 0) return all;
+                  const latest = all[0];
+                  if (!pathwayDoc.publishedDesignDocId) return [latest];
+                  const published = all.find((v) => v.id === pathwayDoc.publishedDesignDocId);
+                  if (!published || published.id === latest.id) return [latest];
+                  return [latest, published];
+                })()}
                 selectedVersionNumber={pathwayDoc.selectedVersionNumber}
                 latestVersionNumber={pathwayDoc.versionNumber}
+                publishedVersionNumber={publishedVersionNumber}
                 onSelectVersion={selectPathwayDocVersion}
                 onClose={closeRightPanel}
                 deploymentName={conversation?.meta.name}
