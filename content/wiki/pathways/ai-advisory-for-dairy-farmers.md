@@ -1,3 +1,14 @@
+---
+type: Pathway
+title: Amul AI / Sarla Ben
+description: Amul's AI advisory assistant for 3.6 million dairy farmer-members - built in one month on 50+ years of cooperative data, with daily quality review and ongoing expansion into credit and IoT health alerts.
+tags: [Voice AI, Agriculture, Dairy]
+sector: Agriculture / Dairy
+stage: Scale
+timestamp: 2026-09-16
+contributor: GCMMF (Amul) / EkStep Foundation
+---
+
 # Amul AI / Sarla Ben
 
 ---
@@ -261,3 +272,4 @@ This document is written for the next adopter, not as a record of what Amul buil
 | OTTER transcript - meeting with the product team.docx (date not specified in document; content consistent with September 2026 visit) | Unit 3 (suggested questions, landing page — additional detail on 150-question pool, rotation logic); Unit 2 (chat vs voice — team's own surprise confirmed); Unit 9 (MIS by union/village, champion team structure); Section 2 gap 1 (unregistered number / household mapping discussed in meeting); Unit 5 (API architecture, union website integration, nightly re-read) | Primary source for product-team-level implementation detail not in the Ajay Seth interview. Speaker labels are unreliable (Otter auto-assignment); content is treated as the collective Amul product team's account. |
 | DESIGNED_ Pursuit of OAN - JB interim - v4.pptx (dated 27 August 2026) | Section 1 — downstream adoptions (MahaVISTAAR, Bihar Krishi, Ethiopia, Kenya, Sri Lanka listed as OAN instances); Unit 5 (OAN architecture layers — confirms API/registry design); Section 1 — scope/does-not-transfer-when (governance template described as what travels, local data/trust as what must be rebuilt) | Primary source for Ecosystem × Scale and for understanding Sarla Ben's place in the broader OAN architecture. Jagadish is the author/presenter. Confirms Unit 5 architectural decisions from an architecture-design perspective rather than an implementation perspective. |
 | Photographs (slides photographed during product team meeting, September 2026) | Section 1 — August 2026 metrics (360,871 message turns, 191,037 chat sessions, 78,599 unique users, 96.98% answer rate, 41% returning users, 82.5% Gujarati share, peak day 16,791 turns; usage pattern 6–9am and 6–9pm); demand category breakdown (milk collection/deposit records 31.78%, earnings 13.88%, milk-yield improvement 9.46%, etc.); knowledge collection sources (8 categories listed); implementation plan slide (outbound calls, TVC, Sarla Ben Sakhi, collar belt integration) | Primary source for quantitative Section 1 metrics. These slides were displayed during the product team meeting and photographed; they are the only source for the August 2026 dashboard figures. |
+| Adoption Companion conversation (as of 2026-09-17) | YAML frontmatter block (all fields) | Contributor-supplied values for type, title, description, tags, sector, stage, timestamp, and contributor. Not independently verified. |
