@@ -466,7 +466,7 @@ function PathwayCard({
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
           <h3 className="font-display text-lg font-medium text-navy">{pathway.title}</h3>
-          <p className={`mt-0.5 text-xs font-medium ${accentText[pathway.accent]}`}>{pathway.category}</p>
+          <p className={`mt-0.5 text-xs font-medium ${accentText[pathway.accent]}`}>{pathway.sector || pathway.category}</p>
           <p className="text-xs text-ink-soft">{pathway.location}</p>
         </div>
 
