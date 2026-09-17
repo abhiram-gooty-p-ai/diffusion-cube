@@ -1,5 +1,3 @@
----
-
 # GreenSense — AI Crop Health for Urban Farmers
 
 ---
@@ -46,7 +44,7 @@ This pathway document is written for the next adopter — a team considering or 
 
 | Dimension | Explore | Define | Pilot | Scale |
 |---|---|---|---|---|
-| **Persona** | ●● | ○ | ○ | ○ |
+| **Persona** | ●● | ●● | ○ | ○ |
 | **Solution** | ●● | ●● | ●● | ○ |
 | **Institution** | ○ | ●● | ○ | ○ |
 | **Ecosystem** | ○ | ○ | ●● | ○ |
@@ -57,23 +55,20 @@ This pathway document is written for the next adopter — a team considering or 
 
 The following gaps reflect cells where the primary sub-categories for this deployment's current stage (Pilot) are unaddressed, or where missing knowledge would materially affect an adopter's next decision.
 
-**1. Persona × Define — Single critical use case not documented**
-The pathway does not establish the one question a user must be able to ask for the pilot to succeed, nor a binary success definition for that use case. The yield and cost outcomes in Section 1 confirm impact was measured, but the minimum viable scope — what the system had to answer — is not stated. Adopters designing their own scope boundary will need to establish this themselves. Related to Unit 3.
-
-**2. Persona × Pilot — Failure taxonomy by user type not documented**
+**1. Persona × Pilot — Failure taxonomy by user type not documented**
 There is no record of which user interactions failed during the pilot, or whether failures were scope failures (outside mandate) or quality failures (mandate questions answered badly). The false-positive fix (Unit 4) addresses a model quality issue, but the broader question of which users were underserved and why is not addressed. Related to Unit 4.
 
-**3. Institution × Explore — No named internal champion documented**
+**2. Institution × Explore — No named internal champion documented**
 The source does not identify who inside FieldSprout or any institutional partner had their professional stake tied to GreenSense succeeding. Elena Marsh is named as CEO and point of contact, but the specific internal champion role and stake are not documented. Adopters working in institutional settings where buy-in must be actively secured will need to fill this.
 
-**4. Institution × Pilot — First public failure and institutional response not documented**
-The false-positive alert failure (Unit 4) is documented as a technical event, but the source does not record whether this became a public or user-trust issue, or how the institution responded. For adopters who need to design failure-response protocols before launch, this gap is material.
+**3. Institution × Pilot — First public failure and institutional response not documented**
+The false-positive alert failure (Unit 4) is documented as a technical event, but the source does not record whether this became a public or user-trust issue, or how the institution responded. For adopters who need to design failure-response protocols before launch, this gap is material. Related to Unit 4.
 
-**5. Ecosystem × Define — Dependency map and named partners not documented**
-The Bellhaven partnership and Community Harvest Initiative are named, but there is no documented map of which components FieldSprout built versus sourced, which ecosystem roles were named before build, and which remain unfilled. Adopters replicating the municipal partnership model will need to construct this themselves.
+**4. Ecosystem × Define — Dependency map and named partners not documented**
+The Bellhaven partnership and Community Harvest Initiative are named, but there is no documented map of which components FieldSprout built versus sourced, which ecosystem roles were named before build, and which remain unfilled. Adopters replicating the municipal partnership model will need to construct this themselves. Related to Units 7, 8.
 
-**6. Ecosystem × Scale — Transferable unit conditions not documented**
-The pathway has not yet reached Scale, and there is no documented record of what from this deployment could be reused by the next adopter with explicit condition tags. The replicability note in Section 1 is a starting point but is not at unit-level granularity.
+**5. Ecosystem × Scale — Transferable unit conditions not documented**
+The pathway has not yet reached Scale, and there is no documented record of what from this deployment could be reused by the next adopter with explicit condition tags. The open questions on hardware maintenance, vision model retraining cadence, and pricing (Section 1) are the sharpest known unknowns at this stage.
 
 ---
 
@@ -93,7 +88,7 @@ The pathway has not yet reached Scale, and there is no documented record of what
 
 - **Decision:** Target population was defined not only by farm size and location, but by a specific access barrier — unreliable or unaffordable mobile data connectivity — that determined which users the system would and would not reach without design intervention.
 - **Alternative considered:** Not documented in the source.
-- **Why:** Smallholder urban and peri-urban farmers in the pilot areas could not be assumed to have continuous data access, and farmers reluctant to pay for data plans would not use an always-online system. Defining the barrier precisely shaped the offline-first architecture decision (Unit 2) and the SMS fallback (Unit 3) before build.
+- **Why:** Smallholder urban and peri-urban farmers in the pilot areas could not be assumed to have continuous data access, and farmers reluctant to pay for data plans would not use an always-online system. Defining the barrier precisely shaped the offline-first architecture decision (Unit 3) and the SMS fallback before build.
 - **What this looked like here:** Field testing in Alto Verde revealed the connectivity gap during the hardware finalisation phase. This finding reoriented the technical architecture before the main onboarding phase began.
 - **Condition — applies when:** Target users are in areas with patchy connectivity or where data costs are a real barrier; the excluded-user definition should include the infrastructure barrier, not just the demographic.
 
@@ -135,20 +130,7 @@ The pathway has not yet reached Scale, and there is no documented record of what
 
 ---
 
-**4. Retraining the vision model on smallholder imagery before wide rollout**
-
-- **Dimension:** Solution
-- **Stage:** Pilot
-- **Type:** Failure and Fix
-
-- **Failure:** The computer vision model, trained primarily on imagery from larger commercial farms, produced a high rate of false positive pest alerts on smallholder plots. Lighting conditions, plant density, and camera angles from handheld phones differed significantly from the training data. In the first six weeks of the Rosemont pilot, roughly one in three alerts was a false positive based on manual spot-checks.
-- **Fix:** The team paused new alerts for two weeks, collected approximately 1,200 labelled images directly from pilot farms with help from the community liaison, and retrained the detection model on a smallholder-specific set blended with the original data.
-- **Insight:** A vision model trained on a different farm scale or imaging context than its deployment target will systematically underperform regardless of overall model quality. Collecting representative imagery from the actual deployment context is not a post-launch bug fix — it is a prerequisite for reliable alerts, and the time for it should be budgeted before wide rollout.
-- **Condition — applies when:** The vision model was initially trained on imagery from a different farm scale, crop density, or imaging setup than the deployment target; this applies to any adoption where the source training data does not closely match actual user field conditions.
-
----
-
-**5. Separating farmer data ownership from platform and partner access by default**
+**4. Separating farmer data ownership from platform and partner access by default**
 
 - **Dimension:** Solution
 - **Stage:** Define
@@ -163,6 +145,19 @@ The pathway has not yet reached Scale, and there is no documented record of what
 
 ---
 
+**5. Retraining the vision model on smallholder imagery before wide rollout**
+
+- **Dimension:** Solution
+- **Stage:** Pilot
+- **Type:** Failure and Fix
+
+- **Failure:** The computer vision model, trained primarily on imagery from larger commercial farms, produced a high rate of false positive pest alerts on smallholder plots. Lighting conditions, plant density, and camera angles from handheld phones differed significantly from the training data. In the first six weeks of the Rosemont pilot, roughly one in three alerts was a false positive based on manual spot-checks.
+- **Fix:** The team paused new alerts for two weeks, collected approximately 1,200 labelled images directly from pilot farms with help from the community liaison, and retrained the detection model on a smallholder-specific set blended with the original data. False positive rate dropped from roughly one in three alerts to under one in ten after retraining, based on the team's manual spot-checks during the following month.
+- **Insight:** A vision model trained on a different farm scale or imaging context than its deployment target will systematically underperform regardless of overall model quality. Collecting representative imagery from the actual deployment context is not a post-launch bug fix — it is a prerequisite for reliable alerts, and the time for it should be budgeted before wide rollout.
+- **Condition — applies when:** The vision model was initially trained on imagery from a different farm scale, crop density, or imaging setup than the deployment target; this applies to any adoption where the source training data does not closely match actual user field conditions.
+
+---
+
 ### Institution
 
 ---
@@ -173,7 +168,7 @@ The pathway has not yet reached Scale, and there is no documented record of what
 - **Stage:** Define
 - **Type:** Strategic Decision
 
-- **Decision:** The farmer-owns-by-default data governance model (Unit 5) was embedded directly in the written partnership agreement with the City of Bellhaven Government, rather than left as an internal product policy.
+- **Decision:** The farmer-owns-by-default data governance model (Unit 4) was embedded directly in the written partnership agreement with the City of Bellhaven Government, rather than left as an internal product policy.
 - **Alternative considered:** Retaining data governance as a FieldSprout internal policy, not contractually binding on the municipal partner.
 - **Why:** A government partner required formal accountability for how farmer data would be handled. Leaving governance as internal policy would have given the municipal partner no enforceable basis to hold FieldSprout accountable, which was insufficient for a public-sector deployment.
 - **What this looked like here:** The Bellhaven agreement named specific terms for what the municipal partner could and could not access, creating a formal accountability structure between FieldSprout and the City of Bellhaven Government.
@@ -229,11 +224,11 @@ Adopters looking for a reusable artefact from this pathway should note: the Bell
 
 *"Our target farmers have unreliable mobile data — how do we handle connectivity?"* → Unit 3
 
-*"We're getting a lot of false positive alerts from our pest detection model — what do we do?"* → Unit 4
+*"We're getting a lot of false positive alerts from our pest detection model — what do we do?"* → Unit 5
 
-*"Our model was trained on commercial farm data but we're deploying on smallholder plots — is that a problem?"* → Unit 4
+*"Our model was trained on commercial farm data but we're deploying on smallholder plots — is that a problem?"* → Unit 5
 
-*"A government partner is asking who owns the farm data — how do we answer that?"* → Units 5, 6
+*"A government partner is asking who owns the farm data — how do we answer that?"* → Units 4, 6
 
 *"We want to write data governance into our partnership agreement, not just keep it as policy — how?"* → Unit 6
 
@@ -241,7 +236,7 @@ Adopters looking for a reusable artefact from this pathway should note: the Bell
 
 *"How do we define which users we're actually trying to reach?"* → Unit 1
 
-*"We're trying to reach new city partners — how did GreenSense do it without approaching each one individually?"* → Unit 7
+*"We're trying to reach new city partners — how did GreenSense do it without approaching each one independently?"* → Unit 7
 
 *"We're expanding to a new city with a different community type — does the same agreement cover it?"* → Unit 8
 
@@ -249,7 +244,11 @@ Adopters looking for a reusable artefact from this pathway should note: the Bell
 
 *"We have a successful pilot result — how do we use it to open doors with new partners?"* → Unit 7
 
-*"How much of this system can be reused in a new country?"* → Section 1 (Scope and non-transfer conditions), Unit 4 (vision model retraining), Unit 3 (offline-first architecture)
+*"How much of this system can be reused in a new country?"* → Section 1 (Scope and non-transfer conditions), Unit 5 (vision model retraining), Unit 3 (offline-first architecture)
+
+*"When should we run a group onboarding session vs. letting farmers set up themselves?"* → Unit 2
+
+*"How do we structure data sharing with a municipal partner without giving them everything?"* → Units 4, 6
 
 ---
 
@@ -259,5 +258,6 @@ Adopters looking for a reusable artefact from this pathway should note: the Bell
 
 | Source file | Covers | Notes |
 |---|---|---|
-| GreenSense_Field_Implementation_Notes.pdf (as reviewed in Adoption Companion conversation, September 3, 2026) | Section 1 (build effort, key dates, key partnerships, scope/non-transfer conditions); Section 3 Units 1–8 (all units draw substantially on this file for decision, alternative, condition, and before→after content); Section 2 gaps 1, 2, 4, 5 | Primary source. Contributor's own account of the pilot; not independently verified. |
-| GreenSense_Impact_Submission_Overview.pdf (as reviewed in Adoption Companion conversation, September 3, 2026) | Section 1 (deployment name, implementing organisation, sector, geography, population served, stage, summary, scale achieved/impact metrics, key partnerships, replicability note); Section 2 gap 6 | Primary source for identity and impact fields. Figures are self-reported by FieldSprout Technologies per the submission's own note. Confirms and extends the Field Implementation Notes on partnership names and population description; does not contradict it. |
+| GreenSense_Field_Implementation_Notes.pdf (as reviewed in Adoption Companion conversation, September 3, 2026) | Section 1 (build effort, key dates, key partnerships, scope/non-transfer conditions); Section 3 Units 1–8 (all units draw substantially on this file for decision, alternative, condition, and before→after content); Section 2 gaps 1, 3, 4 | Primary source. Contributor's own account of the pilot; not independently verified. |
+| GreenSense_Impact_Submission_Overview.pdf (as reviewed in Adoption Companion conversation, September 3, 2026) | Section 1 (deployment name, implementing organisation, sector, geography, population served, stage, summary, scale achieved/impact metrics, key partnerships, replicability note); Section 2 gap 5 | Primary source for identity and impact fields. Figures are self-reported by FieldSprout Technologies per the submission's own note. Confirms and extends the Field Implementation Notes on partnership names and population description; does not contradict it. |
+| Adoption Companion conversation (September 17, 2026 at 2:07 PM) | Contributor confirmed Pilot stage; no new factual content added beyond what the two uploaded files establish | Contributor-facing session record only; no independently verifiable facts added in this conversation beyond stage confirmation. |
