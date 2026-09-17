@@ -34,7 +34,7 @@ The most important reusable insight runs across every section: AI quality in fou
 | Summary | AxL continuously measures learner proficiency, diagnoses foundational gaps, and determines the next learning experience for each child — across both reading and numeracy — rather than delivering the same content to every learner. It operates across multiple languages, devices, and school environments, with a parallel teacher-facing companion that surfaces where human intervention is most valuable. |
 | Scale / impact achieved | Rolled out across 3 states with approximately 30,000 schools (as of September 2026) |
 | Cost anchor | Not documented in the source |
-| Build effort | Not documented in the source |
+| Build effort | Initial development took 9 months |
 | Known downstream adopters | Not documented in the source |
 | Scope | Foundational literacy and numeracy personalization for public-school children; teacher visibility into learner state and progress. Does not transfer unchanged across languages (reading progressions vary; Indic languages require language-specific pathways); ASR performance differs by language and learner age; numeracy pathways depend on local curriculum, representation, and pedagogical conventions; mastery thresholds require validation per context; AI recommendations require sufficient historical evidence before they are reliable. |
 
@@ -281,3 +281,4 @@ Dense cells (●●●): Persona/Explore captures the excluded learner precisely
 |---|---|---|
 | AxL AI Diffusion Pathway (2).pdf, as of September 17, 2026 | Section 1 — all fields except scale/impact, cost anchor, build effort, and downstream adopters (not documented in source); Section 3 — Units 1–12 (all); Section 4 — full table; Section 6 — full retrieval guide; Section 2 — coverage grid and all gap statements | Primary source. Contributor's own account; not independently verified. All quantitative fields (scale, cost, effort) absent from source — recorded as "Not documented in the source" throughout. |
 | Adoption Companion conversation, as of September 17, 2026 at 3:48 PM | Section 1 — Scale/impact achieved updated to 3 states, approximately 30,000 schools; YAML frontmatter — all fields confirmed; stage confirmed as Scale | Contributor's own account; not independently verified. Scale/impact field updated from "Not documented in the source" to contributor-confirmed figure. YAML frontmatter added per contributor instruction. |
+| Adoption Companion conversation, as of September 17, 2026 at 4:55 PM | Section 1 — Build effort updated to "Initial development took 9 months" | Contributor's own account; not independently verified. Build effort field updated from "Not documented in the source" to contributor-confirmed figure. |
