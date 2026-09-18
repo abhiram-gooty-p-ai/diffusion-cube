@@ -347,13 +347,3 @@ The pathway is most useful to:
 | AXL_Diffusion_Pathway (1).docx (as of September 2026) | Pathway Identity (Deployment at a Glance, evidence, cost, partners, scope); Section 0 (reading guide framing); Sections 1–6 (all dimensions and stages); Units 1–12; Section 2 gaps | Primary narrative pathway document. Synthesises AML interview, AxL master architecture document, WB deck, and Jagadish Babu interview. The "Note on Sources" within this document explicitly flags that most concrete operational detail is from the AML side and should be treated as illustrative for ALL. |
 | AXL_for WB_July 2026 (3).pptx (July 2026) | Pathway Identity (scale — 18,000+ schools, 10+ states; evidence — 70% improvement figure; partners — IISc, Bodhan.ai; device/headset specs); Unit 3 (teacher augmentation framing); Unit 11 (partner architecture) | Primary source for scale figures and the IISc/Bodhan.ai partner framing. Headset specification slide (Section 4 candidate — not included as a unit because it is procurement guidance rather than a transferable decision). |
 | AXL_Solution_Brief (2).docx (undated; references July 2026 deck) | Pathway Identity (scale, partners, evidence); Section 2 gaps list | Secondary source; synthesises the WB deck and axl.ekstep.org. Gaps list in the Solution Brief was used to cross-check Section 2 of this pathway. Confirms-only relative to the primary sources above, with the exception of the explicit gaps list which informed Section 2 gap framing. |
-
-## Reusable resources
-
-- [AML Diffusion Pathway — Interview Questions (1).docx](https://cube.100pathways.com/resources/f51f9d02-a57b-40f0-af62-c514eb7c052d)
-- [AML Pathway Full Audio_summary (1).txt](https://cube.100pathways.com/resources/14645919-3fac-4942-9d3a-c498edcc29cd)
-- [AML Pathway Full Audio_transcript.txt](https://cube.100pathways.com/resources/6eebc39f-dfab-4e1c-8b77-2bd64255e50c)
-- [AxL AI Diffusion Pathway (2) (1).pdf](https://cube.100pathways.com/resources/69faa806-c263-4a3f-bdf3-e1d17ca091cc)
-- [AXL_Diffusion_Pathway (1).docx](https://cube.100pathways.com/resources/112ff648-6c1b-409b-8004-77f029ae520f)
-- [AXL_Solution_Brief (2).docx](https://cube.100pathways.com/resources/c24e8ab8-d4e8-42f2-a147-7d4f2621b2c8)
-- [AXL_for WB_July 2026 (3).pptx](https://cube.100pathways.com/resources/40496472-f643-4c9c-b1ff-e9350968d6d3)
