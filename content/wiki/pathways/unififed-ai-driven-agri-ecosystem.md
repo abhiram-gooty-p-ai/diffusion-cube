@@ -247,8 +247,3 @@ The densest knowledge in this pathway sits at **Define** and **Scale** — the a
 | BharatVistaar_Summary.docx (contributed September 18, 2026) | Section 1 — access channels (155261, app, web, "Bharti" chatbot), launch details (minister, location, date), integrated systems list, Phase 1 language scope | Compiled from public sources (government announcements, news coverage, app listing) — not a direct scrape of vistaar.da.gov.in. Confirms RFI form and OAN deck; adds channel-level detail and launch context. Does not add new units. |
 | Adoption Companion conversation (September 18, 2026) | Section 1 — stage confirmed as Scale by contributor; grid density assessments | Contributor's own account. Stage and grid density reflect contributor's characterisation, not independently verified. |
 
-## Reusable resources
-
-- [Bharat Vistaar RFI Form (1).docx](https://cube.100pathways.com/resources/b598409d-2e89-49e0-9808-bc4c404e8d93)
-- [DESIGNED_ Pursuit of OAN - JB interim - v4.pptx](https://cube.100pathways.com/resources/e29060ce-fda8-4c27-8c5e-b2bb8d8eff5c)
-- [BharatVistaar_Summary.docx](https://cube.100pathways.com/resources/8488adf5-ee37-4a46-bf23-623eb64bd177)
