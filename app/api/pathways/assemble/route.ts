@@ -3,13 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { hasAnyRole, hasRole } from '@/lib/roles'
 import { ghReadFile, ghWriteFile } from '@/lib/github'
-import { publishedResourcesForPathway } from '@/lib/pathway-resources'
-
-function withResourceLinks(markdown: string, resources: Awaited<ReturnType<typeof publishedResourcesForPathway>>, origin: string) {
-  if (!resources.length) return markdown;
-  const section = `\n\n## Reusable resources\n\n${resources.map((resource) => `- [${resource.title}](${resource.external_url || `${origin}/resources/${resource.id}`})`).join('\n')}`;
-  return markdown.replace(/\n*## Reusable resources[\s\S]*?(?=\n## |$)/, '').trimEnd() + section + '\n';
-}
 
 // Publishes a contributor's current pathway draft as the pathway's live
 // document, verbatim — whatever design_documents (doc_type='draft') holds
@@ -78,22 +71,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Publishing is the moment draft resources become visible to adopters.
-    await admin.from('pathway_resources').update({ visibility: 'published' }).eq('pathway_id', pathwayId).eq('visibility', 'draft');
-    const resources = await publishedResourcesForPathway(pathwayId);
-    const content = withResourceLinks(draftRow.content, resources, new URL(req.url).origin);
     const assembledPath = `content/wiki/pathways/${pathway.slug}.md`
     const existing = await ghReadFile(assembledPath)
-    await ghWriteFile(assembledPath, content, `publish pathway: ${pathway.slug}`, existing?.sha)
+    await ghWriteFile(assembledPath, draftRow.content, `publish pathway: ${pathway.slug}`, existing?.sha)
 
     // Best-effort — the GitHub commit already succeeded either way.
     await admin.from('pathways').update({
-      content_cache: content,
+      content_cache: draftRow.content,
       review_requested: true,
       assembled_design_doc_id: draftRow.id,
     }).eq('id', pathwayId)
 
-    return NextResponse.json({ content, slug: pathway.slug, assembled_design_doc_id: draftRow.id })
+    return NextResponse.json({ content: draftRow.content, slug: pathway.slug, assembled_design_doc_id: draftRow.id })
   } catch (err) {
     console.error('[assemble] publish failed:', err)
     return NextResponse.json({ error: 'Publish failed', detail: String(err) }, { status: 500 })

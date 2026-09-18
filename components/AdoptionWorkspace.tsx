@@ -10,7 +10,6 @@ import AdoptionPlanModal from '@/components/AdoptionPlanModal';
 import {
   AdoptionConversation,
   AdoptionFlow,
-  extractUploadedFiles,
   extractUploadedFileNames,
   useAdoptionConversation,
 } from '@/lib/adoption-conversation';
@@ -114,7 +113,6 @@ export default function AdoptionWorkspace({
     handleUserSend,
     handleAttachFiles,
     removeAttachment,
-    addOpenSourceResourceLink,
     pathwayDoc,
     pathwayPreview,
     openPathwayDocument,
@@ -590,7 +588,6 @@ export default function AdoptionWorkspace({
                 onSend={(text) => handleUserSend(text, preChatFlow, preChatIntent)}
                 onAttachFiles={(files) => handleAttachFiles(files, preChatFlow, preChatIntent)}
                 onRemoveAttachment={removeAttachment}
-                attachmentHint={preChatFlow === 'contributor' ? 'Attach open-source resources only — sent files become reusable pathway material.' : undefined}
                 pendingAttachments={pendingAttachments}
                 loading={loading}
                 generatingDoc={pathwayDoc.loading || explorerDoc.generating !== null}
@@ -625,7 +622,6 @@ export default function AdoptionWorkspace({
                   attachments={pendingAttachments}
                   onAttachFiles={(files) => handleAttachFiles(files, preChatFlow, preChatIntent)}
                   onRemoveAttachment={removeAttachment}
-                  resourceOnly={preChatFlow === 'contributor'}
                 />
               </div>
             </div>
@@ -967,7 +963,6 @@ export default function AdoptionWorkspace({
               onSend={handleUserSend}
               onAttachFiles={handleAttachFiles}
               onRemoveAttachment={removeAttachment}
-              attachmentHint={conversation.meta.flow === 'contributor' ? 'Attach open-source resources only — sent files become reusable pathway material.' : undefined}
               pendingAttachments={pendingAttachments}
               loading={loading}
               generatingDoc={pathwayDoc.loading || explorerDoc.generating !== null}
@@ -1012,12 +1007,9 @@ export default function AdoptionWorkspace({
               </div>
               <AttachmentsPanel
                 attachments={pendingAttachments}
-                uploadedFiles={extractUploadedFiles(conversation.messages)}
                 uploadedFileNames={extractUploadedFileNames(conversation.messages)}
                 onAttachFiles={handleAttachFiles}
-              onRemoveAttachment={removeAttachment}
-              resourceOnly={conversation.meta.flow === 'contributor'}
-              onAddResourceLink={conversation.meta.flow === 'contributor' ? addOpenSourceResourceLink : undefined}
+                onRemoveAttachment={removeAttachment}
               />
             </div>
           </div>

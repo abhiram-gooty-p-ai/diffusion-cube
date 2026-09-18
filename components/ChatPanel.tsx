@@ -30,17 +30,6 @@ export interface Message {
   // and stored alongside the message so source attribution chips can be
   // rendered below the bubble on reload as well as first display.
   pathwaysReferenced?: string[];
-  // Stored source files resolve through an authenticated app route, which
-  // mints a fresh signed S3 URL only when the adopter opens the file.
-  attachments?: StoredAttachment[];
-}
-
-export interface StoredAttachment {
-  id: string;
-  name: string;
-  contentType: string;
-  sizeBytes: number;
-  createdAt: string;
 }
 
 // Legacy marker from an earlier design where the model signalled a grid
@@ -56,7 +45,7 @@ const CUBE_GRID_MARKER = '<cube_grid/>';
 export interface PendingAttachment {
   id: string;
   name: string;
-  state: 'reading' | 'ready' | 'uploading' | 'error';
+  state: 'reading' | 'ready' | 'error';
   error?: string;
 }
 
@@ -386,9 +375,6 @@ interface Props {
   // Lets the composer's own attachment chips (above) be dismissed inline —
   // omit to render the chips without a remove control.
   onRemoveAttachment?: (id: string) => void;
-  // Contributor uploads are an explicit publishing action, unlike Analyse
-  // attachments, which are only read in the current conversation.
-  attachmentHint?: string;
   // Slug → pathway info lookup for rendering source attribution below
   // assistant messages that cite pathway content. Fetched once by the parent
   // (AdoptionWorkspace) and passed down so ChatPanel stays stateless.
@@ -422,7 +408,6 @@ export default function ChatPanel({
   onOpenExplorerDocument,
   onAttachFiles,
   onRemoveAttachment,
-  attachmentHint,
   pathwayLookup,
   hideAccuracyDisclaimer,
 }: Props) {
@@ -489,7 +474,6 @@ export default function ChatPanel({
           const sources = m.role === 'assistant' && m.pathwaysReferenced?.length
             ? m.pathwaysReferenced
             : null;
-          const files = m.role === 'user' && m.attachments?.length ? m.attachments : null;
 
           const disclaimerBlock = isFirstAssistant && !hideAccuracyDisclaimer ? (
             <div className="mt-3 border-t border-navy/10 pt-3 text-sm text-ink-soft">
@@ -525,26 +509,6 @@ export default function ChatPanel({
             </div>
           ) : null;
 
-          const filesBlock = files ? (
-            <div className="mt-3 border-t border-white/20 pt-3">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-paper/70">Stored files</p>
-              <div className="space-y-1">
-                {files.map((file) => (
-                  <a
-                    key={file.id}
-                    href={`/api/adoption-files/${file.id}/open`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-sm text-paper underline decoration-paper/40 underline-offset-2 transition hover:decoration-paper"
-                  >
-                    <span aria-hidden>↗</span>
-                    <span className="truncate">{file.name}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          ) : null;
-
           return (
             <div
               key={i}
@@ -570,14 +534,12 @@ export default function ChatPanel({
                     {renderMessageContent(text, onOpenPathwayDocument, onOpenExplorerDocument)}
                     {disclaimerBlock}
                     {sourcesBlock}
-                    {filesBlock}
                   </div>
                 ) : (
                   <>
                     {renderInlineMarkdown(text)}
                     {disclaimerBlock}
                     {sourcesBlock}
-                    {filesBlock}
                   </>
                 )}
               </div>
@@ -606,13 +568,13 @@ export default function ChatPanel({
                 }`}
               >
                 <span className="max-w-[160px] truncate">
-                  {a.state === 'reading' || a.state === 'uploading' ? '⏳' : a.state === 'error' ? '⚠️' : '📎'} {a.name}
+                  {a.state === 'reading' ? '⏳' : a.state === 'error' ? '⚠️' : '📎'} {a.name}
                 </span>
                 {onRemoveAttachment && (
                   <button
                     type="button"
                     onClick={() => onRemoveAttachment(a.id)}
-                    disabled={a.state === 'reading' || a.state === 'uploading'}
+                    disabled={a.state === 'reading'}
                     className="text-ink-soft transition hover:text-navy disabled:opacity-30"
                   >
                     ✕
@@ -623,7 +585,6 @@ export default function ChatPanel({
           </div>
         )}
         <div className="mx-auto max-w-5xl">
-        {attachmentHint && <p className="mb-1.5 text-xs text-ink-soft">{attachmentHint}</p>}
         <div className="flex items-end gap-3 rounded-2xl border border-navy/15 bg-white p-2 shadow-sm transition focus-within:border-coral">
           {onAttachFiles && (
             <>

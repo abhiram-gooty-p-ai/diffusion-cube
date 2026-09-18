@@ -6,10 +6,7 @@ import { Fragment, type ReactNode } from 'react';
 // coverage grid, toolkits, problem→solution).
 
 function renderInline(text: string): ReactNode {
-  return text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^)]+\))/g).map((part, i) => {
-    const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
-    if (link) return <a key={i} href={link[2]} target="_blank" rel="noopener noreferrer" className="text-coral underline decoration-coral/40 underline-offset-2 hover:decoration-coral">{link[1]}</a>;
-    return (
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**') ? (
       <strong key={i} className="font-medium text-navy">
         {part.slice(2, -2)}
@@ -17,8 +14,7 @@ function renderInline(text: string): ReactNode {
     ) : (
       <Fragment key={i}>{part}</Fragment>
     )
-    );
-  });
+  );
 }
 
 function isTableSeparator(line: string): boolean {
