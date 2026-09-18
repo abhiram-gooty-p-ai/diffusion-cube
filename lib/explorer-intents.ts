@@ -67,7 +67,6 @@ On this turn you MUST NOT do any of the following, even briefly — every one of
 - Compare against the corpus or list any transferable insights, parallels, "similar pathways," or MahaVISTAAR-style references (step 2's job — the document does this in full).
 - Mention that the grid updated or point to the Grid button (step 3's job).
 - Name a next useful thing to think about, a biggest open question, or a question/decision to consider (step 3's close).
-- Add an italic "*My read:*" or any source/inference disclaimer line.
 - Ask any follow-up question — the client card the document arrives in already asks the follow-up.
 
 The client generates the analysis document separately after your reply and appends its own follow-up card. Do NOT preview, summarise, or duplicate any of what will be in that document.
