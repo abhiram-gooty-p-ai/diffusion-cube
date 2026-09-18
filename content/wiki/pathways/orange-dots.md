@@ -38,7 +38,7 @@ This document is written for the next adopter — someone considering whether an
 | **2-sentence summary** | Orange Dots proposes open digital rails for tourism discovery — making local operators, experiences, and opportunities discoverable across multiple applications rather than through any single platform. It operates a two-sided network: tourists discover operators, and operators discover emerging demand. |
 | **Scale / impact achieved** | Pilot target: 500–1,000 tourism providers and experiences made discoverable across 2–3 destinations with different characteristics (heritage, nature/adventure, rural/community). No live deployment outcomes documented yet. As of September 2026. |
 | **Cost anchor** | Not documented in the source |
-| **Build effort** | Not documented in the source |
+| **Build effort** | Initial build took 5 months |
 | **Known downstream adopters** | Not documented in the source |
 | **Scope / does not transfer when** | The open-rails architecture transfers when the goal is discoverability across multiple applications rather than owning a single platform. Does not transfer when the adopter needs a transactional marketplace — Orange Dots deliberately excludes booking, payment, and customer relationship management from its scope. |
 
@@ -248,5 +248,6 @@ This document is written for the next adopter — someone considering whether an
 
 | Source file | Covers | Notes |
 |---|---|---|
-| Orange Dots.pdf (as of September 2026) | Section 1 — all Pathway Identity fields; Section 3 — Units 1–8 in full; Section 4 — all three toolkit entries; Section 2 — coverage grid and all five gap statements | Primary source. Concept note representing the contributor's own account of a deployment at Define stage. No independently verified cost, build effort, or live outcome data. Quantitative pilot targets (500–1,000 providers, 2–3 destinations) taken directly from this document. |
+| Orange Dots.pdf (as of September 2026) | Section 1 — all Pathway Identity fields except Build effort; Section 3 — Units 1–8 in full; Section 4 — all three toolkit entries; Section 2 — coverage grid and all five gap statements | Primary source. Concept note representing the contributor's own account of a deployment at Define stage. No independently verified cost, build effort, or live outcome data. Quantitative pilot targets (500–1,000 providers, 2–3 destinations) taken directly from this document. |
 | Adoption Companion conversation (September 18, 2026, 3:05 PM) | Section 1 — stage confirmed as Define; Section 2 — gap prioritisation and framing | Contributor's own account. Confirms stage and framing from the PDF. Does not add facts beyond what the PDF establishes. |
+| Adoption Companion conversation (September 18, 2026, 3:25 PM) | Section 1 — Build effort field ("Initial build took 5 months") | Contributor's own account. Not independently verified. |
